@@ -21,6 +21,10 @@ if ("${QT_VARIANT}" STREQUAL "qt4")
   add_definitions(${QT_DEFINITIONS})
 endif ()
 
+add_library(qtmonkey_agent STATIC
+  agent.hpp
+  agent.cpp
+  )
 
 if (USE_TESTS)
   enable_testing()
