@@ -100,6 +100,9 @@ MARK_AS_ADVANCED (TOP_SRCDIR)
 
 set(DOXYGEN_SOURCE_DIR
   ${TOP_SRCDIR}/agent.hpp
+  ${TOP_SRCDIR}/script_api.hpp
+  ${TOP_SRCDIR}/user_events_analyzer.hpp
+  ${TOP_SRCDIR}/custom_event_analyzer.hpp
   )
 
 SET(DOXYGEN_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/html)

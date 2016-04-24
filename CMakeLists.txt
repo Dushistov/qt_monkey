@@ -21,10 +21,22 @@ if ("${QT_VARIANT}" STREQUAL "qt4")
   add_definitions(${QT_DEFINITIONS})
 endif ()
 
-add_library(qtmonkey_agent STATIC
+set(qtmonkey_agent_MOC_HDRS
+  user_events_analyzer.hpp
   agent.hpp
-  agent.cpp
   )
+qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
+
+add_library(qtmonkey_agent STATIC
+  ${qtmonkey_agent_MOC_SRCS}
+  ${qtmonkey_agent_MOC_HDRS}
+  agent.cpp
+  user_events_analyzer.cpp
+  custom_event_analyzer.hpp
+  )
+
+add_executable(qtmonkey_app qtmonkey_app.cpp)
+target_link_libraries(qtmonkey_app ${QT_LIBRARIES})
 
 if (USE_TESTS)
   enable_testing()
