@@ -1,9 +1,9 @@
 #include "agent.hpp"
 
-#include <cassert>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QThread>
 #include <atomic>
+#include <cassert>
 #include <functional>
 
 #include "agent_qtmonkey_communication.hpp"
@@ -79,10 +79,14 @@ public:
 
     CommunicationAgentPart *channelWithMonkey() { return channelWithMonkey_; }
 
-    void runInThread(std::function<void()> func) {
+    void runInThread(std::function<void()> func)
+    {
         assert(objInThread_ != nullptr);
-        QCoreApplication::postEvent(objInThread_, new FuncEvent(objInThread_->eventType(), std::move(func)));
+        QCoreApplication::postEvent(
+            objInThread_,
+            new FuncEvent(objInThread_->eventType(), std::move(func)));
     }
+
 private:
     std::atomic<bool> ready_{false};
     EventsReciever *objInThread_{nullptr};
@@ -114,5 +118,8 @@ void Agent::onUserEventInScriptForm(const QString &script)
 {
     qDebug("%s: script '%s'\n", Q_FUNC_INFO, qPrintable(script));
     auto thread = static_cast<AgentThread *>(thread_);
-    thread->runInThread([thread, script] { thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::NewUserAppEvent, script);});
+    thread->runInThread([thread, script] {
+        thread->channelWithMonkey()->sendCommand(
+            PacketTypeForMonkey::NewUserAppEvent, script);
+    });
 }
