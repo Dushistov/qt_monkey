@@ -23,6 +23,7 @@ endif ()
 
 set(qtmonkey_agent_MOC_HDRS
   user_events_analyzer.hpp
+  agent_qtmonkey_communication.hpp
   agent.hpp
   )
 qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
@@ -33,6 +34,7 @@ add_library(qtmonkey_agent STATIC
   agent.cpp
   user_events_analyzer.cpp
   custom_event_analyzer.hpp
+  agent_qtmonkey_communication.cpp
   )
 
 add_executable(qtmonkey_app qtmonkey_app.cpp)
@@ -40,6 +42,13 @@ target_link_libraries(qtmonkey_app ${QT_LIBRARIES})
 
 if (USE_TESTS)
   enable_testing()
+  add_subdirectory(contrib/gtest/googletest)
+  include_directories(contrib/gtest/googletest/include)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+  add_executable(run_unit_tests
+    unit_tests/run_unit_tests.cpp
+    )
+  target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES})
   if ("${QT_VARIANT}" STREQUAL "qt4")
     add_subdirectory(tests/qt4)
   elseif ("${QT_VARIANT}" STREQUAL "qt5")

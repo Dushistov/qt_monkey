@@ -47,8 +47,7 @@ static QString qtObjectId(const QObject &w)
     return name;
 }
 
-static QString mouseEventToJavaScript(QWidget &widget,
-                                      const QString &widgetName,
+static QString mouseEventToJavaScript(const QString &widgetName,
                                       QMouseEvent *mouseEvent,
                                       const QPoint &pos)
 {
@@ -84,7 +83,7 @@ static bool isOnlyOneChildWithSuchClass(QObject &w)
     return true;
 }
 
-static QString qmenuActivateClick(QObject *obj, QEvent *event,
+static QString qmenuActivateClick(QObject *, QEvent *event,
                                   const std::pair<QWidget *, QString> &widget)
 {
     QString res;
@@ -187,7 +186,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
         QString scriptLine
             = callCustomEventAnalyzers(obj, event, {w, widgetName});
         if (scriptLine.isEmpty())
-            scriptLine = mouseEventToJavaScript(*w, widgetName, mouseEvent, pos);
+            scriptLine = mouseEventToJavaScript(widgetName, mouseEvent, pos);
 
         if (w->objectName().isEmpty() && !isOnlyOneChildWithSuchClass(*w)) {
             QWidget *baseWidget = w;
@@ -198,7 +197,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                 widgetName = fullQtWidgetId(*w);
                 QString anotherScript = callCustomEventAnalyzers(obj, event, {w, widgetName});
                 if (anotherScript.isEmpty())
-                    anotherScript = mouseEventToJavaScript(*w, widgetName, mouseEvent, pos);
+                    anotherScript = mouseEventToJavaScript(widgetName, mouseEvent, pos);
                 if (scriptLine != anotherScript)
                     scriptLine = QString("%1\n//%2")
                                      .arg(scriptLine)
