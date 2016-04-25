@@ -1,7 +1,9 @@
+#include <QtCore/QEventLoop>
 #include <QtCore/QThread>
 #include <QtGui/QApplication>
 #include <QtTest/QSignalSpy>
 #include <chrono>
+#include <functional>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <thread>
@@ -28,6 +30,8 @@ processEventsForSomeTime(Func processEvents,
 TEST(QtMonkey, CommunicationBasic)
 {
     using namespace qt_monkey::Private;
+    using namespace std::placeholders;
+
     CommunicationMonkeyPart server;
     QSignalSpy serverSpy(&server, SIGNAL(newUserAppEvent(QString)));
     ASSERT_TRUE(serverSpy.isValid());
@@ -44,25 +48,23 @@ TEST(QtMonkey, CommunicationBasic)
             ASSERT_TRUE(clientErr.isValid());
             ASSERT_TRUE(client.connectToMonkey());
             QEventLoop loop;
-            processEventsForSomeTime(
-                [&loop](int milliseconds) {
-                    loop.processEvents(QEventLoop::AllEvents, milliseconds);
-                },
-                std::chrono::milliseconds(200));
+            auto procFunc = [&loop](int milliseconds) {
+                loop.processEvents(QEventLoop::AllEvents, milliseconds);
+            };
+            processEventsForSomeTime(procFunc, std::chrono::milliseconds(200));
             client.sendCommand(PacketTypeForMonkey::NewUserAppEvent,
                                "Test.log(\"hi\");");
-            processEventsForSomeTime(
-                [&loop](int milliseconds) {
-                    loop.processEvents(QEventLoop::AllEvents, milliseconds);
-                },
-                std::chrono::milliseconds(500));
+            processEventsForSomeTime(procFunc, std::chrono::milliseconds(200));
             ASSERT_EQ(0, clientErr.count());
         }
     } clientThread;
     clientThread.start();
 
-    processEventsForSomeTime([](int milliseconds) { qApp->processEvents(QEventLoop::AllEvents, milliseconds); },
-                             std::chrono::milliseconds(1000));
+    processEventsForSomeTime(
+        [](int milliseconds) {
+            qApp->processEvents(QEventLoop::AllEvents, milliseconds);
+        },
+        std::chrono::milliseconds(1000));
     ASSERT_EQ(0, serverErr.count());
     ASSERT_EQ(1, serverSpy.count());
     QList<QVariant> userAppEventArgs
