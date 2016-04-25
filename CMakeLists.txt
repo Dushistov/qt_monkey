@@ -31,13 +31,25 @@ qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
 add_library(qtmonkey_agent STATIC
   ${qtmonkey_agent_MOC_SRCS}
   ${qtmonkey_agent_MOC_HDRS}
-  agent.cpp
   user_events_analyzer.cpp
   custom_event_analyzer.hpp
   agent_qtmonkey_communication.cpp
+  agent.cpp
   )
 
-add_executable(qtmonkey_app qtmonkey_app.cpp)
+set(qtmonkey_app_MOC_HDRS
+  agent_qtmonkey_communication.hpp
+  qtmonkey.hpp
+  )
+qt4_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
+
+add_executable(qtmonkey_app
+  ${qtmonkey_app_MOC_SRCS}
+  ${qtmonkey_app_MOC_HDRS}
+  agent_qtmonkey_communication.cpp
+  qtmonkey.cpp
+  qtmonkey_app.cpp
+  )
 target_link_libraries(qtmonkey_app ${QT_LIBRARIES})
 
 if (USE_TESTS)

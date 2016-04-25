@@ -1,0 +1,27 @@
+#pragma once
+
+#include <QtCore/QObject>
+#include <QtCore/QProcess>
+#include "agent_qtmonkey_communication.hpp"
+
+//! main class to control agent
+class QtMonkey
+#ifndef Q_MOC_RUN
+    final
+#endif
+    : public QObject
+{
+    Q_OBJECT
+public:
+    QtMonkey(QString userAppPath, QStringList userAppArgs);
+private slots:
+    void userAppError(QProcess::ProcessError);
+    void userAppFinished(int, QProcess::ExitStatus);
+    void userAppNewOutput();
+    void userAppNewErrOutput();
+    void communicationWithAgentError(const QString &errStr);
+    void onNewUserAppEvent(QString scriptLines);
+private:
+    qt_monkey::Private::CommunicationMonkeyPart channelWithAgent_;
+    QProcess userApp_;
+};

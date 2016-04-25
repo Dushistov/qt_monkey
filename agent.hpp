@@ -3,6 +3,7 @@
 #include <QtCore/QObject>
 #include "custom_event_analyzer.hpp"
 
+class QThread;
 namespace qt_monkey
 {
 class UserEventsAnalyzer;
@@ -34,8 +35,9 @@ public:
     Agent &operator=(const Agent &) = delete;
 private slots:
     void onUserEventInScriptForm(const QString &);
-
+    void onCommunicationError(const QString &);
 private:
     qt_monkey::UserEventsAnalyzer *eventAnalyzer_;
+    QThread *thread_;
 };
 }
