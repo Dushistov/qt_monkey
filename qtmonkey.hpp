@@ -22,9 +22,11 @@ private slots:
     void userAppNewErrOutput();
     void communicationWithAgentError(const QString &errStr);
     void onNewUserAppEvent(QString scriptLines);
+    void stdinDataReady();
 private:
     qt_monkey::Private::CommunicationMonkeyPart channelWithAgent_;
     QProcess userApp_;
     QTextStream cout_;
     QTextStream cerr_;
+    std::string stdinBuf_;
 };

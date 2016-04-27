@@ -17,7 +17,7 @@ if ("${QT_VARIANT}" STREQUAL "qt4")
   set(QT_USE_QTTEST True)
   find_package(Qt4 REQUIRED)
   include(${QT_USE_FILE})
-  include_directories(${QT_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+  include_directories(${QT_INCLUDE_DIR})
   add_definitions(${QT_DEFINITIONS})
 elseif ("${QT_VARIANT}" STREQUAL "qt5")
   find_package(Qt5Widgets)
@@ -27,6 +27,8 @@ elseif ("${QT_VARIANT}" STREQUAL "qt5")
   include_directories(${Qt5Widgets_INCLUDE_DIRS})
   set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test)
 endif ()
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(qtmonkey_agent_MOC_HDRS
   user_events_analyzer.hpp
@@ -39,12 +41,19 @@ set(qtmonkey_app_MOC_HDRS
   qtmonkey.hpp
   )
 
+set(qtmonkey_gui_MOC_HDRS qtmonkey_gui.hpp)
+set(qtmonkey_gui_UIS qtmonkey_gui.ui)
+
 if ("${QT_VARIANT}" STREQUAL "qt4")
   qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
   qt4_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
+  qt4_wrap_cpp(qtmonkey_gui_MOC_SRCS ${qtmonkey_gui_MOC_HDRS})
+  qt4_wrap_ui(qtmonkey_gui_UIS_H ${qtmonkey_gui_UIS})
 elseif ("${QT_VARIANT}" STREQUAL "qt5")
   qt5_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
   qt5_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
+  qt5_wrap_cpp(qtmonkey_gui_MOC_SRCS ${qtmonkey_gui_MOC_HDRS})
+  qt5_wrap_ui(qtmonkey_gui_UIS_H ${qtmonkey_gui_UIS})
 endif ()
 
 add_library(qtmonkey_agent STATIC
@@ -57,13 +66,14 @@ add_library(qtmonkey_agent STATIC
   )
 target_link_libraries(qtmonkey_agent ${QT_LIBRARIES})
 
-set(json11_SRC
+add_library(common_app_lib STATIC
   contrib/json11/json11.cpp
   contrib/json11/json11.hpp
+  common.cpp
+  common.hpp
   )
 
 add_executable(qtmonkey_app
-  ${json11_SRC}
   ${qtmonkey_app_MOC_SRCS}
   ${qtmonkey_app_MOC_HDRS}
   agent_qtmonkey_communication.cpp
@@ -71,7 +81,17 @@ add_executable(qtmonkey_app
   qtmonkey_app.cpp
   )
 target_include_directories(qtmonkey_app PRIVATE contrib/json11)
-target_link_libraries(qtmonkey_app ${QT_LIBRARIES})
+target_link_libraries(qtmonkey_app ${QT_LIBRARIES} common_app_lib)
+
+add_executable(qtmonkey_gui
+  ${qtmonkey_gui_MOC_SRCS}
+  ${qtmonkey_gui_MOC_HDRS}
+  ${qtmonkey_gui_UIS_H}
+  qtmonkey_gui.cpp
+  )
+target_compile_definitions(qtmonkey_gui PRIVATE -DQTMONKEY_APP_NAME="$<TARGET_FILE_NAME:qtmonkey_app>")
+target_include_directories(qtmonkey_gui PRIVATE contrib/json11)
+target_link_libraries(qtmonkey_gui ${QT_LIBRARIES} common_app_lib)
 
 if (USE_TESTS)
   enable_testing()
@@ -79,8 +99,8 @@ if (USE_TESTS)
   include_directories(contrib/gtest/googletest/include)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR})
   add_executable(run_unit_tests unit_tests/run_unit_tests.cpp)
-
-  target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES})
+  target_include_directories(run_unit_tests PRIVATE contrib/json11)
+  target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES} common_app_lib)
 
   if ("${QT_VARIANT}" STREQUAL "qt4")
     add_subdirectory(tests/qt4)

@@ -1,7 +1,19 @@
 #pragma once
 
+#include <QtCore/QString>
+#include <QtCore/QProcess>
+
 //for translation
 #define T_(str) QString(str)
 
+#if QT_VERSION < 0x050000
+#define QStringLiteral(const_str) QString(const_str)
+#endif
 
-#define QM_CURRENT_FUNCTION __PRETTY_FUNCTION__
+#if QT_VERSION >= 0x050000
+#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMessageHandler((msgHandler))
+#else
+#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMsgHandler((msgHandler))
+#endif
+
+extern QString processErrorToString(QProcess::ProcessError err);

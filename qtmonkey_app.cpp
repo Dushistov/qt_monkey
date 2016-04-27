@@ -8,9 +8,40 @@
 #include "common.hpp"
 #include "qtmonkey.hpp"
 
+#if QT_VERSION >= 0x050000
+static void msgHandler(QtMsgType type, const QMessageLogContext &, const QString &msg)
+#else
+static void msgHandler(QtMsgType type, const char *msg)
+#endif
+{
+    QTextStream clog(stderr);
+    switch (type) {
+    case QtDebugMsg:
+        clog << "Debug: " << msg << "\n";
+        break;
+    case QtWarningMsg:
+        clog << "Warning: " << msg << "\n";
+        break;
+    case QtCriticalMsg:
+        clog << "Critical: " << msg << "\n";
+        break;
+#if QT_VERSION >= 0x050000
+    case QtInfoMsg:
+        clog << "Info: " << msg << "\n";
+        break;
+#endif
+    case QtFatalMsg:
+        clog << "Fatal: " << msg << "\n";
+        std::abort();
+    }
+    clog.flush();
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+
+    INSTALL_QT_MSG_HANDLER(msgHandler);
 
     QTextStream cout(stdout);
     QTextStream cerr(stderr);

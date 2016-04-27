@@ -9,12 +9,11 @@
 #include <thread>
 
 #include "agent_qtmonkey_communication.hpp"
+#include "json11.hpp"
+#include "common.hpp"
 
-#if QT_VERSION >= 0x050000
-#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMessageHandler((msgHandler))
-#else
-#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMsgHandler((msgHandler))
-#endif
+using json11::Json;
+
 
 namespace
 {
@@ -77,6 +76,28 @@ TEST(QtMonkey, CommunicationBasic)
         = serverSpy.takeFirst(); // take the first signal
     EXPECT_EQ(QString("Test.log(\"hi\");"), userAppEventArgs.at(0).toString());
     clientThread.wait(3000 /*milliseconds*/);
+}
+
+TEST(QtMonkey, json11Usage)
+{
+    auto json = Json::object{
+        {"event", Json::object{{"script", "test line"}}}
+    };
+    std::string jsonStr = Json{json}.dump();
+    std::string::size_type parserStopPos;
+    std::string err;
+    auto jsonRes = Json::parse_multi(jsonStr, parserStopPos, err);
+    EXPECT_EQ(jsonStr.size(), parserStopPos);
+    EXPECT_EQ(1u, jsonRes.size());
+    ASSERT_TRUE(jsonRes[0].is_object());
+    ASSERT_FALSE(jsonRes[0].object_items().empty());
+    EXPECT_EQ("event", jsonRes[0].object_items().begin()->first);
+    const Json &eventJson = jsonRes[0].object_items().begin()->second;
+    ASSERT_FALSE(eventJson.object_items().empty());
+    EXPECT_EQ("script", eventJson.object_items().begin()->first);
+    const Json &scriptJson = eventJson.object_items().begin()->second;
+    ASSERT_TRUE(scriptJson.is_string());
+    EXPECT_EQ("test line", scriptJson.string_value());
 }
 
 #if QT_VERSION >= 0x050000
