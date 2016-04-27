@@ -2,6 +2,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
+#include <QtCore/QFile>
 #include "agent_qtmonkey_communication.hpp"
 
 //! main class to control agent
@@ -24,4 +25,6 @@ private slots:
 private:
     qt_monkey::Private::CommunicationMonkeyPart channelWithAgent_;
     QProcess userApp_;
+    QTextStream cout_;
+    QTextStream cerr_;
 };

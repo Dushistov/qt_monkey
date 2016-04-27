@@ -1,6 +1,6 @@
 #include <QtCore/QEventLoop>
 #include <QtCore/QThread>
-#include <QtGui/QApplication>
+#include <QApplication>
 #include <QtTest/QSignalSpy>
 #include <chrono>
 #include <functional>
@@ -9,6 +9,12 @@
 #include <thread>
 
 #include "agent_qtmonkey_communication.hpp"
+
+#if QT_VERSION >= 0x050000
+#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMessageHandler((msgHandler))
+#else
+#  define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMsgHandler((msgHandler))
+#endif
 
 namespace
 {
@@ -73,29 +79,39 @@ TEST(QtMonkey, CommunicationBasic)
     clientThread.wait(3000 /*milliseconds*/);
 }
 
+#if QT_VERSION >= 0x050000
+static void msgHandler(QtMsgType type, const QMessageLogContext &, const QString &msg)
+#else
 static void msgHandler(QtMsgType type, const char *msg)
+#endif
 {
+    QTextStream clog(stdout);
     switch (type) {
     case QtDebugMsg:
-        std::clog << "Debug: " << msg << "\n";
+        clog << "Debug: " << msg << "\n";
         break;
     case QtWarningMsg:
-        std::clog << "Warning: " << msg << "\n";
+        clog << "Warning: " << msg << "\n";
         break;
     case QtCriticalMsg:
-        std::clog << "Critical: " << msg << "\n";
+        clog << "Critical: " << msg << "\n";
         break;
+#if QT_VERSION >= 0x050000
+    case QtInfoMsg:
+        clog << "Info: " << msg << "\n";
+        break;
+#endif
     case QtFatalMsg:
-        std::clog << "Fatal: " << msg << "\n";
+        clog << "Fatal: " << msg << "\n";
         std::abort();
     }
-    std::clog.flush();
+    clog.flush();
 }
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    qInstallMsgHandler(msgHandler);
+    INSTALL_QT_MSG_HANDLER(msgHandler);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

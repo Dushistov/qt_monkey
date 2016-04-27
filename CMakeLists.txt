@@ -19,6 +19,13 @@ if ("${QT_VARIANT}" STREQUAL "qt4")
   include(${QT_USE_FILE})
   include_directories(${QT_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
   add_definitions(${QT_DEFINITIONS})
+elseif ("${QT_VARIANT}" STREQUAL "qt5")
+  find_package(Qt5Widgets)
+  find_package(Qt5Network)
+  find_package(Qt5Test)
+  find_package(Qt5Script)
+  include_directories(${Qt5Widgets_INCLUDE_DIRS})
+  set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test)
 endif ()
 
 set(qtmonkey_agent_MOC_HDRS
@@ -26,7 +33,19 @@ set(qtmonkey_agent_MOC_HDRS
   agent_qtmonkey_communication.hpp
   agent.hpp
   )
-qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
+
+set(qtmonkey_app_MOC_HDRS
+  agent_qtmonkey_communication.hpp
+  qtmonkey.hpp
+  )
+
+if ("${QT_VARIANT}" STREQUAL "qt4")
+  qt4_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
+  qt4_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
+elseif ("${QT_VARIANT}" STREQUAL "qt5")
+  qt5_wrap_cpp(qtmonkey_agent_MOC_SRCS ${qtmonkey_agent_MOC_HDRS})
+  qt5_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
+endif ()
 
 add_library(qtmonkey_agent STATIC
   ${qtmonkey_agent_MOC_SRCS}
@@ -36,20 +55,22 @@ add_library(qtmonkey_agent STATIC
   agent_qtmonkey_communication.cpp
   agent.cpp
   )
+target_link_libraries(qtmonkey_agent ${QT_LIBRARIES})
 
-set(qtmonkey_app_MOC_HDRS
-  agent_qtmonkey_communication.hpp
-  qtmonkey.hpp
+set(json11_SRC
+  contrib/json11/json11.cpp
+  contrib/json11/json11.hpp
   )
-qt4_wrap_cpp(qtmonkey_app_MOC_SRCS ${qtmonkey_app_MOC_HDRS})
 
 add_executable(qtmonkey_app
+  ${json11_SRC}
   ${qtmonkey_app_MOC_SRCS}
   ${qtmonkey_app_MOC_HDRS}
   agent_qtmonkey_communication.cpp
   qtmonkey.cpp
   qtmonkey_app.cpp
   )
+target_include_directories(qtmonkey_app PRIVATE contrib/json11)
 target_link_libraries(qtmonkey_app ${QT_LIBRARIES})
 
 if (USE_TESTS)
@@ -57,10 +78,10 @@ if (USE_TESTS)
   add_subdirectory(contrib/gtest/googletest)
   include_directories(contrib/gtest/googletest/include)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-  add_executable(run_unit_tests
-    unit_tests/run_unit_tests.cpp
-    )
+  add_executable(run_unit_tests unit_tests/run_unit_tests.cpp)
+
   target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES})
+
   if ("${QT_VARIANT}" STREQUAL "qt4")
     add_subdirectory(tests/qt4)
   elseif ("${QT_VARIANT}" STREQUAL "qt5")

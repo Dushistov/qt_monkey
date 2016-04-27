@@ -52,20 +52,16 @@ class AgentThread final : public QThread
 {
 public:
     AgentThread(QObject *parent) : QThread(parent) {}
-    void waitReady()
-    {
-        while (!ready_.exchange(false))
-            ;
-    }
+    bool isNotReady() { return !ready_.exchange(false); }
     void run() override
     {
         CommunicationAgentPart client;
         if (!client.connectToMonkey()) {
-            qFatal(
+            qWarning(
                 "%s",
                 qPrintable(
                     T_("%1: can not connect to qt monkey").arg(Q_FUNC_INFO)));
-            std::abort();
+            return;
         }
         connect(&client, SIGNAL(error(const QString &)), parent(),
                 SLOT(onCommunicationError(const QString &)),
@@ -103,7 +99,8 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     QCoreApplication::instance()->installEventFilter(eventAnalyzer_);
     thread_ = new AgentThread(this);
     thread_->start();
-    static_cast<AgentThread *>(thread_)->waitReady();
+    while (!thread_->isFinished() && static_cast<AgentThread *>(thread_)->isNotReady())
+        ;
 }
 
 void Agent::onCommunicationError(const QString &err)
@@ -118,6 +115,8 @@ void Agent::onUserEventInScriptForm(const QString &script)
 {
     qDebug("%s: script '%s'\n", Q_FUNC_INFO, qPrintable(script));
     auto thread = static_cast<AgentThread *>(thread_);
+    if (thread->isFinished())
+        return;
     thread->runInThread([thread, script] {
         thread->channelWithMonkey()->sendCommand(
             PacketTypeForMonkey::NewUserAppEvent, script);

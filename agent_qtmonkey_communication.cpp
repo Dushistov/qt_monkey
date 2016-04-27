@@ -1,5 +1,6 @@
 #include "agent_qtmonkey_communication.hpp"
 
+#include <QtCore/QDataStream>
 #include <QtCore/QTimerEvent>
 #include <QtCore/QThread>
 #include <cassert>

@@ -1,11 +1,11 @@
 #include "user_events_analyzer.hpp"
 
 #include <QtCore/QEvent>
-#include <QtGui/QAction>
-#include <QtGui/QApplication>
-#include <QtGui/QMenu>
+#include <QAction>
+#include <QApplication>
+#include <QMenu>
 #include <QtGui/QMouseEvent>
-#include <QtGui/QWidget>
+#include <QWidget>
 #include <cstring>
 
 using namespace qt_monkey;

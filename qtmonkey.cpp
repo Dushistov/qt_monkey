@@ -3,9 +3,19 @@
 #include <QtCore/QCoreApplication>
 
 #include "common.hpp"
+#include "json11.hpp"
+
+using json11::Json;
 
 namespace
 {
+struct QStringJsonTrait final
+{
+    explicit QStringJsonTrait(QString &s): str_(s) {}
+    std::string to_json() const { return str_.toStdString(); }
+private:
+    QString &str_;
+};
 static QString processErrorToString(QProcess::ProcessError err)
 {
 	switch (err) {
@@ -19,7 +29,7 @@ static QString processErrorToString(QProcess::ProcessError err)
 }
 }
 
-QtMonkey::QtMonkey(QString userAppPath, QStringList userAppArgs)
+QtMonkey::QtMonkey(QString userAppPath, QStringList userAppArgs): cout_{stdout}, cerr_{stderr}
 {
     connect(&userApp_, SIGNAL(error(QProcess::ProcessError)), this,
             SLOT(userAppError(QProcess::ProcessError)));
@@ -42,7 +52,11 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    qDebug("%s: scriptLines %s", Q_FUNC_INFO, qPrintable(scriptLines));
+    auto json = Json::object{
+        {"event", Json::object{{"script", QStringJsonTrait{scriptLines}}}}
+    };
+    cout_ << QString::fromStdString(Json{json}.dump()) << "\n";
+    cout_.flush();
 }
 
 void QtMonkey::userAppError(QProcess::ProcessError err)
