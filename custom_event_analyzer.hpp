@@ -2,9 +2,11 @@
 
 #include <utility>
 #include <functional>
+#include <QtCore/QString>
 
 class QWidget;
 class QEvent;
+class QObject;
 
 namespace qt_monkey_agent
 {

@@ -74,10 +74,13 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
 
     std::string::size_type parserStopPos;
     qt_monkey_app::parseOutputFromMonkeyApp(jsonFromMonkey_, parserStopPos,
-                                            [this](const QString &data) {
-                                                emit monkeyAppNewEvent(data);
+                                            [this](QString eventScriptLines) {
+                                                emit monkeyAppNewEvent(std::move(eventScriptLines));
                                             },
-                                            [this](const QString &data) {
+                                            [this](QString userAppErrors) {
+                                                emit monkeyUserAppError(std::move(userAppErrors));
+                                            },
+                                            [this](QString data) {
                                                 qtmonkeyApp_.kill();
                                                 emit monkeyAppFinishedSignal(
                                                     T_("Internal Error: problem with monkey<->gui protocol: %1").arg(data));
@@ -159,6 +162,8 @@ QtMonkeyAppCtrl *QtMonkeyWindow::getMonkeyCtrl() try {
                 SLOT(onMonkeyAppFinishedSignal(QString)));
         connect(monkeyCtrl_, SIGNAL(monkeyAppNewEvent(const QString &)), this,
                 SLOT(onMonkeyAppNewEvent(const QString &)));
+        connect(monkeyCtrl_, SIGNAL(monkeyUserAppError(const QString &)), this,
+                SLOT(onMonkeyUserAppError(const QString &)));
     }
     return monkeyCtrl_;
 } catch (const std::exception &ex) {
@@ -262,6 +267,16 @@ void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
         teScriptEdit_->insertPlainText(scriptLine);
     else
         teScriptEdit_->append(scriptLine);
+}
+
+void QtMonkeyWindow::onMonkeyUserAppError(const QString &errMsg)
+{
+    logNewLine(QtCriticalMsg, errMsg);
+}
+
+void QtMonkeyWindow::logNewLine(QtMsgType, const QString &msg)
+{
+    teLog_->append(msg);
 }
 
 int main(int argc, char *argv[])

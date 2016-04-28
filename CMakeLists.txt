@@ -25,7 +25,7 @@ elseif ("${QT_VARIANT}" STREQUAL "qt5")
   find_package(Qt5Test)
   find_package(Qt5Script)
   include_directories(${Qt5Widgets_INCLUDE_DIRS})
-  set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test)
+  set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test Qt5::Script)
 endif ()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -63,6 +63,10 @@ add_library(qtmonkey_agent STATIC
   custom_event_analyzer.hpp
   agent_qtmonkey_communication.cpp
   agent.cpp
+  script_runner.cpp
+  script_runner.hpp
+  script.hpp
+  script.cpp
   )
 target_link_libraries(qtmonkey_agent ${QT_LIBRARIES})
 
@@ -75,6 +79,7 @@ add_library(common_app_lib STATIC
   qtmonkey_app_api.cpp
   )
 target_include_directories(common_app_lib PRIVATE contrib/json11)
+target_link_libraries(common_app_lib ${QT_LIBRARIES})
 
 add_executable(qtmonkey_app
   ${qtmonkey_app_MOC_SRCS}

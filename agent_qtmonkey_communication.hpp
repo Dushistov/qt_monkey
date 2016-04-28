@@ -10,9 +10,12 @@ namespace qt_monkey_agent
 {
 namespace Private
 {
+
+class Script;
+
 enum class PacketTypeForAgent : uint32_t {
-    // TODO: may be need?
     RunScript,
+    // TODO: may be need?
     SetBreakPointInScript,
     ContinueScript,
     HaltScript,
@@ -21,8 +24,8 @@ enum class PacketTypeForAgent : uint32_t {
 enum class PacketTypeForMonkey : uint32_t {
     NewUserAppEvent,
     ScriptError,
-    // TODO: may be need?
     ScriptEnd,
+    // TODO: may be need?
     ScriptStopOnBreakPoint,
 };
 
@@ -35,8 +38,9 @@ class CommunicationMonkeyPart
     Q_OBJECT
 signals:
     void newUserAppEvent(QString);
+    void scriptError(QString);
     void error(const QString &);
-
+    void agentReadyToRunScript();
 public:
     explicit CommunicationMonkeyPart(QObject *parent = nullptr);
     void sendCommand(PacketTypeForAgent pt, const QString &);
@@ -63,6 +67,7 @@ class CommunicationAgentPart
     Q_OBJECT
 signals:
     void error(const QString &);
+    void runScript(const qt_monkey_agent::Private::Script &);
 
 public:
     explicit CommunicationAgentPart(QObject *parent = nullptr) : QObject(parent)
@@ -79,6 +84,7 @@ private:
     QTcpSocket sock_;
     QBasicTimer timer_;
     QByteArray sendBuf_;
+    QByteArray recvBuf_;
 
     void timerEvent(QTimerEvent *) override;
 };

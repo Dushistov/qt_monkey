@@ -17,7 +17,7 @@ class QtMonkeyAppCtrl
 signals:
     void monkeyAppFinishedSignal(QString msg);
     void monkeyAppNewEvent(const QString &scriptLine);
-
+    void monkeyUserAppError(const QString &errMsg);
 public:
     explicit QtMonkeyAppCtrl(const QString &appPath, const QStringList &appArgs,
                              QObject *parent = nullptr);
@@ -51,7 +51,7 @@ private slots:
     void onMonkeyAppFinishedSignal(QString);
     void savePrefs();
     void onMonkeyAppNewEvent(const QString &scriptLine);
-
+    void onMonkeyUserAppError(const QString &);
 private:
     enum class State {
         DoNothing,
@@ -68,4 +68,5 @@ private:
     void loadPrefs();
     void scheduleSave();
     void changeState(State val) { state_ = val; }
+    void logNewLine(QtMsgType, const QString &);
 };

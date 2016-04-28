@@ -1,7 +1,7 @@
 #pragma once
 
-#include <QtCore/QObject>
 #include "custom_event_analyzer.hpp"
+#include <QtCore/QObject>
 
 class QThread;
 namespace qt_monkey_agent
@@ -11,6 +11,11 @@ class UserEventsAnalyzer;
 
 namespace qt_monkey_agent
 {
+
+namespace Private
+{
+class Script;
+}
 /**
  * This class is used as agent inside user's program
  * to catch/apply Qt events
@@ -36,6 +41,8 @@ public:
 private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);
+    void onRunScriptCommand(const qt_monkey_agent::Private::Script &);
+
 private:
     qt_monkey_agent::UserEventsAnalyzer *eventAnalyzer_;
     QThread *thread_;

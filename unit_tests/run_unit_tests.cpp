@@ -78,19 +78,29 @@ TEST(QtMonkey, CommunicationBasic)
 TEST(QtMonkey, app_api)
 {
     using namespace qt_monkey_app;
-    QString script = "Test.log(\"something\");\nTest.log(\"other\");";
+    QString script = "Test.log(\"something\");\nTest.log(\"other\");";    
     QByteArray data = userAppEventToFromMonkeyAppPacket(
         script);
+    QString errOut = "Bad things happen";
+    data.append(userAppErrorsToFromMonkeyAppPacket(errOut));
     size_t pos;
+    size_t eventsCnt = 0, errMsgsCnt = 0;
     size_t errs = 0;
     parseOutputFromMonkeyApp(data, pos,
-                             [&script](const QString &data) {
-                                 EXPECT_EQ(data, script);
+                             [&script, &eventsCnt](QString data) {
+                                 ++eventsCnt;
+                                 EXPECT_EQ(script, data);
                              },
-                             [&errs](const QString &data) {
+                             [&errOut, &errMsgsCnt](QString data) {
+                                 ++errMsgsCnt;
+                                 EXPECT_EQ(errOut, data);
+                             },
+                             [&errs](QString data) {
                                  qWarning("%s: data %s", Q_FUNC_INFO, qPrintable(data));
                                  ++errs;
                              });
+    EXPECT_EQ(1u, eventsCnt);
+    EXPECT_EQ(1u, errMsgsCnt);
     EXPECT_EQ(0u, errs);
     EXPECT_EQ(static_cast<size_t>(data.size()), pos);
 }

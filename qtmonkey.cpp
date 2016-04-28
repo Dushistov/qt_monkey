@@ -1,8 +1,9 @@
 #include "qtmonkey.hpp"
 
-#include <cstdio>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSocketNotifier>
+#include <QtCore/QTextCodec>
+#include <cstdio>
 
 #include "common.hpp"
 #include "json11.hpp"
@@ -10,8 +11,11 @@
 
 using json11::Json;
 using qt_monkey_app::QtMonkey;
+using qt_monkey_agent::Private::Script;
+using qt_monkey_agent::Private::PacketTypeForAgent;
 
-QtMonkey::QtMonkey(QString userAppPath, QStringList userAppArgs): cout_{stdout}, cerr_{stderr}
+QtMonkey::QtMonkey()
+    : cout_{stdout}, cerr_{stderr}
 {
     connect(&userApp_, SIGNAL(error(QProcess::ProcessError)), this,
             SLOT(userAppError(QProcess::ProcessError)));
@@ -22,25 +26,43 @@ QtMonkey::QtMonkey(QString userAppPath, QStringList userAppArgs): cout_{stdout},
     connect(&userApp_, SIGNAL(readyReadStandardError()), this,
             SLOT(userAppNewErrOutput()));
 
-    connect(&channelWithAgent_, SIGNAL(error(const QString&)), this, SLOT(communicationWithAgentError(const QString&)));
-    connect(&channelWithAgent_, SIGNAL(newUserAppEvent(QString)), this, SLOT(onNewUserAppEvent(QString)));
-    userApp_.start(userAppPath, userAppArgs);
+    connect(&channelWithAgent_, SIGNAL(error(const QString &)), this,
+            SLOT(communicationWithAgentError(const QString &)));
+    connect(&channelWithAgent_, SIGNAL(newUserAppEvent(QString)), this,
+            SLOT(onNewUserAppEvent(QString)));
+    connect(&channelWithAgent_, SIGNAL(scriptError(QString)), this,
+            SLOT(onScriptError(QString)));
+    connect(&channelWithAgent_, SIGNAL(agentReadyToRunScript()), this,
+            SLOT(onAgentReadyToRunScript()));
 
     if (std::setvbuf(stdin, nullptr, _IONBF, 0))
         throw std::runtime_error("setvbuf failed");
-#ifdef _WIN32//windows both 32 bit and 64 bit
+#ifdef _WIN32 // windows both 32 bit and 64 bit
     HANDLE stdinHandle = ::GetStdHandle(STD_INPUT_HANDLE);
     if (stdinHandle == INVALID_HANDLE_VALUE)
         throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error");
     auto stdinNotifier = new QWinEventNotifier(stdinHandle, this);
-    connect(stdinHandle, SIGNAL(activated(HANDLE)), this, SLOT(stdinDataReady()));
+    connect(stdinHandle, SIGNAL(activated(HANDLE)), this,
+            SLOT(stdinDataReady()));
 #else
     int stdinHandler = ::fileno(stdin);
     if (stdinHandler < 0)
         throw std::runtime_error("fileno(stdin) return error");
-    auto stdinNotifier = new QSocketNotifier(stdinHandler, QSocketNotifier::Read, this);
-    connect(stdinNotifier, SIGNAL(activated(int)), this, SLOT(stdinDataReady()));
+    auto stdinNotifier
+        = new QSocketNotifier(stdinHandler, QSocketNotifier::Read, this);
+    connect(stdinNotifier, SIGNAL(activated(int)), this,
+            SLOT(stdinDataReady()));
 #endif
+}
+
+QtMonkey::~QtMonkey()
+{
+    if (userApp_.state() != QProcess::NotRunning) {
+        userApp_.terminate();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 3000/*ms*/);
+        userApp_.kill();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000/*ms*/);
+    }
 }
 
 void QtMonkey::communicationWithAgentError(const QString &errStr)
@@ -50,7 +72,8 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    cout_ << qt_monkey_app::userAppEventToFromMonkeyAppPacket(scriptLines) << "\n";
+    cout_ << qt_monkey_app::userAppEventToFromMonkeyAppPacket(scriptLines)
+          << "\n";
     cout_.flush();
 }
 
@@ -62,18 +85,29 @@ void QtMonkey::userAppError(QProcess::ProcessError err)
 
 void QtMonkey::userAppFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    qDebug("%s: begin exitCode %d, exitStatus %d", Q_FUNC_INFO, exitCode, static_cast<int>(exitStatus));
+    qDebug("%s: begin exitCode %d, exitStatus %d", Q_FUNC_INFO, exitCode,
+           static_cast<int>(exitStatus));
     if (exitCode != EXIT_SUCCESS)
-        throw std::runtime_error(T_("user app exit status not %1: %2").arg(EXIT_SUCCESS).arg(exitCode).toUtf8().data());
+        throw std::runtime_error(T_("user app exit status not %1: %2")
+                                     .arg(EXIT_SUCCESS)
+                                     .arg(exitCode)
+                                     .toUtf8()
+                                     .data());
     QCoreApplication::exit(EXIT_SUCCESS);
 }
 
 void QtMonkey::userAppNewOutput()
 {
+    // just ignore for now
+    userApp_.readAllStandardOutput();
 }
 
 void QtMonkey::userAppNewErrOutput()
 {
+    const QString errOut
+        = QString::fromLocal8Bit(userApp_.readAllStandardError());
+    cout_ << userAppErrorsToFromMonkeyAppPacket(errOut) << "\n";
+    cout_.flush();
 }
 
 void QtMonkey::stdinDataReady()
@@ -87,4 +121,50 @@ void QtMonkey::stdinDataReady()
     if (parserStopPos != 0)
         stdinBuf_.erase(0, parserStopPos);
     qDebug("%s: we are here!!!", Q_FUNC_INFO);
+}
+
+void QtMonkey::onScriptError(QString errMsg)
+{
+    cout_ << userAppErrorsToFromMonkeyAppPacket(errMsg) << "\n";
+    cout_.flush();
+}
+
+bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
+                                 const char *encoding)
+{
+    if (encoding == nullptr)
+        encoding = "UTF-8";
+
+    QString script;
+
+    for (const QString &fn : scriptPathList) {
+        QFile f(fn);
+        if (!f.open(QIODevice::ReadOnly)) {
+            cerr_ << T_("Error: can not open %1\n").arg(fn);
+            return false;
+        }
+        QTextStream t(&f);
+        t.setCodec(QTextCodec::codecForName(encoding));
+        if (!script.isEmpty())
+            script += "\n<<<RESTART FROM HERE>>>\n";
+        script += t.readAll();
+    }
+
+    toRunList_.push(Script{std::move(script)});
+
+    return true;
+}
+
+void QtMonkey::onAgentReadyToRunScript()
+{
+    qDebug("%s: begin", Q_FUNC_INFO);
+
+    if (toRunList_.empty())
+        return;
+
+    Script script = std::move(toRunList_.front());
+    toRunList_.pop();
+    QString code;
+    script.releaseCode(code);
+    channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript, std::move(code));
 }

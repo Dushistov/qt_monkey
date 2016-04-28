@@ -1,13 +1,14 @@
 #include "agent_qtmonkey_communication.hpp"
 
 #include <QtCore/QDataStream>
-#include <QtCore/QTimerEvent>
 #include <QtCore/QThread>
+#include <QtCore/QTimerEvent>
 #include <cassert>
 #include <cstring>
 #include <type_traits>
 
 #include "common.hpp"
+#include "script.hpp"
 
 using namespace qt_monkey_agent::Private;
 
@@ -18,9 +19,7 @@ namespace
 
 static const uint32_t magicNumber = 0x12345678u;
 
-enum class PacketState {
-    Damaged, NotReady, Ready
-};
+enum class PacketState { Damaged, NotReady, Ready };
 
 static PacketState calcPacketState(const QByteArray &buf)
 {
@@ -32,10 +31,13 @@ static PacketState calcPacketState(const QByteArray &buf)
         return PacketState::Damaged;
     uint32_t packetType;
     uint32_t packetSize;
-    const size_t headerSize = sizeof(magicNumber) + sizeof(packetType) + sizeof(packetSize);
+    const size_t headerSize
+        = sizeof(magicNumber) + sizeof(packetType) + sizeof(packetSize);
     if (static_cast<size_t>(buf.size()) < headerSize)
         return PacketState::NotReady;
-    std::memcpy(&packetSize, buf.constData() + sizeof(magicNumber) + sizeof(packetType), sizeof(packetSize));
+    std::memcpy(&packetSize,
+                buf.constData() + sizeof(magicNumber) + sizeof(packetType),
+                sizeof(packetSize));
     if (packetSize > (1024 * 1024))
         return PacketState::Damaged;
     if (static_cast<size_t>(buf.size()) < (packetSize + headerSize))
@@ -65,17 +67,21 @@ static std::pair<uint32_t, QString> extractFromPacket(QByteArray &buf)
 {
     assert(calcPacketState(buf) == PacketState::Ready);
     uint32_t packetType;
-    std::memcpy(&packetType, buf.constData() + sizeof(magicNumber), sizeof(packetType));
+    std::memcpy(&packetType, buf.constData() + sizeof(magicNumber),
+                sizeof(packetType));
     uint32_t packetSize;
-    std::memcpy(&packetSize, buf.constData() + sizeof(magicNumber) + sizeof(packetType), sizeof(packetSize));
+    std::memcpy(&packetSize,
+                buf.constData() + sizeof(magicNumber) + sizeof(packetType),
+                sizeof(packetSize));
     const size_t headerSize
         = sizeof(magicNumber) + sizeof(packetType) + sizeof(packetSize);
     assert((packetSize + headerSize) <= static_cast<size_t>(buf.size()));
-    std::pair<uint32_t, QString> res{packetType, QString::fromUtf8(buf.constData() + headerSize, packetSize)};
+    std::pair<uint32_t, QString> res{
+        packetType,
+        QString::fromUtf8(buf.constData() + headerSize, packetSize)};
     buf.remove(0, headerSize + packetSize);
     return res;
 }
-
 }
 
 CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
@@ -89,7 +95,8 @@ CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
     QByteArray portNum;
     QDataStream stream(&portNum, QIODevice::WriteOnly);
     stream << controlSock_.serverPort();
-    qDebug("%s: we listen %d\n", Q_FUNC_INFO, static_cast<int>(controlSock_.serverPort()));
+    qDebug("%s: we listen %d\n", Q_FUNC_INFO,
+           static_cast<int>(controlSock_.serverPort()));
     if (!qputenv(QTMONKEY_PORT_ENV_NAME, portNum))
         throw std::runtime_error(qPrintable(T_("can not set env variable")));
 }
@@ -106,6 +113,7 @@ void CommunicationMonkeyPart::handleNewConnection()
             SLOT(clientDisconnected()));
     connect(curClient_, SIGNAL(error(QAbstractSocket::SocketError)), this,
             SLOT(connectionError(QAbstractSocket::SocketError)));
+    emit agentReadyToRunScript();
 }
 
 void CommunicationMonkeyPart::readDataFromClientSocket()
@@ -116,15 +124,19 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
         return;
     const qint64 nBytes = curClient_->bytesAvailable();
     if (nBytes <= 0) {
-        qWarning("%s: no data availabile: %lld\n", Q_FUNC_INFO, static_cast<long long>(nBytes));
+        qWarning("%s: no data availabile: %lld\n", Q_FUNC_INFO,
+                 static_cast<long long>(nBytes));
         return;
     }
     const auto wasSize = recvBuf_.size();
     recvBuf_.resize(wasSize + nBytes);
-    const qint64 readBytes = curClient_->read(recvBuf_.data() + wasSize, nBytes);
+    const qint64 readBytes
+        = curClient_->read(recvBuf_.data() + wasSize, nBytes);
     if (readBytes <= 0) {
         qWarning("%s: read data error", Q_FUNC_INFO);
+        recvBuf_.resize(wasSize);
         emit error(T_("Can not read data from client"));
+        return;
     }
     if (nBytes != readBytes)
         recvBuf_.resize(wasSize + readBytes);
@@ -134,16 +146,21 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
         emit error(T_("packet from qmonkey's agent damaged"));
         break;
     case PacketState::NotReady:
-        /*nothing*/break;
+        /*nothing*/ break;
     case PacketState::Ready: {
         auto packet = extractFromPacket(recvBuf_);
         switch (static_cast<PacketTypeForMonkey>(packet.first)) {
         case PacketTypeForMonkey::NewUserAppEvent:
-            qDebug("%s: user app event: '%s'", Q_FUNC_INFO, qPrintable(packet.second));
+            qDebug("%s: user app event: '%s'", Q_FUNC_INFO,
+                   qPrintable(packet.second));
             emit newUserAppEvent(std::move(packet.second));
             break;
+        case PacketTypeForMonkey::ScriptError:
+            emit scriptError(std::move(packet.second));
+            break;
         default:
-            qWarning("%s: unknown type of packet from qtmonkey's agent: %u", Q_FUNC_INFO, static_cast<unsigned>(packet.first));
+            qWarning("%s: unknown type of packet from qtmonkey's agent: %u",
+                     Q_FUNC_INFO, static_cast<unsigned>(packet.first));
             emit error(T_("unknown type of packet from qtmonkey's agent"));
             break;
         }
@@ -151,7 +168,22 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
     }
 }
 
-void CommunicationMonkeyPart::flushSendData() { assert(false); }
+void CommunicationMonkeyPart::flushSendData()
+{
+    if (!sendBuf_.isEmpty()) {
+        assert(curClient_ != nullptr);
+        qint64 writen = curClient_->write(sendBuf_);
+        if (writen == -1) {
+            qWarning("%s: something wrong can not write to socket %s",
+                     Q_FUNC_INFO, qPrintable(curClient_->errorString()));
+            return;
+        } else {
+            qDebug("%s: wrote %lld bytes", Q_FUNC_INFO, writen);
+        }
+        sendBuf_.remove(0, writen);
+        curClient_->flush();
+    }
+}
 
 void CommunicationMonkeyPart::clientDisconnected()
 {
@@ -166,7 +198,16 @@ void CommunicationMonkeyPart::connectionError(QAbstractSocket::SocketError err)
     qWarning("%s: err %d\n", Q_FUNC_INFO, static_cast<int>(err));
     if (err == QAbstractSocket::RemoteHostClosedError)
         return;
-    emit error((curClient_ != nullptr) ? curClient_->errorString() : T_("socket err: %1").arg(static_cast<int>(err)));
+    emit error((curClient_ != nullptr)
+                   ? curClient_->errorString()
+                   : T_("socket err: %1").arg(static_cast<int>(err)));
+}
+
+void CommunicationMonkeyPart::sendCommand(PacketTypeForAgent pt,
+                                          const QString &data)
+{
+    sendBuf_.append(createPacket(static_cast<uint32_t>(pt), data));
+    flushSendData();
 }
 
 bool CommunicationAgentPart::connectToMonkey()
@@ -203,7 +244,50 @@ bool CommunicationAgentPart::connectToMonkey()
     }
 }
 
-void CommunicationAgentPart::readCommands() { assert(false); }
+void CommunicationAgentPart::readCommands()
+{
+    assert(sock_.state() == QAbstractSocket::ConnectedState);
+    const qint64 nBytes = sock_.bytesAvailable();
+    if (nBytes <= 0) {
+        qWarning("%s: no data availabile: %lld\n", Q_FUNC_INFO,
+                 static_cast<long long>(nBytes));
+        return;
+    }
+    const auto wasSize = recvBuf_.size();
+    recvBuf_.resize(wasSize + nBytes);
+    const qint64 readBytes = sock_.read(recvBuf_.data() + wasSize, nBytes);
+    if (readBytes <= 0) {
+        qWarning("%s: read data error", Q_FUNC_INFO);
+        recvBuf_.resize(wasSize);
+        emit error(T_("Can not read data from client"));
+        return;
+    }
+    if (nBytes != readBytes)
+        recvBuf_.resize(wasSize + readBytes);
+    switch (calcPacketState(recvBuf_)) {
+    case PacketState::Damaged:
+        qWarning("%s: packet damaged", Q_FUNC_INFO);
+        emit error(T_("packet for qmonkey's agent damaged"));
+        break;
+    case PacketState::NotReady:
+        /*nothing*/ break;
+    case PacketState::Ready: {
+        auto packet = extractFromPacket(recvBuf_);
+        switch (static_cast<PacketTypeForAgent>(packet.first)) {
+        case PacketTypeForAgent::RunScript:
+            qDebug("%s: get script: '%s'", Q_FUNC_INFO,
+                   qPrintable(packet.second));
+            emit runScript(Script{std::move(packet.second)});
+            break;
+        default:
+            qWarning("%s: unknown type of packet for qtmonkey's agent: %u",
+                     Q_FUNC_INFO, static_cast<unsigned>(packet.first));
+            emit error(T_("unknown type of packet for qtmonkey's agent"));
+            break;
+        }
+    }
+    }
+}
 
 void CommunicationAgentPart::connectionError(QAbstractSocket::SocketError err)
 {
@@ -213,7 +297,6 @@ void CommunicationAgentPart::connectionError(QAbstractSocket::SocketError err)
 
 void CommunicationAgentPart::timerEvent(QTimerEvent *event)
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
     assert(event->timerId() == timer_.timerId());
     if (event->timerId() != timer_.timerId())
         return;
@@ -222,16 +305,17 @@ void CommunicationAgentPart::timerEvent(QTimerEvent *event)
 
 void CommunicationAgentPart::sendData()
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
     if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf_.isEmpty())
         return;
     qint64 nBytes = sock_.write(sendBuf_);
-    qDebug("%s: we send %lld bytes\n", Q_FUNC_INFO, static_cast<long long>(nBytes));
+    qDebug("%s: we send %lld bytes\n", Q_FUNC_INFO,
+           static_cast<long long>(nBytes));
     if (nBytes == -1) {
-        qWarning("%s: write to socket failed %s", Q_FUNC_INFO, qPrintable(sock_.errorString()));
+        qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
+                 qPrintable(sock_.errorString()));
         return;
     }
-    sendBuf_.remove(0, nBytes);    
+    sendBuf_.remove(0, nBytes);
 }
 
 void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,

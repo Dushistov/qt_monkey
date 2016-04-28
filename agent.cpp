@@ -8,10 +8,19 @@
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
+#include "script.hpp"
+#include "script_runner.hpp"
 #include "user_events_analyzer.hpp"
 
 using namespace qt_monkey_agent;
 using namespace qt_monkey_agent::Private;
+
+#define GET_THREAD(__name__)                                                   \
+    auto __name__ = static_cast<AgentThread *>(thread_);                       \
+    if (__name__->isFinished()) {                                              \
+        qWarning("%s: thread is finished", Q_FUNC_INFO);                       \
+        return;                                                                \
+    }
 
 namespace
 {
@@ -66,6 +75,9 @@ public:
         connect(&client, SIGNAL(error(const QString &)), parent(),
                 SLOT(onCommunicationError(const QString &)),
                 Qt::QueuedConnection);
+        connect(&client, SIGNAL(runScript(const qt_monkey_agent::Private::Script &)), parent(),
+                SLOT(onRunScriptCommand(const qt_monkey_agent::Private::Script &)),
+                Qt::QueuedConnection);
         EventsReciever eventReciever;
         objInThread_ = &eventReciever;
         channelWithMonkey_ = &client;
@@ -94,12 +106,16 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     : eventAnalyzer_(
           new UserEventsAnalyzer(std::move(customEventAnalyzers), this))
 {
+    //make sure that type is referenced
+    qMetaTypeId<qt_monkey_agent::Private::Script>();
+
     connect(eventAnalyzer_, SIGNAL(userEventInScriptForm(const QString &)),
             this, SLOT(onUserEventInScriptForm(const QString &)));
     QCoreApplication::instance()->installEventFilter(eventAnalyzer_);
     thread_ = new AgentThread(this);
     thread_->start();
-    while (!thread_->isFinished() && static_cast<AgentThread *>(thread_)->isNotReady())
+    while (!thread_->isFinished()
+           && static_cast<AgentThread *>(thread_)->isNotReady())
         ;
 }
 
@@ -114,11 +130,25 @@ Agent::~Agent() {}
 void Agent::onUserEventInScriptForm(const QString &script)
 {
     qDebug("%s: script '%s'\n", Q_FUNC_INFO, qPrintable(script));
-    auto thread = static_cast<AgentThread *>(thread_);
-    if (thread->isFinished())
-        return;
+    GET_THREAD(thread)
     thread->runInThread([thread, script] {
         thread->channelWithMonkey()->sendCommand(
             PacketTypeForMonkey::NewUserAppEvent, script);
+    });
+}
+
+void Agent::onRunScriptCommand(const Private::Script &script)
+{
+    GET_THREAD(thread)
+    thread->runInThread([script, thread] {
+        qDebug("%s: run script", Q_FUNC_INFO);
+        ScriptRunner sr;
+        QString errMsg;
+        sr.runScript(script, errMsg);
+        if (!errMsg.isEmpty()) {
+            qWarning("%s: script return error", Q_FUNC_INFO);
+            thread->channelWithMonkey()->sendCommand(
+                PacketTypeForMonkey::ScriptError, errMsg);
+        }
     });
 }
