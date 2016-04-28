@@ -1,6 +1,6 @@
+#include <QApplication>
 #include <QtCore/QEventLoop>
 #include <QtCore/QThread>
-#include <QApplication>
 #include <QtTest/QSignalSpy>
 #include <chrono>
 #include <functional>
@@ -9,11 +9,8 @@
 #include <thread>
 
 #include "agent_qtmonkey_communication.hpp"
-#include "json11.hpp"
 #include "common.hpp"
-
-using json11::Json;
-
+#include "qtmonkey_app_api.hpp"
 
 namespace
 {
@@ -34,7 +31,7 @@ processEventsForSomeTime(Func processEvents,
 
 TEST(QtMonkey, CommunicationBasic)
 {
-    using namespace qt_monkey::Private;
+    using namespace qt_monkey_agent::Private;
     using namespace std::placeholders;
 
     CommunicationMonkeyPart server;
@@ -78,30 +75,29 @@ TEST(QtMonkey, CommunicationBasic)
     clientThread.wait(3000 /*milliseconds*/);
 }
 
-TEST(QtMonkey, json11Usage)
+TEST(QtMonkey, app_api)
 {
-    auto json = Json::object{
-        {"event", Json::object{{"script", "test line"}}}
-    };
-    std::string jsonStr = Json{json}.dump();
-    std::string::size_type parserStopPos;
-    std::string err;
-    auto jsonRes = Json::parse_multi(jsonStr, parserStopPos, err);
-    EXPECT_EQ(jsonStr.size(), parserStopPos);
-    EXPECT_EQ(1u, jsonRes.size());
-    ASSERT_TRUE(jsonRes[0].is_object());
-    ASSERT_FALSE(jsonRes[0].object_items().empty());
-    EXPECT_EQ("event", jsonRes[0].object_items().begin()->first);
-    const Json &eventJson = jsonRes[0].object_items().begin()->second;
-    ASSERT_FALSE(eventJson.object_items().empty());
-    EXPECT_EQ("script", eventJson.object_items().begin()->first);
-    const Json &scriptJson = eventJson.object_items().begin()->second;
-    ASSERT_TRUE(scriptJson.is_string());
-    EXPECT_EQ("test line", scriptJson.string_value());
+    using namespace qt_monkey_app;
+    QString script = "Test.log(\"something\");\nTest.log(\"other\");";
+    QByteArray data = userAppEventToFromMonkeyAppPacket(
+        script);
+    size_t pos;
+    size_t errs = 0;
+    parseOutputFromMonkeyApp(data, pos,
+                             [&script](const QString &data) {
+                                 EXPECT_EQ(data, script);
+                             },
+                             [&errs](const QString &data) {
+                                 qWarning("%s: data %s", Q_FUNC_INFO, qPrintable(data));
+                                 ++errs;
+                             });
+    EXPECT_EQ(0u, errs);
+    EXPECT_EQ(static_cast<size_t>(data.size()), pos);
 }
 
 #if QT_VERSION >= 0x050000
-static void msgHandler(QtMsgType type, const QMessageLogContext &, const QString &msg)
+static void msgHandler(QtMsgType type, const QMessageLogContext &,
+                       const QString &msg)
 #else
 static void msgHandler(QtMsgType type, const char *msg)
 #endif

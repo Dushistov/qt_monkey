@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     QStringList userAppArgs;
     for (int i = userAppOffset + 1; i < argc; ++i)
         userAppArgs << QString::fromLocal8Bit(argv[i]);
-    QtMonkey monkey(QString::fromLocal8Bit(argv[userAppOffset]), std::move(userAppArgs));
+    qt_monkey_app::QtMonkey monkey(QString::fromLocal8Bit(argv[userAppOffset]), std::move(userAppArgs));
 
     return app.exec();
 }

@@ -6,7 +6,7 @@
 class QWidget;
 class QEvent;
 
-namespace qt_monkey
+namespace qt_monkey_agent
 {
 /**
  * return not empty QString with javascript code if can handle this event

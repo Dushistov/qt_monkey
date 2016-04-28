@@ -4,12 +4,12 @@
 #include "custom_event_analyzer.hpp"
 
 class QThread;
-namespace qt_monkey
+namespace qt_monkey_agent
 {
 class UserEventsAnalyzer;
 }
 
-namespace qt_monkey
+namespace qt_monkey_agent
 {
 /**
  * This class is used as agent inside user's program
@@ -37,7 +37,7 @@ private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);
 private:
-    qt_monkey::UserEventsAnalyzer *eventAnalyzer_;
+    qt_monkey_agent::UserEventsAnalyzer *eventAnalyzer_;
     QThread *thread_;
 };
 }

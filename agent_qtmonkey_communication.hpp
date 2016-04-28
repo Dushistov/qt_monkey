@@ -6,7 +6,7 @@
 #include <QtNetwork/QTcpSocket>
 #include <cstdint>
 
-namespace qt_monkey
+namespace qt_monkey_agent
 {
 namespace Private
 {

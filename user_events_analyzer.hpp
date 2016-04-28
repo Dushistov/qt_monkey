@@ -5,7 +5,7 @@
 
 #include "custom_event_analyzer.hpp"
 
-namespace qt_monkey
+namespace qt_monkey_agent
 {
 //@{
 //! helper functions to implement custom event analyzers

@@ -9,7 +9,7 @@
 
 #include "common.hpp"
 
-using namespace qt_monkey::Private;
+using namespace qt_monkey_agent::Private;
 
 static const char QTMONKEY_PORT_ENV_NAME[] = "QTMONKEY_PORT";
 

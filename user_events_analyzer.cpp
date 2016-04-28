@@ -8,7 +8,7 @@
 #include <QWidget>
 #include <cstring>
 
-using namespace qt_monkey;
+using namespace qt_monkey_agent;
 
 namespace
 {
@@ -109,7 +109,7 @@ static QString qmenuActivateClick(QObject *, QEvent *event,
 }
 }
 
-QString qt_monkey::mouseButtonEnumToString(Qt::MouseButton b)
+QString qt_monkey_agent::mouseButtonEnumToString(Qt::MouseButton b)
 {
     static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
         {Qt::LeftButton, QLatin1String("Qt.LeftButton")},
@@ -124,7 +124,7 @@ QString qt_monkey::mouseButtonEnumToString(Qt::MouseButton b)
     return QLatin1String("<unknown button>");
 }
 
-QString qt_monkey::fullQtWidgetId(const QWidget &w)
+QString qt_monkey_agent::fullQtWidgetId(const QWidget &w)
 {
     QString res = qtObjectId(w);
     qDebug("%s: class name %s, id %s", Q_FUNC_INFO, w.metaObject()->className(),

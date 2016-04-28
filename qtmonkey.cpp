@@ -6,19 +6,10 @@
 
 #include "common.hpp"
 #include "json11.hpp"
+#include "qtmonkey_app_api.hpp"
 
 using json11::Json;
-
-namespace
-{
-struct QStringJsonTrait final
-{
-    explicit QStringJsonTrait(QString &s): str_(s) {}
-    std::string to_json() const { return str_.toStdString(); }
-private:
-    QString &str_;
-};
-}
+using qt_monkey_app::QtMonkey;
 
 QtMonkey::QtMonkey(QString userAppPath, QStringList userAppArgs): cout_{stdout}, cerr_{stderr}
 {
@@ -59,10 +50,7 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    auto json = Json::object{
-        {"event", Json::object{{"script", QStringJsonTrait{scriptLines}}}}
-    };
-    cout_ << QString::fromStdString(Json{json}.dump()) << "\n";
+    cout_ << qt_monkey_app::userAppEventToFromMonkeyAppPacket(scriptLines) << "\n";
     cout_.flush();
 }
 

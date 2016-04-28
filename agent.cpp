@@ -10,8 +10,8 @@
 #include "common.hpp"
 #include "user_events_analyzer.hpp"
 
-using namespace qt_monkey;
-using namespace qt_monkey::Private;
+using namespace qt_monkey_agent;
+using namespace qt_monkey_agent::Private;
 
 namespace
 {

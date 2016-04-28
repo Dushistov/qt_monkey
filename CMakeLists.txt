@@ -71,7 +71,10 @@ add_library(common_app_lib STATIC
   contrib/json11/json11.hpp
   common.cpp
   common.hpp
+  qtmonkey_app_api.hpp
+  qtmonkey_app_api.cpp
   )
+target_include_directories(common_app_lib PRIVATE contrib/json11)
 
 add_executable(qtmonkey_app
   ${qtmonkey_app_MOC_SRCS}

@@ -29,7 +29,7 @@ private slots:
 
 private:
     QProcess qtmonkeyApp_;
-    std::string jsonFromMonkey_;
+    QByteArray jsonFromMonkey_;
 };
 
 class QtMonkeyWindow

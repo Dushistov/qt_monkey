@@ -9,6 +9,7 @@
 
 #include "common.hpp"
 #include "json11.hpp"
+#include "qtmonkey_app_api.hpp"
 
 using json11::Json;
 
@@ -69,38 +70,21 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
     qDebug("%s: begin", Q_FUNC_INFO);
     const QByteArray out = qtmonkeyApp_.readAllStandardOutput();
     jsonFromMonkey_.append(out.constData(), out.size());
-    qDebug("%s: json |%s|", Q_FUNC_INFO, jsonFromMonkey_.c_str());
+    qDebug("%s: json |%s|", Q_FUNC_INFO, qPrintable(jsonFromMonkey_));
+
     std::string::size_type parserStopPos;
-    std::string err;
-    auto jsonArr = Json::parse_multi(jsonFromMonkey_, parserStopPos, err);
-
-    auto protocolErr = [this]() {
-        qtmonkeyApp_.kill();
-        emit monkeyAppFinishedSignal(
-            T_("Internal Error: problem with monkey<->gui protocol"));
-    };
-
-    for (const Json &elm : jsonArr) {
-        if (elm.is_null())
-            continue;
-        if (elm.is_object() && elm.object_items().size() == 1u
-            && elm.object_items().begin()->first == "event") {
-            const Json &eventJson = elm.object_items().begin()->second;
-            if (!eventJson.is_object() || eventJson.object_items().size() != 1u
-                || eventJson.object_items().begin()->first != "script"
-                || !eventJson.object_items().begin()->second.is_string()) {
-                protocolErr();
-                return;
-            }
-            emit monkeyAppNewEvent(QString::fromUtf8(eventJson.object_items()
-                                                         .begin()
-                                                         ->second.string_value()
-                                                         .c_str()));
-        }
-    }
+    qt_monkey_app::parseOutputFromMonkeyApp(jsonFromMonkey_, parserStopPos,
+                                            [this](const QString &data) {
+                                                emit monkeyAppNewEvent(data);
+                                            },
+                                            [this](const QString &data) {
+                                                qtmonkeyApp_.kill();
+                                                emit monkeyAppFinishedSignal(
+                                                    T_("Internal Error: problem with monkey<->gui protocol: %1").arg(data));
+                                            });
 
     if (parserStopPos != 0)
-        jsonFromMonkey_.erase(0, parserStopPos);
+        jsonFromMonkey_.remove(0, parserStopPos);
 }
 
 void QtMonkeyAppCtrl::monkeyAppNewErrOutput()
