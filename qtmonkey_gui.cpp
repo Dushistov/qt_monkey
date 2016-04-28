@@ -191,12 +191,14 @@ void QtMonkeyWindow::onMonkeyAppFinishedSignal(QString msg)
         monkeyCtrl_->deleteLater();
         monkeyCtrl_ = nullptr;
     }
+    changeState(State::DoNothing);
 }
 
 void QtMonkeyWindow::on_pbStartRecording__pressed()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
     SETUP_WIN_CTRL(ctrl)
+    changeState(State::RecordEvents);
 }
 
 void QtMonkeyWindow::on_leTestApp__textEdited(const QString &text)
@@ -270,6 +272,8 @@ void QtMonkeyWindow::on_pbBrowse__pressed()
 
 void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
 {
+    if (state_ != State::RecordEvents)
+        return;
     if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
         teScriptEdit_->insertPlainText(scriptLine);
     else

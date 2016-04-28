@@ -53,11 +53,19 @@ private slots:
     void onMonkeyAppNewEvent(const QString &scriptLine);
 
 private:
+    enum class State {
+        DoNothing,
+		RecordEvents,
+		PlayingEvents,
+    };
+
     QtMonkeyAppCtrl *monkeyCtrl_ = nullptr;
     QTimer savePrefsTimer_;
+    State state_ = State::DoNothing;
 
     QtMonkeyAppCtrl *getMonkeyCtrl();
     void showError(const QString &msg);
     void loadPrefs();
     void scheduleSave();
+    void changeState(State val) { state_ = val; }
 };
