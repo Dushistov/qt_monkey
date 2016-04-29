@@ -76,6 +76,6 @@ private:
     QtMonkeyAppCtrl *getMonkeyCtrl();    
     void loadPrefs();
     void scheduleSave();
-    void changeState(State val) { state_ = val; }
+    void changeState(State val);
     void logNewLine(QtMsgType, const QString &);
 };

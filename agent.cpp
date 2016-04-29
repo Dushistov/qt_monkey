@@ -142,7 +142,6 @@ Agent::~Agent()
 
 void Agent::onUserEventInScriptForm(const QString &script)
 {
-    qDebug("%s: script '%s'\n", Q_FUNC_INFO, qPrintable(script));
     GET_THREAD(thread)
     thread->runInThread([thread, script] {
         thread->channelWithMonkey()->sendCommand(
@@ -159,13 +158,13 @@ void Agent::onRunScriptCommand(const Private::Script &script)
         ScriptRunner sr{api};
         QString errMsg;
         sr.runScript(script, errMsg);
-        thread->channelWithMonkey()->sendCommand(
-            PacketTypeForMonkey::ScriptEnd, QString());
         if (!errMsg.isEmpty()) {
-            qWarning("%s: script return error", Q_FUNC_INFO);
+            qWarning("AGENT: %s: script return error", Q_FUNC_INFO);
             thread->channelWithMonkey()->sendCommand(
                 PacketTypeForMonkey::ScriptError, errMsg);
         }
+        thread->channelWithMonkey()->sendCommand(
+            PacketTypeForMonkey::ScriptEnd, QString());
     });
 }
 

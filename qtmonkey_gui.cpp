@@ -322,6 +322,32 @@ void QtMonkeyWindow::on_pbRunScript__pressed()
     changeState(State::PlayingEvents);
 }
 
+void QtMonkeyWindow::changeState(State val)
+{
+    qDebug("%s: begin val %d", Q_FUNC_INFO, static_cast<int>(val));
+    state_ = val;
+    switch (state_) {
+    case State::DoNothing:
+        teScriptEdit_->setReadOnly(false);
+        pbRunScript_->setEnabled(true);
+        pbRunScriptDebug_->setEnabled(true);
+        pbStartRecording_->setEnabled(true);
+        break;
+    case State::RecordEvents:
+        teScriptEdit_->setReadOnly(false);
+        pbRunScript_->setEnabled(true);
+        pbRunScriptDebug_->setEnabled(true);
+        pbStartRecording_->setEnabled(false);
+        break;
+    case State::PlayingEvents:
+        teScriptEdit_->setReadOnly(true);
+        pbRunScript_->setEnabled(false);
+        pbRunScriptDebug_->setEnabled(false);
+        pbStartRecording_->setEnabled(false);
+        break;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);

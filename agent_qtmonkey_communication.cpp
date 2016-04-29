@@ -118,7 +118,6 @@ void CommunicationMonkeyPart::handleNewConnection()
 
 void CommunicationMonkeyPart::readDataFromClientSocket()
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
     assert(curClient_ != nullptr);
     if (curClient_ == nullptr)
         return;
@@ -140,37 +139,38 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
     }
     if (nBytes != readBytes)
         recvBuf_.resize(wasSize + readBytes);
-    switch (calcPacketState(recvBuf_)) {
-    case PacketState::Damaged:
-        qWarning("%s: packet damaged", Q_FUNC_INFO);
-        emit error(T_("packet from qmonkey's agent damaged"));
-        break;
-    case PacketState::NotReady:
-        /*nothing*/ break;
-    case PacketState::Ready: {
-        auto packet = extractFromPacket(recvBuf_);
-        switch (static_cast<PacketTypeForMonkey>(packet.first)) {
-        case PacketTypeForMonkey::NewUserAppEvent:
-            qDebug("%s: user app event: '%s'", Q_FUNC_INFO,
-                   qPrintable(packet.second));
-            emit newUserAppEvent(std::move(packet.second));
-            break;
-        case PacketTypeForMonkey::ScriptError:
-            emit scriptError(std::move(packet.second));
-            break;
-        case PacketTypeForMonkey::ScriptEnd:
-            emit scriptEnd();
-            break;
-        case PacketTypeForMonkey::ScriptLog:
-            emit scriptLog(std::move(packet.second));
-            break;
-        default:
-            qWarning("%s: unknown type of packet from qtmonkey's agent: %u",
-                     Q_FUNC_INFO, static_cast<unsigned>(packet.first));
-            emit error(T_("unknown type of packet from qtmonkey's agent"));
-            break;
+    for (;;) {
+        switch (calcPacketState(recvBuf_)) {
+        case PacketState::Damaged:
+            qWarning("%s: packet damaged", Q_FUNC_INFO);
+            recvBuf_.clear();
+            emit error(T_("packet from qmonkey's agent damaged"));
+            return;
+        case PacketState::NotReady:
+            /*nothing*/ return;
+        case PacketState::Ready: {
+            auto packet = extractFromPacket(recvBuf_);
+            switch (static_cast<PacketTypeForMonkey>(packet.first)) {
+            case PacketTypeForMonkey::NewUserAppEvent:
+                emit newUserAppEvent(std::move(packet.second));
+                break;
+            case PacketTypeForMonkey::ScriptError:
+                emit scriptError(std::move(packet.second));
+                break;
+            case PacketTypeForMonkey::ScriptEnd:
+                emit scriptEnd();
+                break;
+            case PacketTypeForMonkey::ScriptLog:
+                emit scriptLog(std::move(packet.second));
+                break;
+            default:
+                qWarning("%s: unknown type of packet from qtmonkey's agent: %u",
+                         Q_FUNC_INFO, static_cast<unsigned>(packet.first));
+                emit error(T_("unknown type of packet from qtmonkey's agent"));
+                break;
+            }
         }
-    }
+        }
     }
 }
 
@@ -328,8 +328,6 @@ void CommunicationAgentPart::sendData()
     if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf_.isEmpty())
         return;
     qint64 nBytes = sock_.write(sendBuf_);
-    qDebug("%s: we send %lld bytes\n", Q_FUNC_INFO,
-           static_cast<long long>(nBytes));
     if (nBytes == -1) {
         qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
                  qPrintable(sock_.errorString()));
@@ -341,7 +339,6 @@ void CommunicationAgentPart::sendData()
 void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,
                                          const QString &text)
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
     sendBuf_.append(createPacket(static_cast<uint32_t>(pt), text));
 }
 

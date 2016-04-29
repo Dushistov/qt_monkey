@@ -136,6 +136,7 @@ void QtMonkey::stdinDataReady()
 
 void QtMonkey::onScriptError(QString errMsg)
 {
+    qDebug("%s: begin %s", Q_FUNC_INFO, qPrintable(errMsg));
     setScriptRunningState(false);
     cout_ << createPacketFromUserAppErrors(errMsg) << "\n";
     cout_.flush();

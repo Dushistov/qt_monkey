@@ -56,6 +56,11 @@ TEST(QtMonkey, CommunicationBasic)
             processEventsForSomeTime(procFunc, std::chrono::milliseconds(200));
             client.sendCommand(PacketTypeForMonkey::NewUserAppEvent,
                                "Test.log(\"hi\");");
+            client.sendCommand(PacketTypeForMonkey::NewUserAppEvent,
+                               "Test.log(\"hi2\");");
+            client.sendCommand(PacketTypeForMonkey::ScriptError,
+                               "my bad");
+            client.sendCommand(PacketTypeForMonkey::ScriptEnd, QString());
             processEventsForSomeTime(procFunc, std::chrono::milliseconds(200));
             ASSERT_EQ(0, clientErr.count());
         }
@@ -68,7 +73,7 @@ TEST(QtMonkey, CommunicationBasic)
         },
         std::chrono::milliseconds(1000));
     ASSERT_EQ(0, serverErr.count());
-    ASSERT_EQ(1, serverSpy.count());
+    ASSERT_EQ(2, serverSpy.count());
     QList<QVariant> userAppEventArgs
         = serverSpy.takeFirst(); // take the first signal
     EXPECT_EQ(QString("Test.log(\"hi\");"), userAppEventArgs.at(0).toString());
@@ -98,7 +103,7 @@ TEST(QtMonkey, app_api)
                                  ++errMsgsCnt;
                                  EXPECT_EQ(errOut, data);
                              },
-                             [&endCnt]() {//on script end
+                             [&endCnt]() { // on script end
                                  ++endCnt;
                              },
                              [&logCnt, &logMsg](QString scriptLog) {
@@ -122,7 +127,8 @@ TEST(QtMonkey, app_api)
     size_t runScriptCnt = 0;
     errs = 0;
     parseOutputFromGui(data, pos,
-                       [&script, &scriptFile, &runScriptCnt](QString scriptCode, QString scriptFileName) {
+                       [&script, &scriptFile, &runScriptCnt](
+                           QString scriptCode, QString scriptFileName) {
                            ++runScriptCnt;
                            EXPECT_EQ(script, scriptCode);
                            EXPECT_EQ(scriptFile, scriptFileName);
@@ -131,8 +137,7 @@ TEST(QtMonkey, app_api)
                            qWarning("%s: data %s", Q_FUNC_INFO,
                                     qPrintable(data));
                            ++errs;
-                       }
-        );
+                       });
     EXPECT_EQ(0u, errs);
     EXPECT_EQ(1u, runScriptCnt);
     EXPECT_EQ(static_cast<size_t>(data.size()), pos);

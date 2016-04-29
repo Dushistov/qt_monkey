@@ -1,3 +1,4 @@
+//#define DEBUG_ANALYZER
 #include "user_events_analyzer.hpp"
 
 #include <QtCore/QEvent>
@@ -9,6 +10,12 @@
 #include <cstring>
 
 using namespace qt_monkey_agent;
+
+#ifdef DEBUG_ANALYZER
+#define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
+#else
+#define DBGPRINT(fmt, ...) do {} while (false)
+#endif
 
 namespace
 {
@@ -96,7 +103,7 @@ static QString qmenuActivateClick(QObject *, QEvent *event,
     QAction *act = qm->actionAt(widget.first->mapFromGlobal(
         static_cast<QMouseEvent *>(event)->globalPos()));
     if (act != nullptr) {
-        qDebug("%s: act->text() %s", Q_FUNC_INFO, qPrintable(act->text()));
+        DBGPRINT("%s: act->text() %s", Q_FUNC_INFO, qPrintable(act->text()));
         if (!widget.first->objectName()
                  .isEmpty() /*widgetName != "<unknown name>"*/)
             res = QString("Test.activateItem('%1', '%2');")
@@ -127,7 +134,7 @@ QString qt_monkey_agent::mouseButtonEnumToString(Qt::MouseButton b)
 QString qt_monkey_agent::fullQtWidgetId(const QWidget &w)
 {
     QString res = qtObjectId(w);
-    qDebug("%s: class name %s, id %s", Q_FUNC_INFO, w.metaObject()->className(),
+    DBGPRINT("%s: class name %s, id %s", Q_FUNC_INFO, w.metaObject()->className(),
            qPrintable(res));
     QObject *cur_obj = w.parent();
     while (cur_obj != nullptr) {
@@ -162,20 +169,20 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
     switch (event->type()) {
     case QEvent::KeyPress:
     case QEvent::KeyRelease:
-        qDebug("%s: key event for '%s'\n", Q_FUNC_INFO,
+        DBGPRINT("%s: key event for '%s'\n", Q_FUNC_INFO,
                qPrintable(obj->objectName()));
         break;
     case QEvent::MouseButtonDblClick:
     case QEvent::MouseButtonPress: {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
-        qDebug("%s: mouse event for '%s': %s\n", Q_FUNC_INFO,
+        DBGPRINT("%s: mouse event for '%s': %s\n", Q_FUNC_INFO,
                qPrintable(obj->objectName()),
                event->type() == QEvent::MouseButtonDblClick ? "double click"
                                                             : "release event");
         QWidget *w = QApplication::widgetAt(mouseEvent->globalPos());
         if (w == nullptr) {
             QPoint p = mouseEvent->globalPos();
-            qDebug(
+            DBGPRINT(
                 "(%s, %d): Can not find out what widget is used(x %d, y %d)!!!",
                 Q_FUNC_INFO, __LINE__, p.x(), p.y());
             return false;
