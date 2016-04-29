@@ -111,6 +111,11 @@ if (USE_TESTS)
   add_executable(run_unit_tests unit_tests/run_unit_tests.cpp)
   target_include_directories(run_unit_tests PRIVATE contrib/json11)
   target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES} common_app_lib)
+  add_test(unit_tests run_unit_tests)
+
+  add_executable(json11_test contrib/json11/test.cpp)
+  target_link_libraries(json11_test common_app_lib)
+  add_test(json11_test json11_test)
 
   if ("${QT_VARIANT}" STREQUAL "qt4")
     add_subdirectory(tests/qt4)
