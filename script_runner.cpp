@@ -17,7 +17,7 @@ ScriptRunner::ScriptRunner(ScriptAPI &api, QObject *extension)
 	global.setProperty(QLatin1String("Test"), testCtrl);
 }
 
-static int extractLineNumFromBacktraceLine(const QString& line)
+int qt_monkey_agent::extractLineNumFromBacktraceLine(const QString& line)
 {
     const int ln = line.indexOf(':');
     assert(ln != -1);

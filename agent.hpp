@@ -38,7 +38,10 @@ public:
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
+    //! send log message to monkey
     void sendToLog(QString msg);
+    //! called from script code for break point implementation
+    void scriptCheckPoint(int lineno);
 private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);

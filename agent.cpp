@@ -175,3 +175,8 @@ void Agent::sendToLog(QString msg)
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptLog,
                                              std::move(msg));
 }
+
+void Agent::scriptCheckPoint(int lineno)
+{
+    qDebug("%s: lineno %d", Q_FUNC_INFO, lineno);
+}
