@@ -321,11 +321,14 @@ void QtMonkeyWindow::logNewLine(MsgType msgType, const QString &msg)
     QString text;
     if (!color.isEmpty())
         text = QStringLiteral("<font color=\"%1\">").arg(color);
+#if QT_VERSION < 0x050000
     text += Qt::escape(msg);
+#else
+    text += msg.toHtmlEscaped();
+#endif
     text.replace("\n", "<br/>");
     if (!color.isEmpty())
         text += "</font><br/>";
-//    teLog_->append(msg);
     teLog_->insertHtml(text);
 }
 
