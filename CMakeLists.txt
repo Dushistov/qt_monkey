@@ -34,6 +34,7 @@ set(qtmonkey_agent_MOC_HDRS
   user_events_analyzer.hpp
   agent_qtmonkey_communication.hpp
   agent.hpp
+  script_api.hpp
   )
 
 set(qtmonkey_app_MOC_HDRS
@@ -67,6 +68,7 @@ add_library(qtmonkey_agent STATIC
   script_runner.hpp
   script.hpp
   script.cpp
+  script_api.cpp
   )
 target_link_libraries(qtmonkey_agent ${QT_LIBRARIES})
 

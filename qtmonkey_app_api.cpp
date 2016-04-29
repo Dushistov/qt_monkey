@@ -20,7 +20,7 @@ private:
 };
 }
 
-QByteArray userAppEventToFromMonkeyAppPacket(const QString &scriptLines)
+QByteArray createPacketFromUserAppEvent(const QString &scriptLines)
 {
     auto json = Json::object{
         {"event", Json::object{{"script", QStringJsonTrait{scriptLines}}}}};
@@ -29,10 +29,25 @@ QByteArray userAppEventToFromMonkeyAppPacket(const QString &scriptLines)
     return QByteArray{res.c_str()};
 }
 
-QByteArray userAppErrorsToFromMonkeyAppPacket(const QString &errMsg)
+QByteArray createPacketFromUserAppErrors(const QString &errMsg)
 {
-   auto json = Json::object{
-        {"app errors", QStringJsonTrait{errMsg}}};
+    auto json = Json::object{{"app errors", QStringJsonTrait{errMsg}}};
+    // TODO: remove unnecessary allocation
+    const std::string res = Json{json}.dump();
+    return QByteArray{res.c_str()};
+}
+
+QByteArray createPacketFromScriptEnd()
+{
+    auto json = Json{"script end"};
+    // TODO: remove unnecessary allocation
+    const std::string res = Json{json}.dump();
+    return QByteArray{res.c_str()};
+}
+
+QByteArray createPacketFromUserAppScriptLog(const QString &logMsg)
+{
+    auto json = Json::object{{"script logs", QStringJsonTrait{logMsg}}};
     // TODO: remove unnecessary allocation
     const std::string res = Json{json}.dump();
     return QByteArray{res.c_str()};
@@ -42,6 +57,8 @@ void parseOutputFromMonkeyApp(
     const QByteArray &data, size_t &stopPos,
     const std::function<void(QString)> &onNewUserAppEvent,
     const std::function<void(QString)> &onUserAppError,
+    const std::function<void()> &onScriptEnd,
+    const std::function<void(QString)> &onScriptLog,
     const std::function<void(QString)> &onParseError)
 {
     assert(data.size() >= 0);
@@ -69,14 +86,26 @@ void parseOutputFromMonkeyApp(
                                                     .begin()
                                                     ->second.string_value()
                                                     .c_str()));
-        } else if (elm.is_object() && elm.object_items().size() == 1u && 
-                   elm.object_items().begin()->first == "app errors") {
+        } else if (elm.is_object() && elm.object_items().size() == 1u
+                   && elm.object_items().begin()->first == "app errors") {
             auto it = elm.object_items().begin();
             if (!it->second.is_string()) {
                 onParseError(QStringLiteral("app errors"));
                 return;
             }
-            onUserAppError(QString::fromUtf8(it->second.string_value().c_str()));
+            onUserAppError(
+                QString::fromUtf8(it->second.string_value().c_str()));
+        } else if (elm.is_object() && elm.object_items().size() == 1u
+                   && elm.object_items().begin()->first == "script logs") {
+            auto it = elm.object_items().begin();
+            if (!it->second.is_string()) {
+                onParseError(QStringLiteral("script logs"));
+                return;
+            }
+            onScriptLog(
+                QString::fromUtf8(it->second.string_value().c_str()));
+        } else if (elm.is_string() && elm.string_value() == "script end") {
+            onScriptEnd();
         }
     }
 }

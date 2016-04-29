@@ -1,6 +1,12 @@
 #pragma once
 
-namespace qt_monkey {
+#include <QtCore/QObject>
+#include <QtScript/QScriptable>
+
+namespace qt_monkey_agent {
+
+    class Agent;
+
     /**
      * public slots of this class are functions
      * that exposed to qt monkey script
@@ -12,7 +18,7 @@ namespace qt_monkey {
         : public QObject, private QScriptable {
         Q_OBJECT
     public:
-        explicit ScriptAPI(QObject *parent = nullptr);
+        explicit ScriptAPI(Agent &agent, QObject *parent = nullptr);
     public slots:
 		//@{
 		/**
@@ -25,5 +31,12 @@ namespace qt_monkey {
 		void mouseClick(QString widget, QString button, int x, int y);
 		void mouseDClick(QString widget, QString button, int x, int y);
 		//@}
+		/**
+		 * send message to log
+		 * @param msgStr string with message
+		 */
+		void log(QString msgStr);
+    private:
+        Agent &agent_;
     };
 }

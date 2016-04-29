@@ -33,6 +33,8 @@ private slots:
     void stdinDataReady();
     void onScriptError(QString errMsg);
     void onAgentReadyToRunScript();
+    void onScriptEnd();
+    void onScriptLog(QString msg);
 private:
     qt_monkey_agent::Private::CommunicationMonkeyPart channelWithAgent_;
     QProcess userApp_;

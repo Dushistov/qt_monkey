@@ -25,6 +25,7 @@ enum class PacketTypeForMonkey : uint32_t {
     NewUserAppEvent,
     ScriptError,
     ScriptEnd,
+    ScriptLog,
     // TODO: may be need?
     ScriptStopOnBreakPoint,
 };
@@ -39,7 +40,9 @@ class CommunicationMonkeyPart
 signals:
     void newUserAppEvent(QString);
     void scriptError(QString);
-    void error(const QString &);
+    void scriptEnd();
+    void scriptLog(QString);
+    void error(QString);
     void agentReadyToRunScript();
 public:
     explicit CommunicationMonkeyPart(QObject *parent = nullptr);
@@ -75,6 +78,7 @@ public:
     }
     void sendCommand(PacketTypeForMonkey pt, const QString &);
     bool connectToMonkey();
+    void flushSendData();
 private slots:
     void sendData();
     void readCommands();

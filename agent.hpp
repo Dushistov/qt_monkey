@@ -38,6 +38,7 @@ public:
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
+    void sendToLog(QString msg);
 private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);

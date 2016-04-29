@@ -80,6 +80,10 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
                                             [this](QString userAppErrors) {
                                                 emit monkeyUserAppError(std::move(userAppErrors));
                                             },
+                                            [this]() {//on script end
+                                            },
+                                            [this](QString scriptLog) {
+                                            },
                                             [this](QString data) {
                                                 qtmonkeyApp_.kill();
                                                 emit monkeyAppFinishedSignal(

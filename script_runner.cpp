@@ -1,15 +1,20 @@
 #include "script_runner.hpp"
 
 #include <cassert>
+
 #include "common.hpp"
 #include "script.hpp"
+#include "script_api.hpp"
 
 using qt_monkey_agent::Private::ScriptRunner;
 using qt_monkey_agent::Private::Script;
 
-ScriptRunner::ScriptRunner(QObject *extension)
+ScriptRunner::ScriptRunner(ScriptAPI &api, QObject *extension)
 {
+	QScriptValue testCtrl = scriptEngine_.newQObject(&api);
+	QScriptValue global = scriptEngine_.globalObject();
 
+	global.setProperty(QLatin1String("Test"), testCtrl);
 }
 
 static int extractLineNumFromBacktraceLine(const QString& line)

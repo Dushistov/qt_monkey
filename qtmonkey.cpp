@@ -26,7 +26,7 @@ QtMonkey::QtMonkey()
     connect(&userApp_, SIGNAL(readyReadStandardError()), this,
             SLOT(userAppNewErrOutput()));
 
-    connect(&channelWithAgent_, SIGNAL(error(const QString &)), this,
+    connect(&channelWithAgent_, SIGNAL(error(QString)), this,
             SLOT(communicationWithAgentError(const QString &)));
     connect(&channelWithAgent_, SIGNAL(newUserAppEvent(QString)), this,
             SLOT(onNewUserAppEvent(QString)));
@@ -34,6 +34,8 @@ QtMonkey::QtMonkey()
             SLOT(onScriptError(QString)));
     connect(&channelWithAgent_, SIGNAL(agentReadyToRunScript()), this,
             SLOT(onAgentReadyToRunScript()));
+    connect(&channelWithAgent_, SIGNAL(scriptEnd()), this, SLOT(onScriptEnd()));
+    connect(&channelWithAgent_, SIGNAL(scriptLog(QString)), this, SLOT(onScriptLog(QString)));
 
     if (std::setvbuf(stdin, nullptr, _IONBF, 0))
         throw std::runtime_error("setvbuf failed");
@@ -72,7 +74,7 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    cout_ << qt_monkey_app::userAppEventToFromMonkeyAppPacket(scriptLines)
+    cout_ << qt_monkey_app::createPacketFromUserAppEvent(scriptLines)
           << "\n";
     cout_.flush();
 }
@@ -106,7 +108,7 @@ void QtMonkey::userAppNewErrOutput()
 {
     const QString errOut
         = QString::fromLocal8Bit(userApp_.readAllStandardError());
-    cout_ << userAppErrorsToFromMonkeyAppPacket(errOut) << "\n";
+    cout_ << createPacketFromUserAppErrors(errOut) << "\n";
     cout_.flush();
 }
 
@@ -125,7 +127,7 @@ void QtMonkey::stdinDataReady()
 
 void QtMonkey::onScriptError(QString errMsg)
 {
-    cout_ << userAppErrorsToFromMonkeyAppPacket(errMsg) << "\n";
+    cout_ << createPacketFromUserAppErrors(errMsg) << "\n";
     cout_.flush();
 }
 
@@ -167,4 +169,16 @@ void QtMonkey::onAgentReadyToRunScript()
     QString code;
     script.releaseCode(code);
     channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript, std::move(code));
+}
+
+void QtMonkey::onScriptEnd()
+{
+    cout_ << createPacketFromScriptEnd() << "\n";
+    cout_.flush();
+}
+
+void QtMonkey::onScriptLog(QString msg)
+{
+    cout_ << createPacketFromUserAppScriptLog(msg) << "\n";
+    cout_.flush();
 }

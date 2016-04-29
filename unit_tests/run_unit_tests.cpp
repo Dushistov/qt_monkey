@@ -78,13 +78,16 @@ TEST(QtMonkey, CommunicationBasic)
 TEST(QtMonkey, app_api)
 {
     using namespace qt_monkey_app;
-    QString script = "Test.log(\"something\");\nTest.log(\"other\");";    
-    QByteArray data = userAppEventToFromMonkeyAppPacket(
-        script);
+    QString script = "Test.log(\"something\");\nTest.log(\"other\");";
+    QByteArray data = createPacketFromUserAppEvent(script);
     QString errOut = "Bad things happen";
-    data.append(userAppErrorsToFromMonkeyAppPacket(errOut));
+    data.append(createPacketFromUserAppErrors(errOut));
+    data.append(createPacketFromScriptEnd());
+    QString logMsg = "Hi!";
+    data.append(createPacketFromUserAppScriptLog(logMsg));
+
     size_t pos;
-    size_t eventsCnt = 0, errMsgsCnt = 0;
+    size_t eventsCnt = 0, errMsgsCnt = 0, endCnt = 0, logCnt = 0;
     size_t errs = 0;
     parseOutputFromMonkeyApp(data, pos,
                              [&script, &eventsCnt](QString data) {
@@ -95,12 +98,22 @@ TEST(QtMonkey, app_api)
                                  ++errMsgsCnt;
                                  EXPECT_EQ(errOut, data);
                              },
+                             [&endCnt]() {//on script end
+                                 ++endCnt;
+                             },
+                             [&logCnt, &logMsg](QString scriptLog) {
+                                 ++logCnt;
+                                 EXPECT_EQ(logMsg, scriptLog);
+                             },
                              [&errs](QString data) {
-                                 qWarning("%s: data %s", Q_FUNC_INFO, qPrintable(data));
+                                 qWarning("%s: data %s", Q_FUNC_INFO,
+                                          qPrintable(data));
                                  ++errs;
                              });
     EXPECT_EQ(1u, eventsCnt);
     EXPECT_EQ(1u, errMsgsCnt);
+    EXPECT_EQ(1u, endCnt);
+    EXPECT_EQ(1u, logCnt);
     EXPECT_EQ(0u, errs);
     EXPECT_EQ(static_cast<size_t>(data.size()), pos);
 }

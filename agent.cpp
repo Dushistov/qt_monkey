@@ -9,6 +9,7 @@
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
 #include "script.hpp"
+#include "script_api.hpp"
 #include "script_runner.hpp"
 #include "user_events_analyzer.hpp"
 
@@ -75,8 +76,10 @@ public:
         connect(&client, SIGNAL(error(const QString &)), parent(),
                 SLOT(onCommunicationError(const QString &)),
                 Qt::QueuedConnection);
-        connect(&client, SIGNAL(runScript(const qt_monkey_agent::Private::Script &)), parent(),
-                SLOT(onRunScriptCommand(const qt_monkey_agent::Private::Script &)),
+        connect(&client,
+                SIGNAL(runScript(const qt_monkey_agent::Private::Script &)),
+                parent(), SLOT(onRunScriptCommand(
+                              const qt_monkey_agent::Private::Script &)),
                 Qt::QueuedConnection);
         EventsReciever eventReciever;
         objInThread_ = &eventReciever;
@@ -106,7 +109,7 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     : eventAnalyzer_(
           new UserEventsAnalyzer(std::move(customEventAnalyzers), this))
 {
-    //make sure that type is referenced
+    // make sure that type is referenced
     qMetaTypeId<qt_monkey_agent::Private::Script>();
 
     connect(eventAnalyzer_, SIGNAL(userEventInScriptForm(const QString &)),
@@ -125,7 +128,17 @@ void Agent::onCommunicationError(const QString &err)
     std::abort();
 }
 
-Agent::~Agent() {}
+Agent::~Agent()
+{
+    GET_THREAD(thread)
+
+    thread->runInThread([this, thread] {
+        thread->channelWithMonkey()->flushSendData();
+    });
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 1000/*ms*/);
+    thread->quit();
+    thread->wait();
+}
 
 void Agent::onUserEventInScriptForm(const QString &script)
 {
@@ -140,15 +153,27 @@ void Agent::onUserEventInScriptForm(const QString &script)
 void Agent::onRunScriptCommand(const Private::Script &script)
 {
     GET_THREAD(thread)
-    thread->runInThread([script, thread] {
+    thread->runInThread([this, script, thread] {
         qDebug("%s: run script", Q_FUNC_INFO);
-        ScriptRunner sr;
+        ScriptAPI api{*this};
+        ScriptRunner sr{api};
         QString errMsg;
         sr.runScript(script, errMsg);
         if (!errMsg.isEmpty()) {
             qWarning("%s: script return error", Q_FUNC_INFO);
             thread->channelWithMonkey()->sendCommand(
                 PacketTypeForMonkey::ScriptError, errMsg);
+        } else {
+            thread->channelWithMonkey()->sendCommand(
+                PacketTypeForMonkey::ScriptEnd, QString());
         }
     });
+}
+
+void Agent::sendToLog(QString msg)
+{
+    qDebug("%s: msg %s", Q_FUNC_INFO, qPrintable(msg));
+    GET_THREAD(thread)
+    thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptLog,
+                                             std::move(msg));
 }

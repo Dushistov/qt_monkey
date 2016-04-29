@@ -158,6 +158,12 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
         case PacketTypeForMonkey::ScriptError:
             emit scriptError(std::move(packet.second));
             break;
+        case PacketTypeForMonkey::ScriptEnd:
+            emit scriptEnd();
+            break;
+        case PacketTypeForMonkey::ScriptLog:
+            emit scriptLog(std::move(packet.second));
+            break;
         default:
             qWarning("%s: unknown type of packet from qtmonkey's agent: %u",
                      Q_FUNC_INFO, static_cast<unsigned>(packet.first));
@@ -323,4 +329,11 @@ void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,
 {
     qDebug("%s: begin", Q_FUNC_INFO);
     sendBuf_.append(createPacket(static_cast<uint32_t>(pt), text));
+}
+
+void CommunicationAgentPart::flushSendData()
+{
+    sendData();
+    if (sock_.state() == QAbstractSocket::ConnectedState)
+        sock_.flush();
 }
