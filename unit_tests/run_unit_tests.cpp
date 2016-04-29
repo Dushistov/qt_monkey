@@ -116,6 +116,26 @@ TEST(QtMonkey, app_api)
     EXPECT_EQ(1u, logCnt);
     EXPECT_EQ(0u, errs);
     EXPECT_EQ(static_cast<size_t>(data.size()), pos);
+
+    QString scriptFile{"aaa.txt"};
+    data = createPacketFromRunScript(script, scriptFile);
+    size_t runScriptCnt = 0;
+    errs = 0;
+    parseOutputFromGui(data, pos,
+                       [&script, &scriptFile, &runScriptCnt](QString scriptCode, QString scriptFileName) {
+                           ++runScriptCnt;
+                           EXPECT_EQ(script, scriptCode);
+                           EXPECT_EQ(scriptFile, scriptFileName);
+                       },
+                       [&errs](QString data) {
+                           qWarning("%s: data %s", Q_FUNC_INFO,
+                                    qPrintable(data));
+                           ++errs;
+                       }
+        );
+    EXPECT_EQ(0u, errs);
+    EXPECT_EQ(1u, runScriptCnt);
+    EXPECT_EQ(static_cast<size_t>(data.size()), pos);
 }
 
 #if QT_VERSION >= 0x050000

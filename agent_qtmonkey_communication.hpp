@@ -5,6 +5,7 @@
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 #include <cstdint>
+#include <memory>
 
 namespace qt_monkey_agent
 {
@@ -44,9 +45,12 @@ signals:
     void scriptLog(QString);
     void error(QString);
     void agentReadyToRunScript();
+
 public:
     explicit CommunicationMonkeyPart(QObject *parent = nullptr);
     void sendCommand(PacketTypeForAgent pt, const QString &);
+    bool isConnectedState() const;
+    void close();
 private slots:
     void handleNewConnection();
     void readDataFromClientSocket();
@@ -55,7 +59,7 @@ private slots:
     void connectionError(QAbstractSocket::SocketError);
 
 private:
-    QTcpServer controlSock_;
+    std::unique_ptr<QTcpServer> controlSock_;
     QTcpSocket *curClient_ = nullptr;
     QByteArray sendBuf_;
     QByteArray recvBuf_;

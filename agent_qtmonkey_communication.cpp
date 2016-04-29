@@ -85,18 +85,18 @@ static std::pair<uint32_t, QString> extractFromPacket(QByteArray &buf)
 }
 
 CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
-    : QObject(parent)
+    : QObject(parent), controlSock_{new QTcpServer}
 {
-    connect(&controlSock_, SIGNAL(newConnection()), this,
+    connect(controlSock_.get(), SIGNAL(newConnection()), this,
             SLOT(handleNewConnection()));
-    if (!controlSock_.listen(QHostAddress::LocalHost))
+    if (!controlSock_->listen(QHostAddress::LocalHost))
         throw std::runtime_error(
             qPrintable(T_("start listen of tcp socket failed")));
     QByteArray portNum;
     QDataStream stream(&portNum, QIODevice::WriteOnly);
-    stream << controlSock_.serverPort();
+    stream << controlSock_->serverPort();
     qDebug("%s: we listen %d\n", Q_FUNC_INFO,
-           static_cast<int>(controlSock_.serverPort()));
+           static_cast<int>(controlSock_->serverPort()));
     if (!qputenv(QTMONKEY_PORT_ENV_NAME, portNum))
         throw std::runtime_error(qPrintable(T_("can not set env variable")));
 }
@@ -104,7 +104,7 @@ CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
 void CommunicationMonkeyPart::handleNewConnection()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
-    curClient_ = controlSock_.nextPendingConnection();
+    curClient_ = controlSock_->nextPendingConnection();
     connect(curClient_, SIGNAL(readyRead()), this,
             SLOT(readDataFromClientSocket()));
     connect(curClient_, SIGNAL(bytesWritten(qint64)), this,
@@ -214,6 +214,20 @@ void CommunicationMonkeyPart::sendCommand(PacketTypeForAgent pt,
 {
     sendBuf_.append(createPacket(static_cast<uint32_t>(pt), data));
     flushSendData();
+}
+
+bool CommunicationMonkeyPart::isConnectedState() const
+{
+    return curClient_ != nullptr
+           && curClient_->state() == QAbstractSocket::ConnectedState;
+}
+
+void CommunicationMonkeyPart::close()
+{
+    assert(controlSock_.get() != nullptr);
+    if (controlSock_->isListening())
+        controlSock_->close();
+    controlSock_.reset(nullptr);
 }
 
 bool CommunicationAgentPart::connectToMonkey()

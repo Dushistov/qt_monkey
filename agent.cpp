@@ -159,13 +159,12 @@ void Agent::onRunScriptCommand(const Private::Script &script)
         ScriptRunner sr{api};
         QString errMsg;
         sr.runScript(script, errMsg);
+        thread->channelWithMonkey()->sendCommand(
+            PacketTypeForMonkey::ScriptEnd, QString());
         if (!errMsg.isEmpty()) {
             qWarning("%s: script return error", Q_FUNC_INFO);
             thread->channelWithMonkey()->sendCommand(
                 PacketTypeForMonkey::ScriptError, errMsg);
-        } else {
-            thread->channelWithMonkey()->sendCommand(
-                PacketTypeForMonkey::ScriptEnd, QString());
         }
     });
 }

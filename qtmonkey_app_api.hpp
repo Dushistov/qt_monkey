@@ -5,12 +5,19 @@
 
 namespace qt_monkey_app
 {
-extern QByteArray createPacketFromUserAppEvent(const QString &scriptLines);
-extern QByteArray createPacketFromUserAppErrors(const QString &errOut);
-extern QByteArray createPacketFromScriptEnd();
-extern QByteArray createPacketFromUserAppScriptLog(const QString &logMsg);
+QByteArray createPacketFromUserAppEvent(const QString &scriptLines);
+QByteArray createPacketFromUserAppErrors(const QString &errOut);
+QByteArray createPacketFromScriptEnd();
+QByteArray createPacketFromUserAppScriptLog(const QString &logMsg);
+QByteArray createPacketFromRunScript(const QString &script,
+                                     const QString &scriptFileName);
 
-extern void parseOutputFromMonkeyApp(
+void parseOutputFromGui(
+    const QByteArray &data, size_t &parserStopPos,
+    const std::function<void(QString, QString)> &onRunScript,
+    const std::function<void(QString)> &onParseError);
+
+void parseOutputFromMonkeyApp(
     const QByteArray &data, size_t &stopPos,
     const std::function<void(QString)> &onNewUserAppEvent,
     const std::function<void(QString)> &onUserAppError,

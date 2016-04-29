@@ -6,17 +6,19 @@
 #include <cstdio>
 
 #include "common.hpp"
-#include "json11.hpp"
 #include "qtmonkey_app_api.hpp"
 
-using json11::Json;
 using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
 
 QtMonkey::QtMonkey()
-    : cout_{stdout}, cerr_{stderr}
 {
+    if (!stdout_.open(stdout, QIODevice::WriteOnly, QFile::DontCloseHandle) ||
+        !stderr_.open(stderr, QIODevice::WriteOnly, QFile::DontCloseHandle))
+        throw std::runtime_error("File -> QFile failed");
+    cout_.setDevice(&stdout_);
+    cerr_.setDevice(&stderr_);
     connect(&userApp_, SIGNAL(error(QProcess::ProcessError)), this,
             SLOT(userAppError(QProcess::ProcessError)));
     connect(&userApp_, SIGNAL(finished(int, QProcess::ExitStatus)), this,
@@ -65,6 +67,8 @@ QtMonkey::~QtMonkey()
         userApp_.kill();
         QCoreApplication::processEvents(QEventLoop::AllEvents, 1000/*ms*/);
     }
+    //so any signals from channel will be disconected
+    channelWithAgent_.close();
 }
 
 void QtMonkey::communicationWithAgentError(const QString &errStr)
@@ -117,16 +121,22 @@ void QtMonkey::stdinDataReady()
     int ch;
     while ((ch = getchar()) != EOF && ch != '\n')
         stdinBuf_ += static_cast<unsigned char>(ch);
-    std::string::size_type parserStopPos;
-    std::string err;
-    auto json = Json::parse_multi(stdinBuf_, parserStopPos, err);
+    size_t parserStopPos;
+    parseOutputFromGui(stdinBuf_, parserStopPos,
+                       [this](QString script, QString scriptFileName) {
+                           toRunList_.push(Script{std::move(script)});
+                           onAgentReadyToRunScript();
+                       },
+                       [this](QString errMsg) {
+                           cerr_ << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
+                       });
     if (parserStopPos != 0)
-        stdinBuf_.erase(0, parserStopPos);
-    qDebug("%s: we are here!!!", Q_FUNC_INFO);
+        stdinBuf_.remove(0, parserStopPos);
 }
 
 void QtMonkey::onScriptError(QString errMsg)
 {
+    setScriptRunningState(false);
     cout_ << createPacketFromUserAppErrors(errMsg) << "\n";
     cout_.flush();
 }
@@ -161,7 +171,7 @@ void QtMonkey::onAgentReadyToRunScript()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
 
-    if (toRunList_.empty())
+    if (!channelWithAgent_.isConnectedState() || toRunList_.empty() || scriptRunning_)
         return;
 
     Script script = std::move(toRunList_.front());
@@ -169,10 +179,12 @@ void QtMonkey::onAgentReadyToRunScript()
     QString code;
     script.releaseCode(code);
     channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript, std::move(code));
+    setScriptRunningState(true);
 }
 
 void QtMonkey::onScriptEnd()
 {
+    setScriptRunningState(false);
     cout_ << createPacketFromScriptEnd() << "\n";
     cout_.flush();
 }
@@ -181,4 +193,11 @@ void QtMonkey::onScriptLog(QString msg)
 {
     cout_ << createPacketFromUserAppScriptLog(msg) << "\n";
     cout_.flush();
+}
+
+void QtMonkey::setScriptRunningState(bool val)
+{
+    scriptRunning_ = val;
+    if (!scriptRunning_)
+        onAgentReadyToRunScript();
 }

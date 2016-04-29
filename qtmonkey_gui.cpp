@@ -8,10 +8,7 @@
 #include <cassert>
 
 #include "common.hpp"
-#include "json11.hpp"
 #include "qtmonkey_app_api.hpp"
-
-using json11::Json;
 
 #define SETUP_WIN_CTRL(__name__)                                               \
     auto __name__ = getMonkeyCtrl();                                           \
@@ -73,22 +70,24 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
     qDebug("%s: json |%s|", Q_FUNC_INFO, qPrintable(jsonFromMonkey_));
 
     std::string::size_type parserStopPos;
-    qt_monkey_app::parseOutputFromMonkeyApp(jsonFromMonkey_, parserStopPos,
-                                            [this](QString eventScriptLines) {
-                                                emit monkeyAppNewEvent(std::move(eventScriptLines));
-                                            },
-                                            [this](QString userAppErrors) {
-                                                emit monkeyUserAppError(std::move(userAppErrors));
-                                            },
-                                            [this]() {//on script end
-                                            },
-                                            [this](QString scriptLog) {
-                                            },
-                                            [this](QString data) {
-                                                qtmonkeyApp_.kill();
-                                                emit monkeyAppFinishedSignal(
-                                                    T_("Internal Error: problem with monkey<->gui protocol: %1").arg(data));
-                                            });
+    qt_monkey_app::parseOutputFromMonkeyApp(
+        jsonFromMonkey_, parserStopPos,
+        [this](QString eventScriptLines) {
+            emit monkeyAppNewEvent(std::move(eventScriptLines));
+        },
+        [this](QString userAppErrors) {
+            emit monkeyUserAppError(std::move(userAppErrors));
+        },
+        [this]() { // on script end
+            emit monkeyScriptEnd();
+        },
+        [this](QString scriptLog) { emit monkeScriptLog(scriptLog); },
+        [this](QString data) {
+            qtmonkeyApp_.kill();
+            emit monkeyAppFinishedSignal(
+                T_("Internal Error: problem with monkey<->gui protocol: %1")
+                    .arg(data));
+        });
 
     if (parserStopPos != 0)
         jsonFromMonkey_.remove(0, parserStopPos);
@@ -99,6 +98,24 @@ void QtMonkeyAppCtrl::monkeyAppNewErrOutput()
     const QString errOut
         = QString::fromLocal8Bit(qtmonkeyApp_.readAllStandardError());
     qDebug("MONKEY: %s", qPrintable(errOut));
+}
+
+void QtMonkeyAppCtrl::runScript(const QString &script,
+                                const QString &scriptFileName)
+{
+    QByteArray data
+        = qt_monkey_app::createPacketFromRunScript(script, scriptFileName);
+    data.append("\n");
+    qint64 sentBytes = 0;
+    do {
+        qint64 nbytes = qtmonkeyApp_.write(data.data() + sentBytes,
+                                           data.size() - sentBytes);
+        if (nbytes < 0) {
+            emit criticalError(T_("Can not send data to application"));
+            return;
+        }
+        sentBytes += nbytes;
+    } while (sentBytes < data.size());
 }
 
 QtMonkeyWindow::QtMonkeyWindow(QWidget *parent) : QWidget(parent)
@@ -168,6 +185,12 @@ QtMonkeyAppCtrl *QtMonkeyWindow::getMonkeyCtrl() try {
                 SLOT(onMonkeyAppNewEvent(const QString &)));
         connect(monkeyCtrl_, SIGNAL(monkeyUserAppError(const QString &)), this,
                 SLOT(onMonkeyUserAppError(const QString &)));
+        connect(monkeyCtrl_, SIGNAL(monkeyScriptEnd()), this,
+                SLOT(onMonkeyScriptEnd()));
+        connect(monkeyCtrl_, SIGNAL(monkeScriptLog(const QString &)), this,
+                SLOT(onMonkeScriptLog(const QString &)));
+        connect(monkeyCtrl_, SIGNAL(criticalError(const QString &)), this,
+                SLOT(showError(const QString &)));
     }
     return monkeyCtrl_;
 } catch (const std::exception &ex) {
@@ -180,6 +203,8 @@ void QtMonkeyWindow::onMonkeyAppFinishedSignal(QString msg)
     qDebug("%s: msg '%s'", Q_FUNC_INFO, qPrintable(msg));
     if (!msg.isEmpty())
         showError(msg);
+    else
+        logNewLine(QtDebugMsg, T_("The application has exited"));
     if (monkeyCtrl_ != nullptr) {
         monkeyCtrl_->deleteLater();
         monkeyCtrl_ = nullptr;
@@ -281,6 +306,20 @@ void QtMonkeyWindow::onMonkeyUserAppError(const QString &errMsg)
 void QtMonkeyWindow::logNewLine(QtMsgType, const QString &msg)
 {
     teLog_->append(msg);
+}
+
+void QtMonkeyWindow::onMonkeyScriptEnd() { changeState(State::DoNothing); }
+
+void QtMonkeyWindow::onMonkeScriptLog(const QString &msg)
+{
+    logNewLine(QtDebugMsg, msg);
+}
+
+void QtMonkeyWindow::on_pbRunScript__pressed()
+{
+    SETUP_WIN_CTRL(ctrl)
+    ctrl->runScript(teScriptEdit_->toPlainText());
+    changeState(State::PlayingEvents);
 }
 
 int main(int argc, char *argv[])

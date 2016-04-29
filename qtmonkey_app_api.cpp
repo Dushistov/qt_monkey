@@ -53,6 +53,18 @@ QByteArray createPacketFromUserAppScriptLog(const QString &logMsg)
     return QByteArray{res.c_str()};
 }
 
+QByteArray createPacketFromRunScript(const QString &script,
+                                     const QString &scriptFileName)
+{
+    auto json = Json::object{
+        {"run script",
+         Json::object{{"script", QStringJsonTrait{script}},
+                      {"file", QStringJsonTrait{scriptFileName}}}}};
+    // TODO: remove unnecessary allocation
+    const std::string res = Json{json}.dump();
+    return QByteArray{res.c_str()};
+}
+
 void parseOutputFromMonkeyApp(
     const QByteArray &data, size_t &stopPos,
     const std::function<void(QString)> &onNewUserAppEvent,
@@ -102,10 +114,47 @@ void parseOutputFromMonkeyApp(
                 onParseError(QStringLiteral("script logs"));
                 return;
             }
-            onScriptLog(
-                QString::fromUtf8(it->second.string_value().c_str()));
+            onScriptLog(QString::fromUtf8(it->second.string_value().c_str()));
         } else if (elm.is_string() && elm.string_value() == "script end") {
             onScriptEnd();
+        }
+    }
+}
+
+void parseOutputFromGui(
+    const QByteArray &data, size_t &parserStopPos,
+    const std::function<void(QString, QString)> &onRunScript,
+    const std::function<void(QString)> &onParseError)
+{
+    std::string err;
+    // TODO: remove unnecessary allocation
+    auto jsonArr = Json::parse_multi(
+        std::string{data.data(), static_cast<size_t>(data.size())},
+        parserStopPos, err);
+    for (const Json &elm : jsonArr) {
+        if (elm.is_null())
+            continue;
+        if (elm.is_object() && elm.object_items().size() == 1u
+            && elm.object_items().begin()->first == "run script") {
+            const Json &scriptJson = elm.object_items().begin()->second;
+
+            Json::object::const_iterator scriptIt, scriptFNameIt;
+            if (!scriptJson.is_object()
+                || scriptJson.object_items().size() != 2u
+                || (scriptIt = scriptJson.object_items().find("script"))
+                       == scriptJson.object_items().end()
+                || !scriptIt->second.is_string()
+                || (scriptFNameIt = scriptJson.object_items().find("file"))
+                       == scriptJson.object_items().end()
+                || !scriptFNameIt->second.is_string()) {
+                onParseError(QStringLiteral("run script"));
+                return;
+            }
+
+            onRunScript(
+                QString::fromUtf8(scriptIt->second.string_value().c_str()),
+                QString::fromUtf8(
+                    scriptFNameIt->second.string_value().c_str()));
         }
     }
 }

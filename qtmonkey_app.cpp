@@ -1,26 +1,29 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QProcess>
 #include <QtCore/QTextStream>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include "common.hpp"
 #include "qtmonkey.hpp"
 
-namespace {
-    class ConsoleApplication final : public QCoreApplication {
-    public:
-        ConsoleApplication(int &argc, char **argv): QCoreApplication(argc, argv) {}
-        bool notify(QObject *receiver, QEvent *event) override {
-            try {
-                return QCoreApplication::notify(receiver, event);
-            } catch (const std::exception &ex) {
-                qFatal("%s: catch exception: %s", Q_FUNC_INFO, ex.what());
-                return false;
-            }
+namespace
+{
+class ConsoleApplication final : public QCoreApplication
+{
+public:
+    ConsoleApplication(int &argc, char **argv) : QCoreApplication(argc, argv) {}
+    bool notify(QObject *receiver, QEvent *event) override
+    {
+        try {
+            return QCoreApplication::notify(receiver, event);
+        } catch (const std::exception &ex) {
+            qFatal("%s: catch exception: %s", Q_FUNC_INFO, ex.what());
+            return false;
         }
-    };
+    }
+};
 }
 
 #if QT_VERSION >= 0x050000
@@ -67,15 +70,12 @@ int main(int argc, char *argv[])
 
     INSTALL_QT_MSG_HANDLER(msgHandler);
 
-    QTextStream cout(stdout);
-    QTextStream cerr(stderr);
-
-    int userAppOffset = -1;    
+    int userAppOffset = -1;
     QStringList scripts;
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--user-app") == 0) {
             if ((i + 1) >= argc) {
-                cerr << usage();
+                std::cerr << qPrintable(usage());
                 return EXIT_FAILURE;
             }
             ++i;
@@ -83,19 +83,19 @@ int main(int argc, char *argv[])
             break;
         } else if (std::strcmp(argv[i], "--script") == 0) {
             if ((i + 1) >= argc) {
-                cerr << usage();
+                std::cerr << qPrintable(usage());
                 return EXIT_FAILURE;
             }
             ++i;
             scripts.append(QFile::decodeName(argv[i]));
         } else {
-            cerr << T_("Unknown option: %1\n").arg(argv[i]);
-            cerr << usage();
+            std::cerr << qPrintable(T_("Unknown option: %1\n").arg(argv[i]))
+                      << qPrintable(usage());
             return EXIT_FAILURE;
         }
     if (userAppOffset == -1) {
-        cerr << T_(
-            "You should set path and args for user app with --user-app\n");
+        std::cerr << qPrintable(
+            T_("You should set path and args for user app with --user-app\n"));
         return EXIT_FAILURE;
     }
     QStringList userAppArgs;
