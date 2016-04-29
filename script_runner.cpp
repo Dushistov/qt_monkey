@@ -9,20 +9,20 @@
 using qt_monkey_agent::Private::ScriptRunner;
 using qt_monkey_agent::Private::Script;
 
+
+static int extractLineNumFromBacktraceLine(const QString& line)
+{
+    const int ln = line.indexOf(':');
+    assert(ln != -1);
+    return line.right(line.size() - ln - 1).toUInt();	
+}
+
 ScriptRunner::ScriptRunner(ScriptAPI &api, QObject *extension)
 {
 	QScriptValue testCtrl = scriptEngine_.newQObject(&api);
 	QScriptValue global = scriptEngine_.globalObject();
 
 	global.setProperty(QLatin1String("Test"), testCtrl);
-}
-
-int qt_monkey_agent::extractLineNumFromBacktraceLine(const QString& line)
-{
-    const int ln = line.indexOf(':');
-    assert(ln != -1);
-
-    return line.right(line.size() - ln - 1).toUInt();	
 }
 
 void ScriptRunner::runScript(const Script &script, QString &errMsg)
@@ -53,4 +53,12 @@ void ScriptRunner::runScript(const Script &script, QString &errMsg)
 
         errMsg = expd;
 	}
+}
+
+int ScriptRunner::currentLineNum() const
+{
+    auto ctx = scriptEngine_.currentContext();
+    assert(ctx != nullptr);
+    assert(!ctx->backtrace().isEmpty());
+    return extractLineNumFromBacktraceLine(ctx->backtrace().back());
 }

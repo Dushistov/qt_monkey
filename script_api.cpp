@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <QtCore/QStringList>
+#include <QtScript/QScriptEngine>
 
 #include "agent.hpp"
 #include "script_runner.hpp"
@@ -15,12 +16,6 @@ ScriptAPI::ScriptAPI(Agent &agent, QObject *parent): QObject(parent), agent_(age
 void ScriptAPI::log(QString msgStr)
 {
     agent_.sendToLog(std::move(msgStr));
-}
-
-void ScriptAPI::step()
-{
-    assert(!context()->backtrace().isEmpty());
-    agent_.scriptCheckPoint(extractLineNumFromBacktraceLine(context()->backtrace().back()));
 }
 
 QWidget *getWidgetWithSuchName(const QString &objectName,
@@ -54,10 +49,11 @@ QWidget *getWidgetWithSuchName(const QString &objectName,
 
 void ScriptAPI::mouseClick(QString widget, QString button, int x, int y)
 {
-    step();
+    agent_.scriptCheckPoint();
 
 }
 
 void ScriptAPI::mouseDClick(QString widget, QString button, int x, int y)
 {
+    agent_.scriptCheckPoint();
 }

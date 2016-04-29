@@ -38,7 +38,5 @@ namespace qt_monkey_agent {
 		void log(QString msgStr);
     private:
         Agent &agent_;
-
-        void step();
     };
 }

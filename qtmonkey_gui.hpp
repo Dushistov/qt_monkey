@@ -55,6 +55,7 @@ private slots:
     void on_leTestAppArgs__textEdited(const QString &text);
     void on_pbBrowse__pressed();
     void on_pbRunScript__pressed();
+    void on_pbClearLog__pressed();
 
     // manual connection
     void onMonkeyAppFinishedSignal(QString);

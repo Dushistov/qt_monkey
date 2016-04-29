@@ -369,6 +369,11 @@ void QtMonkeyWindow::changeState(State val)
     }
 }
 
+void QtMonkeyWindow::on_pbClearLog__pressed()
+{
+    teLog_->clear();
+}
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);

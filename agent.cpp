@@ -75,12 +75,12 @@ public:
         }
         connect(&client, SIGNAL(error(const QString &)), parent(),
                 SLOT(onCommunicationError(const QString &)),
-                Qt::QueuedConnection);
+                Qt::DirectConnection);
         connect(&client,
                 SIGNAL(runScript(const qt_monkey_agent::Private::Script &)),
                 parent(), SLOT(onRunScriptCommand(
                               const qt_monkey_agent::Private::Script &)),
-                Qt::QueuedConnection);
+                Qt::DirectConnection);
         EventsReciever eventReciever;
         objInThread_ = &eventReciever;
         channelWithMonkey_ = &client;
@@ -152,20 +152,21 @@ void Agent::onUserEventInScriptForm(const QString &script)
 void Agent::onRunScriptCommand(const Private::Script &script)
 {
     GET_THREAD(thread)
-    thread->runInThread([this, script, thread] {
-        qDebug("%s: run script", Q_FUNC_INFO);
-        ScriptAPI api{*this};
-        ScriptRunner sr{api};
-        QString errMsg;
-        sr.runScript(script, errMsg);
-        if (!errMsg.isEmpty()) {
-            qWarning("AGENT: %s: script return error", Q_FUNC_INFO);
-            thread->channelWithMonkey()->sendCommand(
-                PacketTypeForMonkey::ScriptError, errMsg);
-        }
+    assert(QThread::currentThread() == thread_);
+    qDebug("%s: run script", Q_FUNC_INFO);
+    ScriptAPI api{*this};
+    ScriptRunner sr{api};
+    curScriptRunner_ = &sr;
+    QString errMsg;
+    sr.runScript(script, errMsg);    
+    curScriptRunner_ = nullptr;
+    if (!errMsg.isEmpty()) {
+        qWarning("AGENT: %s: script return error", Q_FUNC_INFO);
         thread->channelWithMonkey()->sendCommand(
-            PacketTypeForMonkey::ScriptEnd, QString());
-    });
+            PacketTypeForMonkey::ScriptError, errMsg);
+    }
+    thread->channelWithMonkey()->sendCommand(
+        PacketTypeForMonkey::ScriptEnd, QString());
 }
 
 void Agent::sendToLog(QString msg)
@@ -176,7 +177,10 @@ void Agent::sendToLog(QString msg)
                                              std::move(msg));
 }
 
-void Agent::scriptCheckPoint(int lineno)
+void Agent::scriptCheckPoint()
 {
+    assert(QThread::currentThread() == thread_);
+    assert(curScriptRunner_ != nullptr);
+    const int lineno = curScriptRunner_->currentLineNum();
     qDebug("%s: lineno %d", Q_FUNC_INFO, lineno);
 }
