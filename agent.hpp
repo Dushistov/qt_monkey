@@ -1,7 +1,9 @@
 #pragma once
 
-#include "custom_event_analyzer.hpp"
 #include <QtCore/QObject>
+#include <cassert>
+
+#include "custom_event_analyzer.hpp"
 
 class QThread;
 namespace qt_monkey_agent
@@ -50,12 +52,15 @@ private slots:
 
 private:
     struct Context final {
-        Context(Private::ScriptRunner *cur, Private::ScriptRunner *&global) : global_(global)
+        Context(Private::ScriptRunner *cur, Private::ScriptRunner *&global)
+            : global_(global)
         {
+            assert(global_ == nullptr);
             global_ = cur;
         }
         ~Context() { global_ = nullptr; }
-        private : Private::ScriptRunner *&global_;
+    private:
+        Private::ScriptRunner *&global_;
     };
     qt_monkey_agent::UserEventsAnalyzer *eventAnalyzer_ = nullptr;
     QThread *thread_ = nullptr;

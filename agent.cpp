@@ -156,10 +156,11 @@ void Agent::onRunScriptCommand(const Private::Script &script)
     qDebug("%s: run script", Q_FUNC_INFO);
     ScriptAPI api{*this};
     ScriptRunner sr{api};
-    curScriptRunner_ = &sr;
     QString errMsg;
-    sr.runScript(script, errMsg);    
-    curScriptRunner_ = nullptr;
+    {
+        Context context(&sr, curScriptRunner_);
+        sr.runScript(script, errMsg);    
+    }
     if (!errMsg.isEmpty()) {
         qWarning("AGENT: %s: script return error", Q_FUNC_INFO);
         thread->channelWithMonkey()->sendCommand(
