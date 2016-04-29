@@ -204,7 +204,7 @@ void QtMonkeyWindow::onMonkeyAppFinishedSignal(QString msg)
     if (!msg.isEmpty())
         showError(msg);
     else
-        logNewLine(QtDebugMsg, T_("The application has exited"));
+        logNewLine(MsgType::Default, T_("The application has exited"));
     if (monkeyCtrl_ != nullptr) {
         monkeyCtrl_->deleteLater();
         monkeyCtrl_ = nullptr;
@@ -290,29 +290,50 @@ void QtMonkeyWindow::on_pbBrowse__pressed()
 
 void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
 {
-    if (state_ != State::RecordEvents)
-        return;
-    if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
-        teScriptEdit_->insertPlainText(scriptLine);
-    else
-        teScriptEdit_->append(scriptLine);
+    if (state_ == State::RecordEvents) {
+        if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
+            teScriptEdit_->insertPlainText(scriptLine);
+        else
+            teScriptEdit_->append(scriptLine);
+    } else if (state_ == State::PlayingEvents && cbProtocolRunning_->isChecked()) {
+        logNewLine(MsgType::Protocol, scriptLine);
+    }
 }
 
 void QtMonkeyWindow::onMonkeyUserAppError(const QString &errMsg)
 {
-    logNewLine(QtCriticalMsg, errMsg);
+    logNewLine(MsgType::Error, errMsg);
 }
 
-void QtMonkeyWindow::logNewLine(QtMsgType, const QString &msg)
+void QtMonkeyWindow::logNewLine(MsgType msgType, const QString &msg)
 {
-    teLog_->append(msg);
+    QString color;
+    switch (msgType) {
+    case MsgType::Default:
+        break;
+    case MsgType::Error:
+        color = QStringLiteral("DeepPink");
+        break;
+    case MsgType::Protocol:
+        color = QStringLiteral("Lime");
+        break;
+    }
+    QString text;
+    if (!color.isEmpty())
+        text = QStringLiteral("<font color=\"%1\">").arg(color);
+    text += Qt::escape(msg);
+    text.replace("\n", "<br/>");
+    if (!color.isEmpty())
+        text += "</font><br/>";
+//    teLog_->append(msg);
+    teLog_->insertHtml(text);
 }
 
 void QtMonkeyWindow::onMonkeyScriptEnd() { changeState(State::DoNothing); }
 
 void QtMonkeyWindow::onMonkeScriptLog(const QString &msg)
 {
-    logNewLine(QtDebugMsg, msg);
+    logNewLine(MsgType::Default, msg);
 }
 
 void QtMonkeyWindow::on_pbRunScript__pressed()
