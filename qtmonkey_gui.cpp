@@ -55,7 +55,7 @@ QtMonkeyAppCtrl::QtMonkeyAppCtrl(const QString &appPath,
 void QtMonkeyAppCtrl::monkeyAppError(QProcess::ProcessError err)
 {
     qDebug("%s: err %d", Q_FUNC_INFO, static_cast<int>(err));
-    emit monkeyAppFinishedSignal(processErrorToString(err));
+    emit monkeyAppFinishedSignal(qt_monkey_common::processErrorToString(err));
 }
 
 void QtMonkeyAppCtrl::monkeyAppFinished(int exitCode,

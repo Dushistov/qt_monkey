@@ -63,7 +63,7 @@ private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);
     void onRunScriptCommand(const qt_monkey_agent::Private::Script &);
-
+    void onAppAboutToQuit();
 private:
     struct CurrentScriptContext final {
         CurrentScriptContext(Private::ScriptRunner *cur,

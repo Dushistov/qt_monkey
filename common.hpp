@@ -16,4 +16,8 @@
 #define INSTALL_QT_MSG_HANDLER(msgHandler) qInstallMsgHandler((msgHandler))
 #endif
 
-extern QString processErrorToString(QProcess::ProcessError err);
+namespace qt_monkey_common
+{
+QString processErrorToString(QProcess::ProcessError err);
+void processEventsFor(int timeoutMs);
+}

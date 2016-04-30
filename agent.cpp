@@ -120,7 +120,7 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     // make sure that type is referenced, fix bug with qt4 and static lib
     qMetaTypeId<qt_monkey_agent::Private::Script>();
     eventType_ = static_cast<QEvent::Type>(QEvent::registerEventType());
-
+    connect(qApp, SIGNAL(aboutToQuit()), this, SLOT(onAppAboutToQuit()));
     connect(eventAnalyzer_, SIGNAL(userEventInScriptForm(const QString &)),
             this, SLOT(onUserEventInScriptForm(const QString &)));
     QCoreApplication::instance()->installEventFilter(eventAnalyzer_);
@@ -176,13 +176,7 @@ void Agent::onRunScriptCommand(const Private::Script &script)
         // if all ok, sync with gui, so user recieve all events
         // before script exit
         runCodeInGuiThreadSync([] {
-            // QElapsedTimer occure only since Qt 4.7, so use chrono instead
-            auto startTime = std::chrono::steady_clock::now();
-            do {
-                qApp->processEvents(QEventLoop::AllEvents, 10 /*ms*/);
-            } while (std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::steady_clock::now() - startTime)
-                     < std::chrono::milliseconds(300));
+            qt_monkey_common::processEventsFor(300 /*ms*/);
             DBGPRINT("%s: wait done", Q_FUNC_INFO);
             return QString();
         });
@@ -212,7 +206,8 @@ QString Agent::runCodeInGuiThreadSync(std::function<QString()> func)
 {
     assert(QThread::currentThread() == thread_);
     QString res;
-    QCoreApplication::postEvent(this, new FuncEvent(eventType_, [func, this, &res] {
+    QCoreApplication::postEvent(this,
+                                new FuncEvent(eventType_, [func, this, &res] {
                                     res = func();
                                     guiRunSem_.release();
                                 }));
@@ -236,7 +231,7 @@ void Agent::throwScriptError(QString msg)
 }
 
 QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
-                                              int timeoutSecs)
+                                                 int timeoutSecs)
 {
     assert(QThread::currentThread() == thread_);
 
@@ -256,4 +251,10 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
     }
     DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
     return QString();
+}
+
+void Agent::onAppAboutToQuit()
+{
+    qDebug("%s: begin", Q_FUNC_INFO);
+    qt_monkey_common::processEventsFor(300 /*ms*/);
 }

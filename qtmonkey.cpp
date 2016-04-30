@@ -86,13 +86,14 @@ void QtMonkey::onNewUserAppEvent(QString scriptLines)
 void QtMonkey::userAppError(QProcess::ProcessError err)
 {
     qDebug("%s: begin err %d", Q_FUNC_INFO, static_cast<int>(err));
-    throw std::runtime_error(qPrintable(processErrorToString(err)));
+    throw std::runtime_error(qPrintable(qt_monkey_common::processErrorToString(err)));
 }
 
 void QtMonkey::userAppFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     qDebug("%s: begin exitCode %d, exitStatus %d", Q_FUNC_INFO, exitCode,
            static_cast<int>(exitStatus));
+    qt_monkey_common::processEventsFor(300 /*ms*/);
     if (exitCode != EXIT_SUCCESS)
         throw std::runtime_error(T_("user app exit status not %1: %2")
                                      .arg(EXIT_SUCCESS)

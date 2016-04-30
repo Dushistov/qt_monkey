@@ -69,6 +69,8 @@ add_library(qtmonkey_agent STATIC
   script.hpp
   script.cpp
   script_api.cpp
+  common.hpp
+  common.cpp
   )
 target_link_libraries(qtmonkey_agent ${QT_LIBRARIES})
 
