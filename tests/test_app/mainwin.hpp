@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QtGui/QMainWindow>
+#include <QMainWindow>
 
 #include "ui_mainwin.h"
 
