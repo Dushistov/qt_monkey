@@ -325,21 +325,22 @@ void CommunicationAgentPart::timerEvent(QTimerEvent *event)
 
 void CommunicationAgentPart::sendData()
 {
-    if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf_.isEmpty())
+    auto sendBuf = sendBuf_.get();
+    if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf->isEmpty())
         return;
-    qint64 nBytes = sock_.write(sendBuf_);
+    qint64 nBytes = sock_.write(*sendBuf);
     if (nBytes == -1) {
         qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
                  qPrintable(sock_.errorString()));
         return;
     }
-    sendBuf_.remove(0, nBytes);
+    sendBuf->remove(0, nBytes);
 }
 
 void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,
                                          const QString &text)
 {
-    sendBuf_.append(createPacket(static_cast<uint32_t>(pt), text));
+    sendBuf_.get()->append(createPacket(static_cast<uint32_t>(pt), text));
 }
 
 void CommunicationAgentPart::flushSendData()

@@ -66,7 +66,7 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
     const QByteArray out = qtmonkeyApp_.readAllStandardOutput();
-    jsonFromMonkey_.append(out.constData(), out.size());
+    jsonFromMonkey_.append(out);
     qDebug("%s: json |%s|", Q_FUNC_INFO, qPrintable(jsonFromMonkey_));
 
     std::string::size_type parserStopPos;
@@ -290,12 +290,14 @@ void QtMonkeyWindow::on_pbBrowse__pressed()
 
 void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
 {
+    qDebug("%s: scriptLine %s", Q_FUNC_INFO, qPrintable(scriptLine));
     if (state_ == State::RecordEvents) {
         if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
             teScriptEdit_->insertPlainText(scriptLine);
         else
             teScriptEdit_->append(scriptLine);
-    } else if (state_ == State::PlayingEvents && cbProtocolRunning_->isChecked()) {
+    } else if (state_ == State::PlayingEvents
+               && cbProtocolRunning_->isChecked()) {
         logNewLine(MsgType::Protocol, scriptLine);
     }
 }
@@ -348,7 +350,8 @@ void QtMonkeyWindow::on_pbRunScript__pressed()
 
 void QtMonkeyWindow::changeState(State val)
 {
-    qDebug("%s: begin val %d", Q_FUNC_INFO, static_cast<int>(val));
+    qDebug("%s: begin was val %d, now val %d", Q_FUNC_INFO,
+           static_cast<int>(state_), static_cast<int>(val));
     state_ = val;
     switch (state_) {
     case State::DoNothing:
@@ -372,10 +375,7 @@ void QtMonkeyWindow::changeState(State val)
     }
 }
 
-void QtMonkeyWindow::on_pbClearLog__pressed()
-{
-    teLog_->clear();
-}
+void QtMonkeyWindow::on_pbClearLog__pressed() { teLog_->clear(); }
 
 int main(int argc, char *argv[])
 {

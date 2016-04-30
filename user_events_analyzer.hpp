@@ -11,10 +11,11 @@ namespace qt_monkey_agent
 //! helper functions to implement custom event analyzers
 
 //! Get full widget id, in form parent of parent id.parent id.widget id
-extern QString fullQtWidgetId(const QWidget &w);
+QString fullQtWidgetId(const QWidget &w);
 
-//! convert mouse button constant to string
-extern QString mouseButtonEnumToString(Qt::MouseButton b);
+//! convert mouse button constant <-> string
+QString mouseButtonEnumToString(Qt::MouseButton b);
+bool stringToMouseButton(const QString &str, Qt::MouseButton &bt);
 //@}
 
 /**
@@ -39,7 +40,8 @@ private:
     std::list<CustomEventAnalyzer> customEventAnalyzers_;
 
     bool eventFilter(QObject *obj, QEvent *event) override;
-    QString callCustomEventAnalyzers(QObject *obj, QEvent *event,
-                                     const std::pair<QWidget *, QString> &widget) const;
+    QString
+    callCustomEventAnalyzers(QObject *obj, QEvent *event,
+                             const std::pair<QWidget *, QString> &widget) const;
 };
 }

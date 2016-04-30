@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "shared_resource.hpp"
+
 namespace qt_monkey_agent
 {
 namespace Private
@@ -91,7 +93,7 @@ private slots:
 private:
     QTcpSocket sock_;
     QBasicTimer timer_;
-    QByteArray sendBuf_;
+    SharedResource<QByteArray> sendBuf_;
     QByteArray recvBuf_;
 
     void timerEvent(QTimerEvent *) override;

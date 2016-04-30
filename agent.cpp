@@ -4,6 +4,7 @@
 #include <QtCore/QThread>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <functional>
 
 #include "agent_qtmonkey_communication.hpp"
@@ -44,14 +45,12 @@ public:
     {
         eventType_ = static_cast<QEvent::Type>(QEvent::registerEventType());
     }
-    bool event(QEvent *event) override
+    void customEvent(QEvent *event) override
     {
         if (event->type() != eventType_)
-            return false;
+            return;
 
         static_cast<FuncEvent *>(event)->exec();
-
-        return true;
     }
     QEvent::Type eventType() const { return eventType_; }
 private:
@@ -109,8 +108,9 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     : eventAnalyzer_(
           new UserEventsAnalyzer(std::move(customEventAnalyzers), this))
 {
-    // make sure that type is referenced
+    // make sure that type is referenced, fix bug with qt4 and static lib
     qMetaTypeId<qt_monkey_agent::Private::Script>();
+    eventType_ = static_cast<QEvent::Type>(QEvent::registerEventType());
 
     connect(eventAnalyzer_, SIGNAL(userEventInScriptForm(const QString &)),
             this, SLOT(onUserEventInScriptForm(const QString &)));
@@ -132,10 +132,9 @@ Agent::~Agent()
 {
     GET_THREAD(thread)
 
-    thread->runInThread([this, thread] {
-        thread->channelWithMonkey()->flushSendData();
-    });
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 1000/*ms*/);
+    thread->runInThread(
+        [this, thread] { thread->channelWithMonkey()->flushSendData(); });
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 1000 /*ms*/);
     thread->quit();
     thread->wait();
 }
@@ -143,10 +142,8 @@ Agent::~Agent()
 void Agent::onUserEventInScriptForm(const QString &script)
 {
     GET_THREAD(thread)
-    thread->runInThread([thread, script] {
         thread->channelWithMonkey()->sendCommand(
             PacketTypeForMonkey::NewUserAppEvent, script);
-    });
 }
 
 void Agent::onRunScriptCommand(const Private::Script &script)
@@ -158,16 +155,31 @@ void Agent::onRunScriptCommand(const Private::Script &script)
     ScriptRunner sr{api};
     QString errMsg;
     {
-        Context context(&sr, curScriptRunner_);
-        sr.runScript(script, errMsg);    
+        CurrentScriptContext context(&sr, curScriptRunner_);
+        sr.runScript(script, errMsg);
     }
     if (!errMsg.isEmpty()) {
         qWarning("AGENT: %s: script return error", Q_FUNC_INFO);
         thread->channelWithMonkey()->sendCommand(
             PacketTypeForMonkey::ScriptError, errMsg);
+    } else {
+        qDebug("%s: sync with gui", Q_FUNC_INFO);
+        // if all ok, sync with gui, so user recieve all events
+        // before script exit
+        runCodeInGuiThreadSync([] {
+            // QElapsedTimer occure only since Qt 4.7, so use chrono instead
+            auto startTime = std::chrono::steady_clock::now();
+            do {
+                qApp->processEvents(QEventLoop::AllEvents, 10 /*ms*/);
+            } while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - startTime)
+                     < std::chrono::milliseconds(300));
+            qDebug("%s: wait done", Q_FUNC_INFO);
+        });
     }
-    thread->channelWithMonkey()->sendCommand(
-        PacketTypeForMonkey::ScriptEnd, QString());
+    qDebug("%s: report about script end", Q_FUNC_INFO);
+    thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptEnd,
+                                             QString());
 }
 
 void Agent::sendToLog(QString msg)
@@ -184,4 +196,50 @@ void Agent::scriptCheckPoint()
     assert(curScriptRunner_ != nullptr);
     const int lineno = curScriptRunner_->currentLineNum();
     qDebug("%s: lineno %d", Q_FUNC_INFO, lineno);
+}
+
+void Agent::runCodeInGuiThreadSync(std::function<void()> func)
+{
+    assert(QThread::currentThread() == thread_);
+    QCoreApplication::postEvent(this, new FuncEvent(eventType_, [func, this] {
+                                    func();
+                                    guiRunSem_.release();
+                                }));
+    guiRunSem_.acquire();
+}
+
+void Agent::customEvent(QEvent *event)
+{
+    assert(QThread::currentThread() != thread_);
+    if (event->type() != eventType_)
+        return;
+    static_cast<FuncEvent *>(event)->exec();
+}
+
+void Agent::throwScriptError(QString msg)
+{
+    assert(QThread::currentThread() == thread_);
+    assert(curScriptRunner_ != nullptr);
+    curScriptRunner_->throwError(std::move(msg));
+}
+
+void Agent::runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
+                                              int timeoutSecs)
+{
+    assert(QThread::currentThread() == thread_);
+
+    std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
+    QCoreApplication::postEvent(this,
+                                new FuncEvent(eventType_, [func, waitSem] {
+                                    func();
+                                    waitSem->release();
+                                }));
+    const int timeoutMsec = timeoutSecs * 1000;
+    const int waitIntervalMsec = 100;
+    const int N = timeoutMsec / waitIntervalMsec + 1;
+    for (int attempt = 0; attempt < N; ++attempt) {
+        if (waitSem->tryAcquire(1, waitIntervalMsec))
+            return;
+    }
+    qDebug("%s: timeout occuire", Q_FUNC_INFO);
 }

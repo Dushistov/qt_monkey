@@ -1,12 +1,12 @@
 //#define DEBUG_ANALYZER
 #include "user_events_analyzer.hpp"
 
-#include <QtCore/QEvent>
 #include <QAction>
 #include <QApplication>
 #include <QMenu>
-#include <QtGui/QMouseEvent>
 #include <QWidget>
+#include <QtCore/QEvent>
+#include <QtGui/QMouseEvent>
 #include <cstring>
 
 using namespace qt_monkey_agent;
@@ -14,7 +14,9 @@ using namespace qt_monkey_agent;
 #ifdef DEBUG_ANALYZER
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
 #else
-#define DBGPRINT(fmt, ...) do {} while (false)
+#define DBGPRINT(fmt, ...)                                                     \
+    do {                                                                       \
+    } while (false)
 #endif
 
 namespace
@@ -114,15 +116,28 @@ static QString qmenuActivateClick(QObject *, QEvent *event,
     }
     return res;
 }
+
+static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
+    {Qt::LeftButton, QLatin1String("Qt.LeftButton")},
+    {Qt::RightButton, QLatin1String("Qt.RightButton")},
+    {Qt::MidButton, QLatin1String("Qt.MidButton")},
+};
+}
+
+bool qt_monkey_agent::stringToMouseButton(const QString &str,
+                                          Qt::MouseButton &bt)
+{
+    for (auto &&elm : mouseBtnNames)
+        if (elm.second == str) {
+            bt = elm.first;
+            return true;
+        }
+
+    return false;
 }
 
 QString qt_monkey_agent::mouseButtonEnumToString(Qt::MouseButton b)
 {
-    static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
-        {Qt::LeftButton, QLatin1String("Qt.LeftButton")},
-        {Qt::RightButton, QLatin1String("Qt.RightButton")},
-        {Qt::MidButton, QLatin1String("Qt.MidButton")},
-    };
 
     for (auto &&elm : mouseBtnNames)
         if (elm.first == b)
@@ -134,8 +149,8 @@ QString qt_monkey_agent::mouseButtonEnumToString(Qt::MouseButton b)
 QString qt_monkey_agent::fullQtWidgetId(const QWidget &w)
 {
     QString res = qtObjectId(w);
-    DBGPRINT("%s: class name %s, id %s", Q_FUNC_INFO, w.metaObject()->className(),
-           qPrintable(res));
+    DBGPRINT("%s: class name %s, id %s", Q_FUNC_INFO,
+             w.metaObject()->className(), qPrintable(res));
     QObject *cur_obj = w.parent();
     while (cur_obj != nullptr) {
         res = qtObjectId(*cur_obj) + "." + res;
@@ -170,15 +185,16 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
     case QEvent::KeyPress:
     case QEvent::KeyRelease:
         DBGPRINT("%s: key event for '%s'\n", Q_FUNC_INFO,
-               qPrintable(obj->objectName()));
+                 qPrintable(obj->objectName()));
         break;
     case QEvent::MouseButtonDblClick:
     case QEvent::MouseButtonPress: {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
         DBGPRINT("%s: mouse event for '%s': %s\n", Q_FUNC_INFO,
-               qPrintable(obj->objectName()),
-               event->type() == QEvent::MouseButtonDblClick ? "double click"
-                                                            : "release event");
+                 qPrintable(obj->objectName()),
+                 event->type() == QEvent::MouseButtonDblClick
+                     ? "double click"
+                     : "release event");
         QWidget *w = QApplication::widgetAt(mouseEvent->globalPos());
         if (w == nullptr) {
             QPoint p = mouseEvent->globalPos();
@@ -202,21 +218,24 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             if (w != nullptr && w != baseWidget) {
                 pos = w->mapFromGlobal(mouseEvent->globalPos());
                 widgetName = fullQtWidgetId(*w);
-                QString anotherScript = callCustomEventAnalyzers(obj, event, {w, widgetName});
+                QString anotherScript
+                    = callCustomEventAnalyzers(obj, event, {w, widgetName});
                 if (anotherScript.isEmpty())
-                    anotherScript = mouseEventToJavaScript(widgetName, mouseEvent, pos);
+                    anotherScript
+                        = mouseEventToJavaScript(widgetName, mouseEvent, pos);
                 if (scriptLine != anotherScript)
                     scriptLine = QString("%1\n//%2")
                                      .arg(scriptLine)
                                      .arg(anotherScript);
             }
         }
-
+        DBGPRINT("%s: emit userEventInScriptForm", Q_FUNC_INFO);
         emit userEventInScriptForm(scriptLine);
         break;
     } // event by mouse
     default: {
-        const QString code = callCustomEventAnalyzers(obj, event, {nullptr, QString()});
+        const QString code
+            = callCustomEventAnalyzers(obj, event, {nullptr, QString()});
         if (!code.isEmpty())
             emit userEventInScriptForm(code);
         break;

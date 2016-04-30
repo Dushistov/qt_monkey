@@ -1,6 +1,8 @@
 #pragma once
 
+#include <QtCore/QEvent>
 #include <QtCore/QObject>
+#include <QtCore/QSemaphore>
 #include <cassert>
 
 #include "custom_event_analyzer.hpp"
@@ -45,25 +47,35 @@ public:
     void sendToLog(QString msg);
     //! called from script code for break point purposes
     void scriptCheckPoint();
+    void runCodeInGuiThreadSync(std::function<void()> func);
+    void runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
+                                           int timeoutSecs);
+    void throwScriptError(QString msg);
 private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);
     void onRunScriptCommand(const qt_monkey_agent::Private::Script &);
 
 private:
-    struct Context final {
-        Context(Private::ScriptRunner *cur, Private::ScriptRunner *&global)
+    struct CurrentScriptContext final {
+        CurrentScriptContext(Private::ScriptRunner *cur,
+                             Private::ScriptRunner *&global)
             : global_(global)
         {
             assert(global_ == nullptr);
             global_ = cur;
         }
-        ~Context() { global_ = nullptr; }
+        ~CurrentScriptContext() { global_ = nullptr; }
     private:
         Private::ScriptRunner *&global_;
     };
+
     qt_monkey_agent::UserEventsAnalyzer *eventAnalyzer_ = nullptr;
     QThread *thread_ = nullptr;
     Private::ScriptRunner *curScriptRunner_ = nullptr;
+    QEvent::Type eventType_;
+    QSemaphore guiRunSem_{0};
+
+    void customEvent(QEvent *event) override;
 };
 }
