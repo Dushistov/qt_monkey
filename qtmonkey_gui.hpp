@@ -48,6 +48,7 @@ class QtMonkeyWindow
     Q_OBJECT
 public:
     QtMonkeyWindow(QWidget *parent = nullptr);
+    ~QtMonkeyWindow();
 private slots:
     // auto connection
     void on_pbStartRecording__pressed();
@@ -56,6 +57,7 @@ private slots:
     void on_pbBrowse__pressed();
     void on_pbRunScript__pressed();
     void on_pbClearLog__pressed();
+    void on_cbProtocolRunning__toggled(bool checked);
 
     // manual connection
     void onMonkeyAppFinishedSignal(QString);

@@ -15,6 +15,12 @@
     if (__name__ == nullptr)                                                   \
         return;
 
+static const QLatin1String prefsDomain{"qt_monkey"};
+static const QLatin1String prefsSectName{"main"};
+static const QLatin1String testAppPathPrefName{"path to test app"};
+static const QLatin1String testAppArgsPrefName{"test app arguments"};
+static const QLatin1String protocolModePrefName{"protocol mode"};
+
 QtMonkeyAppCtrl::QtMonkeyAppCtrl(const QString &appPath,
                                  const QStringList &appArgs, QObject *parent)
     : QObject(parent)
@@ -232,11 +238,6 @@ void QtMonkeyWindow::on_leTestAppArgs__textEdited(const QString &text)
     scheduleSave();
 }
 
-static const QLatin1String prefsDomain{"qt_monkey"};
-static const QLatin1String prefsSectName{"main"};
-static const QLatin1String testAppPathPrefName{"path to test app"};
-static const QLatin1String testAppArgsPrefName{"test app arguments"};
-
 void QtMonkeyWindow::savePrefs()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
@@ -248,6 +249,7 @@ void QtMonkeyWindow::savePrefs()
     cfg.beginGroup(prefsSectName);
     cfg.setValue(testAppPathPrefName, leTestApp_->text());
     cfg.setValue(testAppArgsPrefName, leTestAppArgs_->text());
+    cfg.setValue(protocolModePrefName, cbProtocolRunning_->isChecked());
     cfg.endGroup();
     cfg.sync();
 }
@@ -266,6 +268,8 @@ void QtMonkeyWindow::loadPrefs()
     const QString testAppArgs
         = cfg.value(testAppArgsPrefName, QString{}).toString();
     leTestAppArgs_->setText(testAppArgs);
+    const bool protocolMode = cfg.value(protocolModePrefName, false).toBool();
+    cbProtocolRunning_->setChecked(protocolMode);
 }
 
 void QtMonkeyWindow::scheduleSave()
@@ -376,6 +380,18 @@ void QtMonkeyWindow::changeState(State val)
 }
 
 void QtMonkeyWindow::on_pbClearLog__pressed() { teLog_->clear(); }
+
+void QtMonkeyWindow::on_cbProtocolRunning__toggled(bool checked)
+{
+    qDebug("%s: begin", Q_FUNC_INFO);
+    assert(checked == cbProtocolRunning_->isChecked());
+    scheduleSave();
+}
+
+QtMonkeyWindow::~QtMonkeyWindow()
+{
+    savePrefs();
+}
 
 int main(int argc, char *argv[])
 {
