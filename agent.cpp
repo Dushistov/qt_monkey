@@ -1,3 +1,4 @@
+//#define DEBUG_AGENT
 #include "agent.hpp"
 
 #include <QtCore/QCoreApplication>
@@ -23,6 +24,14 @@ using namespace qt_monkey_agent::Private;
         qWarning("%s: thread is finished", Q_FUNC_INFO);                       \
         return;                                                                \
     }
+
+#ifdef DEBUG_AGENT
+#define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
+#else
+#define DBGPRINT(fmt, ...)                                                     \
+    do {                                                                       \
+    } while (false)
+#endif
 
 namespace
 {
@@ -142,15 +151,15 @@ Agent::~Agent()
 void Agent::onUserEventInScriptForm(const QString &script)
 {
     GET_THREAD(thread)
-        thread->channelWithMonkey()->sendCommand(
-            PacketTypeForMonkey::NewUserAppEvent, script);
+    thread->channelWithMonkey()->sendCommand(
+        PacketTypeForMonkey::NewUserAppEvent, script);
 }
 
 void Agent::onRunScriptCommand(const Private::Script &script)
 {
     GET_THREAD(thread)
     assert(QThread::currentThread() == thread_);
-    qDebug("%s: run script", Q_FUNC_INFO);
+    DBGPRINT("%s: run script", Q_FUNC_INFO);
     ScriptAPI api{*this};
     ScriptRunner sr{api};
     QString errMsg;
@@ -163,7 +172,7 @@ void Agent::onRunScriptCommand(const Private::Script &script)
         thread->channelWithMonkey()->sendCommand(
             PacketTypeForMonkey::ScriptError, errMsg);
     } else {
-        qDebug("%s: sync with gui", Q_FUNC_INFO);
+        DBGPRINT("%s: sync with gui", Q_FUNC_INFO);
         // if all ok, sync with gui, so user recieve all events
         // before script exit
         runCodeInGuiThreadSync([] {
@@ -174,17 +183,17 @@ void Agent::onRunScriptCommand(const Private::Script &script)
             } while (std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::steady_clock::now() - startTime)
                      < std::chrono::milliseconds(300));
-            qDebug("%s: wait done", Q_FUNC_INFO);
+            DBGPRINT("%s: wait done", Q_FUNC_INFO);
         });
     }
-    qDebug("%s: report about script end", Q_FUNC_INFO);
+    DBGPRINT("%s: report about script end", Q_FUNC_INFO);
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptEnd,
                                              QString());
 }
 
 void Agent::sendToLog(QString msg)
 {
-    qDebug("%s: msg %s", Q_FUNC_INFO, qPrintable(msg));
+    DBGPRINT("%s: msg %s", Q_FUNC_INFO, qPrintable(msg));
     GET_THREAD(thread)
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptLog,
                                              std::move(msg));
@@ -195,7 +204,7 @@ void Agent::scriptCheckPoint()
     assert(QThread::currentThread() == thread_);
     assert(curScriptRunner_ != nullptr);
     const int lineno = curScriptRunner_->currentLineNum();
-    qDebug("%s: lineno %d", Q_FUNC_INFO, lineno);
+    DBGPRINT("%s: lineno %d", Q_FUNC_INFO, lineno);
 }
 
 void Agent::runCodeInGuiThreadSync(std::function<void()> func)
@@ -241,5 +250,5 @@ void Agent::runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
         if (waitSem->tryAcquire(1, waitIntervalMsec))
             return;
     }
-    qDebug("%s: timeout occuire", Q_FUNC_INFO);
+    DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
 }

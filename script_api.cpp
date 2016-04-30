@@ -1,4 +1,4 @@
-#define DEBUG_SCRIPT_API
+//#define DEBUG_SCRIPT_API
 #include "script_api.hpp"
 
 #include <QApplication>

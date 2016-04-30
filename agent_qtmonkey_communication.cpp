@@ -1,3 +1,4 @@
+//#define DEBUG_AGENT_QTMONKEY_COMMUNICATION
 #include "agent_qtmonkey_communication.hpp"
 
 #include <QtCore/QDataStream>
@@ -13,6 +14,14 @@
 using namespace qt_monkey_agent::Private;
 
 static const char QTMONKEY_PORT_ENV_NAME[] = "QTMONKEY_PORT";
+
+#ifdef DEBUG_AGENT_QTMONKEY_COMMUNICATION
+#define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
+#else
+#define DBGPRINT(fmt, ...)                                                     \
+    do {                                                                       \
+    } while (false)
+#endif
 
 namespace
 {
@@ -95,7 +104,7 @@ CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
     QByteArray portNum;
     QDataStream stream(&portNum, QIODevice::WriteOnly);
     stream << controlSock_->serverPort();
-    qDebug("%s: we listen %d\n", Q_FUNC_INFO,
+    DBGPRINT("%s: we listen %d\n", Q_FUNC_INFO,
            static_cast<int>(controlSock_->serverPort()));
     if (!qputenv(QTMONKEY_PORT_ENV_NAME, portNum))
         throw std::runtime_error(qPrintable(T_("can not set env variable")));
@@ -103,7 +112,7 @@ CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
 
 void CommunicationMonkeyPart::handleNewConnection()
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
+    DBGPRINT("%s: begin", Q_FUNC_INFO);
     curClient_ = controlSock_->nextPendingConnection();
     connect(curClient_, SIGNAL(readyRead()), this,
             SLOT(readDataFromClientSocket()));
@@ -184,7 +193,7 @@ void CommunicationMonkeyPart::flushSendData()
                      Q_FUNC_INFO, qPrintable(curClient_->errorString()));
             return;
         } else {
-            qDebug("%s: wrote %lld bytes", Q_FUNC_INFO, writen);
+            DBGPRINT("%s: wrote %lld bytes", Q_FUNC_INFO, writen);
         }
         sendBuf_.remove(0, writen);
         curClient_->flush();
@@ -193,7 +202,7 @@ void CommunicationMonkeyPart::flushSendData()
 
 void CommunicationMonkeyPart::clientDisconnected()
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
+    DBGPRINT("%s: begin", Q_FUNC_INFO);
     curClient_ = nullptr;
     recvBuf_.clear();
     sendBuf_.clear();
@@ -252,7 +261,7 @@ bool CommunicationAgentPart::connectToMonkey()
     QDataStream stream(&portnoStr, QIODevice::ReadOnly);
     stream >> portno;
     if (stream.status() == QDataStream::Ok) {
-        qDebug("%s: portno %d", Q_FUNC_INFO, static_cast<int>(portno));
+        DBGPRINT("%s: portno %d", Q_FUNC_INFO, static_cast<int>(portno));
         sock_.connectToHost(QHostAddress::LocalHost, portno);
         timer_.start(200, this);
         return true;
@@ -295,7 +304,7 @@ void CommunicationAgentPart::readCommands()
         auto packet = extractFromPacket(recvBuf_);
         switch (static_cast<PacketTypeForAgent>(packet.first)) {
         case PacketTypeForAgent::RunScript:
-            qDebug("%s: get script: '%s'", Q_FUNC_INFO,
+            DBGPRINT("%s: get script: '%s'", Q_FUNC_INFO,
                    qPrintable(packet.second));
             emit runScript(Script{std::move(packet.second)});
             break;
