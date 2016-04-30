@@ -5,6 +5,8 @@
 #include <QMessageBox>
 #include <QtCore/QDir>
 #include <QtCore/QSettings>
+#include <QtCore/QTextStream>
+#include <QtCore/QTextCodec>
 #include <cassert>
 
 #include "common.hpp"
@@ -20,6 +22,7 @@ static const QLatin1String prefsSectName{"main"};
 static const QLatin1String testAppPathPrefName{"path to test app"};
 static const QLatin1String testAppArgsPrefName{"test app arguments"};
 static const QLatin1String protocolModePrefName{"protocol mode"};
+static const QLatin1String pathToScriptDirPrefName{"path to script dir"};
 
 QtMonkeyAppCtrl::QtMonkeyAppCtrl(const QString &appPath,
                                  const QStringList &appArgs, QObject *parent)
@@ -250,6 +253,7 @@ void QtMonkeyWindow::savePrefs()
     cfg.setValue(testAppPathPrefName, leTestApp_->text());
     cfg.setValue(testAppArgsPrefName, leTestAppArgs_->text());
     cfg.setValue(protocolModePrefName, cbProtocolRunning_->isChecked());
+    cfg.setValue(pathToScriptDirPrefName, scriptDir_);
     cfg.endGroup();
     cfg.sync();
 }
@@ -270,6 +274,7 @@ void QtMonkeyWindow::loadPrefs()
     leTestAppArgs_->setText(testAppArgs);
     const bool protocolMode = cfg.value(protocolModePrefName, false).toBool();
     cbProtocolRunning_->setChecked(protocolMode);
+    scriptDir_ = cfg.value(pathToScriptDirPrefName, QDir::homePath()).toString();
 }
 
 void QtMonkeyWindow::scheduleSave()
@@ -394,6 +399,57 @@ void QtMonkeyWindow::on_cbProtocolRunning__toggled(bool checked)
 QtMonkeyWindow::~QtMonkeyWindow()
 {
     savePrefs();
+}
+
+void QtMonkeyWindow::on_pbSaveScriptToFile__pressed()
+{
+	const QString fn =
+		QFileDialog::getSaveFileName(this, T_("Save script to"),
+                                     scriptDir_, T_("Qt java script (*.qs)"));
+	if (fn.isEmpty())
+		return;
+	const QFileInfo fi(fn);
+
+    scriptDir_ = fi.dir().absolutePath();
+    scheduleSave();
+
+	QFile f(fn);
+	if (!f.open(QIODevice::WriteOnly)) {
+		QMessageBox::critical(this, T_("Error"),
+				      T_("Can not open for writing: %1").arg(fn));
+		return;
+	}
+
+	QTextStream t(&f);
+	t.setCodec(QTextCodec::codecForName(encoding_));
+	t << teScriptEdit_->toPlainText();
+	f.close();
+    scriptFileName_ = fn;
+}
+
+void QtMonkeyWindow::on_pbLoadScriptFromFile__pressed()
+{
+	const QString fn =
+		QFileDialog::getOpenFileName(this, T_("Load script from"),
+                                     scriptDir_, T_("Qt java script (*.qs)"));
+	if (fn.isEmpty())
+		return;
+	QFileInfo fi(fn);
+	scriptDir_ = fi.dir().absolutePath();
+	QFile f(fn);
+	if (!f.open(QIODevice::ReadOnly)) {
+		QMessageBox::critical(this, T_("Error"),
+				      T_("Can not open for reading: %1").arg(fn));
+		return;
+	}
+
+	QString text;
+	QTextStream t(&f);
+	t.setCodec(QTextCodec::codecForName(encoding_));
+	text = t.readAll();
+	f.close();
+	teScriptEdit_->setPlainText(text);
+    scriptFileName_ = fn;
 }
 
 int main(int argc, char *argv[])

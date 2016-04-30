@@ -58,6 +58,8 @@ private slots:
     void on_pbRunScript__pressed();
     void on_pbClearLog__pressed();
     void on_cbProtocolRunning__toggled(bool checked);
+    void on_pbSaveScriptToFile__pressed();
+    void on_pbLoadScriptFromFile__pressed();
 
     // manual connection
     void onMonkeyAppFinishedSignal(QString);
@@ -83,6 +85,9 @@ private:
     QtMonkeyAppCtrl *monkeyCtrl_ = nullptr;
     QTimer savePrefsTimer_;
     State state_ = State::DoNothing;
+    QString scriptDir_;
+    QByteArray encoding_{"UTF-8"};
+    QString scriptFileName_;
 
     QtMonkeyAppCtrl *getMonkeyCtrl();
     void loadPrefs();
