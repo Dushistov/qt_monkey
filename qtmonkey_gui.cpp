@@ -332,9 +332,12 @@ void QtMonkeyWindow::logNewLine(MsgType msgType, const QString &msg)
 #else
     text += msg.toHtmlEscaped();
 #endif
-    text.replace("\n", "<br/>");
+    text.replace("\n", "<br>");
     if (!color.isEmpty())
-        text += "</font><br/>";
+        text += "</font>";
+
+    text += "<br>";
+
     teLog_->insertHtml(text);
 }
 
