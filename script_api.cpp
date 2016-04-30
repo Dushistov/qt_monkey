@@ -101,15 +101,14 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
     const QString &mainWidgetName = names.first();
     DBGPRINT("(%s, %d): search widget with such name %s", Q_FUNC_INFO, __LINE__,
              qPrintable(mainWidgetName));
-    QList<QObject *> lst = qFindChildren<QObject *>(
-        QCoreApplication::instance(), mainWidgetName);
+    QList<QObject *> lst = QCoreApplication::instance()->findChildren<QObject *>(mainWidgetName);
     if (lst.isEmpty()) {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (mainWidgetName == widget->objectName()) {
                 lst << widget;
                 break;
             } else {
-                lst = qFindChildren<QObject *>(widget, mainWidgetName);
+                lst = widget->findChildren<QObject *>(mainWidgetName);
             }
 
             if (lst.count())
@@ -423,7 +422,7 @@ QString ScriptAPI::clickOnItemInGuiThread(const QList<int> &idxPos,
 
     const QRect rec = view->visualRect(mi);
     const QPoint pos = rec.center();
-    QWidget *view_port = qFindChild<QWidget *>(view, "qt_scrollarea_viewport");
+    QWidget *view_port = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
     moveMouseTo(view_port->mapToGlobal(pos));
     if (isDblClick) {
         DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
@@ -484,7 +483,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         // tw->setCurrentItem(ti);
         // QTest::qWait(100);
         QWidget *view_port
-            = qFindChild<QWidget *>(tw, "qt_scrollarea_viewport");
+            = tw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
         assert(view_port != nullptr);
         const QPoint pos = ir.center();
         moveMouseTo(view_port->mapToGlobal(pos));
@@ -546,7 +545,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
 
         DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
         QWidget *view_port
-            = qFindChild<QWidget *>(lw, "qt_scrollarea_viewport");
+            = lw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
         assert(view_port != nullptr);
         const QPoint pos = ir.center();
         moveMouseTo(view_port->mapToGlobal(pos));
@@ -575,7 +574,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
             if (itemName == data) {
                 const QRect r = lv->visualRect(m->index(i, 0));
                 QWidget *view_port
-                    = qFindChild<QWidget *>(lv, "qt_scrollarea_viewport");
+                    = lv->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
                 assert(view_port != nullptr);
                 const QPoint pos = r.center();
                 moveMouseTo(view_port->mapToGlobal(pos));
