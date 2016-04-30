@@ -4,6 +4,7 @@
 #include <QtScript/QScriptable>
 
 class QPoint;
+class QAbstractItemView;
 
 namespace qt_monkey_agent
 {
@@ -25,9 +26,15 @@ class ScriptAPI
 public:
     explicit ScriptAPI(Agent &agent, QObject *parent = nullptr);
 public slots:
+    /**
+      * send message to log
+      * @param msgStr string with message
+      */
+    void log(const QString &msgStr);
+
     //@{
     /**
-* Emulate click or double click on widget
+     * Emulate click or double click on widget
      * @param widget name of widget
      * @param button mouse button
      * @param x x of click in widget coordinate system
@@ -36,12 +43,17 @@ public slots:
     void mouseClick(QString widget, QString button, int x, int y);
     void mouseDClick(QString widget, QString button, int x, int y);
     //@}
+    //@{
     /**
-     * send message to log
-     * @param msgStr string with message
+     * Group of functions to emulate activate item (menu item, list item etc)
+     * @param widget name of widget who owns element
+     * @param actionName text content of element (caption on element)
+     * @param searchFlags search criteria of element, see Qt::MatchFlag
      */
-    void log(QString msgStr);
-
+    void activateItem(const QString &widget, const QString &actionName);
+    void activateItem(const QString &widget, const QString &actionName,
+                      const QString &searchFlags);
+    //@}
     /**
      * How many time to wait QWidget appearing before give up
      * @param v timeout in seconds
@@ -69,7 +81,15 @@ private:
 
     void doMouseClick(const QString &widgetName, const QString &buttonName,
                       int x, int y, bool doubleClick);
-    void clickInGuiThread(const QPoint &posA, QWidget &wA, Qt::MouseButton btn, bool dblClick);
+    void clickInGuiThread(const QPoint &posA, QWidget &wA, Qt::MouseButton btn,
+                          bool dblClick);
     void moveMouseTo(const QPoint &);
+    void doClickItem(const QString &objectName, const QString &itemName,
+                     bool isDblClick,
+                     Qt::MatchFlag searchItemFlag = Qt::MatchStartsWith);
+    QString activateItemInGuiThread(QWidget *w, const QString &itemName,
+                                    bool dblClick, Qt::MatchFlag matchFlag);
+    QString clickOnItemInGuiThread(const QList<int> &idxPos,
+                                QAbstractItemView *view, bool dblClick);
 };
 }

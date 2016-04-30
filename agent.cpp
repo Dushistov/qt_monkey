@@ -184,6 +184,7 @@ void Agent::onRunScriptCommand(const Private::Script &script)
                          std::chrono::steady_clock::now() - startTime)
                      < std::chrono::milliseconds(300));
             DBGPRINT("%s: wait done", Q_FUNC_INFO);
+            return QString();
         });
     }
     DBGPRINT("%s: report about script end", Q_FUNC_INFO);
@@ -207,14 +208,16 @@ void Agent::scriptCheckPoint()
     DBGPRINT("%s: lineno %d", Q_FUNC_INFO, lineno);
 }
 
-void Agent::runCodeInGuiThreadSync(std::function<void()> func)
+QString Agent::runCodeInGuiThreadSync(std::function<QString()> func)
 {
     assert(QThread::currentThread() == thread_);
-    QCoreApplication::postEvent(this, new FuncEvent(eventType_, [func, this] {
-                                    func();
+    QString res;
+    QCoreApplication::postEvent(this, new FuncEvent(eventType_, [func, this, &res] {
+                                    res = func();
                                     guiRunSem_.release();
                                 }));
     guiRunSem_.acquire();
+    return res;
 }
 
 void Agent::customEvent(QEvent *event)
@@ -232,15 +235,16 @@ void Agent::throwScriptError(QString msg)
     curScriptRunner_->throwError(std::move(msg));
 }
 
-void Agent::runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
+QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                               int timeoutSecs)
 {
     assert(QThread::currentThread() == thread_);
 
     std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
+    std::shared_ptr<QString> res{new QString};
     QCoreApplication::postEvent(this,
-                                new FuncEvent(eventType_, [func, waitSem] {
-                                    func();
+                                new FuncEvent(eventType_, [func, waitSem, res] {
+                                    *res = func();
                                     waitSem->release();
                                 }));
     const int timeoutMsec = timeoutSecs * 1000;
@@ -248,7 +252,8 @@ void Agent::runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
     const int N = timeoutMsec / waitIntervalMsec + 1;
     for (int attempt = 0; attempt < N; ++attempt) {
         if (waitSem->tryAcquire(1, waitIntervalMsec))
-            return;
+            return *res;
     }
     DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
+    return QString();
 }

@@ -47,9 +47,17 @@ public:
     void sendToLog(QString msg);
     //! called from script code for break point purposes
     void scriptCheckPoint();
-    void runCodeInGuiThreadSync(std::function<void()> func);
-    void runCodeInGuiThreadSyncWithTimeout(std::function<void()> func,
+
+    //@{
+    /**
+     * Run function in GUI thread, and wait it completition
+     * @param func function to run inside GUI thread
+     * @return error message if error appear or empty string if all ok
+     */
+    QString runCodeInGuiThreadSync(std::function<QString()> func);
+    QString runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                            int timeoutSecs);
+    //@}
     void throwScriptError(QString msg);
 private slots:
     void onUserEventInScriptForm(const QString &);
