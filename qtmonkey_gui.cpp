@@ -132,6 +132,7 @@ QtMonkeyWindow::QtMonkeyWindow(QWidget *parent) : QWidget(parent)
     setupUi(this);
     loadPrefs();
     connect(&savePrefsTimer_, SIGNAL(timeout()), this, SLOT(savePrefs()));
+    pbSaveScript_->setEnabled(false);
 }
 
 void QtMonkeyWindow::showError(const QString &msg)
@@ -302,7 +303,7 @@ void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
     qDebug("%s: scriptLine %s", Q_FUNC_INFO, qPrintable(scriptLine));
     if (state_ == State::RecordEvents) {
         if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
-            teScriptEdit_->insertPlainText(scriptLine);
+            teScriptEdit_->insertPlainText(scriptLine + "\n");
         else
             teScriptEdit_->append(scriptLine);
     } else if (state_ == State::PlayingEvents
@@ -405,7 +406,7 @@ void QtMonkeyWindow::on_pbSaveScriptToFile__pressed()
 {
 	const QString fn =
 		QFileDialog::getSaveFileName(this, T_("Save script to"),
-                                     scriptDir_, T_("Qt java script (*.qs)"));
+                                     scriptDir_, T_("Qt java script (*.qs *.js)"));
 	if (fn.isEmpty())
 		return;
 	const QFileInfo fi(fn);
@@ -413,25 +414,29 @@ void QtMonkeyWindow::on_pbSaveScriptToFile__pressed()
     scriptDir_ = fi.dir().absolutePath();
     scheduleSave();
 
-	QFile f(fn);
+    saveScriptToFile(fn);
+    scriptFileName_ = fn;
+}
+
+void QtMonkeyWindow::saveScriptToFile(const QString &fileName)
+{
+	QFile f(fileName);
 	if (!f.open(QIODevice::WriteOnly)) {
 		QMessageBox::critical(this, T_("Error"),
-				      T_("Can not open for writing: %1").arg(fn));
+				      T_("Can not open for writing: %1").arg(fileName));
 		return;
 	}
 
 	QTextStream t(&f);
 	t.setCodec(QTextCodec::codecForName(encoding_));
 	t << teScriptEdit_->toPlainText();
-	f.close();
-    scriptFileName_ = fn;
 }
 
 void QtMonkeyWindow::on_pbLoadScriptFromFile__pressed()
 {
 	const QString fn =
 		QFileDialog::getOpenFileName(this, T_("Load script from"),
-                                     scriptDir_, T_("Qt java script (*.qs)"));
+                                     scriptDir_, T_("Qt java script (*.qs *.js)"));
 	if (fn.isEmpty())
 		return;
 	QFileInfo fi(fn);
@@ -450,6 +455,12 @@ void QtMonkeyWindow::on_pbLoadScriptFromFile__pressed()
 	f.close();
 	teScriptEdit_->setPlainText(text);
     scriptFileName_ = fn;
+    pbSaveScript_->setEnabled(!scriptFileName_.isEmpty());
+}
+
+void QtMonkeyWindow::on_pbSaveScript__pressed()
+{
+    saveScriptToFile(scriptFileName_);
 }
 
 int main(int argc, char *argv[])

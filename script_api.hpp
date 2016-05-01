@@ -74,6 +74,13 @@ public slots:
      */
     void setNewEventLoopWaitTimeout(int v) { newEventLoopWaitTimeoutSecs_ = v; }
 
+    /**
+     * Expand subtree in QTreeWidget
+     * @param treeWidgetName widget name
+     * @param itemName caption of subtree
+     */
+    void expandItemInTree(const QString &treeWidgetName, const QString &itemName);
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

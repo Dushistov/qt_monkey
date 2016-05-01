@@ -2,8 +2,12 @@
 
 #include <QtCore/QObject>
 #include <list>
+#include <set>
 
 #include "custom_event_analyzer.hpp"
+
+class QTreeWidget;
+class QTreeWidgetItem;
 
 namespace qt_monkey_agent
 {
@@ -17,6 +21,32 @@ QString fullQtWidgetId(const QWidget &w);
 QString mouseButtonEnumToString(Qt::MouseButton b);
 bool stringToMouseButton(const QString &str, Qt::MouseButton &bt);
 //@}
+
+//! helper class to work with QTreeWidgetItem
+//! \todo remove when we drop support of Qt 4.x
+class TreeWidgetWatcher
+#ifndef Q_MOC_RUN
+    final
+#endif
+    : public QObject
+{
+    Q_OBJECT
+public:
+    TreeWidgetWatcher(const GenerateCommand &generateScriptCmd,
+                      QObject *parent = nullptr)
+        : QObject(parent), generateScriptCmd_(generateScriptCmd)
+    {
+    }
+    //! \return false if already watched
+    bool watch(QTreeWidget *tw);
+private slots:
+    void itemExpanded(QTreeWidgetItem *);
+    void treeWidgetDestroyed(QObject *);
+
+private:
+    const GenerateCommand &generateScriptCmd_;
+    std::set<QObject *> treeWidgetsSet_;
+};
 
 /**
  * Analyzer user event and genearte based of them javascript code
@@ -38,6 +68,7 @@ public:
 
 private:
     std::list<CustomEventAnalyzer> customEventAnalyzers_;
+    const GenerateCommand generateScriptCmd_;
 
     bool eventFilter(QObject *obj, QEvent *event) override;
     QString

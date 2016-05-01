@@ -12,10 +12,13 @@ using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
 
-QtMonkey::QtMonkey()
+static constexpr int waitBeforeExitMs = 300;
+
+QtMonkey::QtMonkey(bool exitOnScriptError)
+    : exitOnScriptError_(exitOnScriptError)
 {
-    if (!stdout_.open(stdout, QIODevice::WriteOnly, QFile::DontCloseHandle) ||
-        !stderr_.open(stderr, QIODevice::WriteOnly, QFile::DontCloseHandle))
+    if (!stdout_.open(stdout, QIODevice::WriteOnly, QFile::DontCloseHandle)
+        || !stderr_.open(stderr, QIODevice::WriteOnly, QFile::DontCloseHandle))
         throw std::runtime_error("File -> QFile failed");
     cout_.setDevice(&stdout_);
     cerr_.setDevice(&stderr_);
@@ -37,7 +40,8 @@ QtMonkey::QtMonkey()
     connect(&channelWithAgent_, SIGNAL(agentReadyToRunScript()), this,
             SLOT(onAgentReadyToRunScript()));
     connect(&channelWithAgent_, SIGNAL(scriptEnd()), this, SLOT(onScriptEnd()));
-    connect(&channelWithAgent_, SIGNAL(scriptLog(QString)), this, SLOT(onScriptLog(QString)));
+    connect(&channelWithAgent_, SIGNAL(scriptLog(QString)), this,
+            SLOT(onScriptLog(QString)));
 
     if (std::setvbuf(stdin, nullptr, _IONBF, 0))
         throw std::runtime_error("setvbuf failed");
@@ -63,11 +67,11 @@ QtMonkey::~QtMonkey()
 {
     if (userApp_.state() != QProcess::NotRunning) {
         userApp_.terminate();
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 3000/*ms*/);
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 3000 /*ms*/);
         userApp_.kill();
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000/*ms*/);
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000 /*ms*/);
     }
-    //so any signals from channel will be disconected
+    // so any signals from channel will be disconected
     channelWithAgent_.close();
 }
 
@@ -78,22 +82,22 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    cout_ << qt_monkey_app::createPacketFromUserAppEvent(scriptLines)
-          << "\n";
+    cout_ << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << "\n";
     cout_.flush();
 }
 
 void QtMonkey::userAppError(QProcess::ProcessError err)
 {
     qDebug("%s: begin err %d", Q_FUNC_INFO, static_cast<int>(err));
-    throw std::runtime_error(qPrintable(qt_monkey_common::processErrorToString(err)));
+    throw std::runtime_error(
+        qPrintable(qt_monkey_common::processErrorToString(err)));
 }
 
 void QtMonkey::userAppFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     qDebug("%s: begin exitCode %d, exitStatus %d", Q_FUNC_INFO, exitCode,
            static_cast<int>(exitStatus));
-    qt_monkey_common::processEventsFor(300 /*ms*/);
+    qt_monkey_common::processEventsFor(waitBeforeExitMs);
     if (exitCode != EXIT_SUCCESS)
         throw std::runtime_error(T_("user app exit status not %1: %2")
                                      .arg(EXIT_SUCCESS)
@@ -123,14 +127,16 @@ void QtMonkey::stdinDataReady()
     while ((ch = getchar()) != EOF && ch != '\n')
         stdinBuf_ += static_cast<unsigned char>(ch);
     size_t parserStopPos;
-    parseOutputFromGui(stdinBuf_, parserStopPos,
-                       [this](QString script, QString scriptFileName) {
-                           toRunList_.push(Script{std::move(script)});
-                           onAgentReadyToRunScript();
-                       },
-                       [this](QString errMsg) {
-                           cerr_ << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
-                       });
+    parseOutputFromGui(
+        stdinBuf_, parserStopPos,
+        [this](QString script, QString scriptFileName) {
+            toRunList_.push(Script{std::move(script)});
+            onAgentReadyToRunScript();
+        },
+        [this](QString errMsg) {
+            cerr_
+                << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
+        });
     if (parserStopPos != 0)
         stdinBuf_.remove(0, parserStopPos);
 }
@@ -141,6 +147,11 @@ void QtMonkey::onScriptError(QString errMsg)
     setScriptRunningState(false);
     cout_ << createPacketFromUserAppErrors(errMsg) << "\n";
     cout_.flush();
+    if (exitOnScriptError_) {
+        qt_monkey_common::processEventsFor(waitBeforeExitMs);
+        throw std::runtime_error(T_("script return error: %1")
+                                 .arg(errMsg).toUtf8().data());
+    }
 }
 
 bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
@@ -173,14 +184,16 @@ void QtMonkey::onAgentReadyToRunScript()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
 
-    if (!channelWithAgent_.isConnectedState() || toRunList_.empty() || scriptRunning_)
+    if (!channelWithAgent_.isConnectedState() || toRunList_.empty()
+        || scriptRunning_)
         return;
 
     Script script = std::move(toRunList_.front());
     toRunList_.pop();
     QString code;
     script.releaseCode(code);
-    channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript, std::move(code));
+    channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript,
+                                  std::move(code));
     setScriptRunningState(true);
 }
 

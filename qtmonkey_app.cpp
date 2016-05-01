@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     ConsoleApplication app(argc, argv);
 
     INSTALL_QT_MSG_HANDLER(msgHandler);
-
+    bool exitOnScriptError = false;
     int userAppOffset = -1;
     QStringList scripts;
     for (int i = 1; i < argc; ++i)
@@ -88,6 +88,8 @@ int main(int argc, char *argv[])
             }
             ++i;
             scripts.append(QFile::decodeName(argv[i]));
+        } else if (std::strcmp(argv[i], "--exit-on-script-error") == 0) {
+            exitOnScriptError = true;   
         } else {
             std::cerr << qPrintable(T_("Unknown option: %1\n").arg(argv[i]))
                       << qPrintable(usage());
@@ -101,7 +103,7 @@ int main(int argc, char *argv[])
     QStringList userAppArgs;
     for (int i = userAppOffset + 1; i < argc; ++i)
         userAppArgs << QString::fromLocal8Bit(argv[i]);
-    qt_monkey_app::QtMonkey monkey;
+    qt_monkey_app::QtMonkey monkey(exitOnScriptError);
 
     if (!scripts.empty() && !monkey.runScriptFromFile(std::move(scripts)))
         return EXIT_FAILURE;

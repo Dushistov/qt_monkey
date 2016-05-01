@@ -71,6 +71,7 @@ test_app_path = sys.argv[2]
 script_path = sys.argv[3]
 
 monkey = subprocess.Popen([qt_monkey_app_path, "--script", script_path,
+                           "--exit-on-script-error",
                            "--user-app", test_app_path], stdout=subprocess.PIPE,
                           stdin=subprocess.PIPE, stderr=sys.stderr)
 

@@ -14,19 +14,78 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="pushButton">
-    <property name="geometry">
-     <rect>
-      <x>160</x>
-      <y>330</y>
-      <width>166</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>PushButton</string>
-    </property>
-   </widget>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Tab 1</string>
+       </attribute>
+       <widget class="QPushButton" name="pushButton">
+        <property name="geometry">
+         <rect>
+          <x>120</x>
+          <y>260</y>
+          <width>166</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>PushButton</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>Tab 2</string>
+       </attribute>
+       <widget class="QTreeWidget" name="treeWidget">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>30</y>
+          <width>701</width>
+          <height>381</height>
+         </rect>
+        </property>
+        <column>
+         <property name="text">
+          <string>1</string>
+         </property>
+        </column>
+        <item>
+         <property name="text">
+          <string>1</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>1.1</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>1.2</string>
+          </property>
+         </item>
+        </item>
+        <item>
+         <property name="text">
+          <string>2</string>
+         </property>
+         <item>
+          <property name="text">
+           <string>2.1</string>
+          </property>
+         </item>
+        </item>
+       </widget>
+      </widget>
+     </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">

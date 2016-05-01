@@ -596,3 +596,37 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         return QLatin1String("ActivateWidget probelm: unknown type of widget");
     }
 }
+
+void ScriptAPI::expandItemInTree(const QString &treeWidgetName, const QString &itemName)
+{
+    agent_.scriptCheckPoint();
+    QWidget *w = getWidgetWithSuchName(agent_, treeWidgetName, waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr) {
+        agent_.throwScriptError(T_("Can not find such widget %1").arg(treeWidgetName));
+        return;
+    }
+    auto treeWidget = qobject_cast<QTreeWidget *>(w);
+    if (treeWidget == nullptr) {
+        agent_.throwScriptError(T_("%1 is not QTreeWidget").arg(treeWidgetName));
+        return;
+    }
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [&itemName, treeWidget] {
+            QList<QTreeWidgetItem *> til = treeWidget->findItems(
+                itemName,
+                Qt::MatchStartsWith | Qt::MatchRecursive);
+            if (til.isEmpty()) {
+                qWarning("%s: there are no such item", Q_FUNC_INFO);
+                return QString("Item `%1' not found").arg(itemName);
+            }
+            QTreeWidgetItem *ti = til.first();
+            treeWidget->expandItem(ti);
+            return QString();
+        },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
+}

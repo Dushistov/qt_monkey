@@ -60,6 +60,7 @@ private slots:
     void on_cbProtocolRunning__toggled(bool checked);
     void on_pbSaveScriptToFile__pressed();
     void on_pbLoadScriptFromFile__pressed();
+    void on_pbSaveScript__pressed();
 
     // manual connection
     void onMonkeyAppFinishedSignal(QString);
@@ -94,4 +95,5 @@ private:
     void scheduleSave();
     void changeState(State val);
     void logNewLine(MsgType, const QString &);
+    void saveScriptToFile(const QString &fileName);
 };

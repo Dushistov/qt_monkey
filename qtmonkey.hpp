@@ -1,9 +1,9 @@
 #pragma once
 
-#include <queue>
 #include <QtCore/QFile>
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
+#include <queue>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "script.hpp"
@@ -19,10 +19,14 @@ class QtMonkey
 {
     Q_OBJECT
 public:
-    QtMonkey();
+    explicit QtMonkey(bool exitOnScriptError);
     ~QtMonkey();
-    void runApp(QString userAppPath, QStringList userAppArgs) { userApp_.start(userAppPath, userAppArgs); }
-    bool runScriptFromFile(QStringList scriptPathList, const char *encoding = "UTF-8");
+    void runApp(QString userAppPath, QStringList userAppArgs)
+    {
+        userApp_.start(userAppPath, userAppArgs);
+    }
+    bool runScriptFromFile(QStringList scriptPathList,
+                           const char *encoding = "UTF-8");
 private slots:
     void userAppError(QProcess::ProcessError);
     void userAppFinished(int, QProcess::ExitStatus);
@@ -35,6 +39,7 @@ private slots:
     void onAgentReadyToRunScript();
     void onScriptEnd();
     void onScriptLog(QString msg);
+
 private:
     bool scriptRunning_ = false;
 
@@ -46,6 +51,7 @@ private:
     QTextStream cerr_;
     QByteArray stdinBuf_;
     std::queue<qt_monkey_agent::Private::Script> toRunList_;
+    bool exitOnScriptError_ = false;
 
     void setScriptRunningState(bool val);
 };
