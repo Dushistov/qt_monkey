@@ -22,6 +22,8 @@ public:
     SharedResource() = default;
     explicit SharedResource(const DataType &d) : data_(d) {}
     explicit SharedResource(DataType &&d) : data_(std::move(d)) {}
+    SharedResource& operator=(const SharedResource &) = delete;
+    SharedResource(const SharedResource &) = delete;
     DataPtrWrapper get() { return DataPtrWrapper(*this); }
 private:
     DataType data_;
