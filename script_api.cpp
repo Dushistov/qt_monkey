@@ -101,7 +101,8 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
     const QString &mainWidgetName = names.first();
     DBGPRINT("(%s, %d): search widget with such name %s", Q_FUNC_INFO, __LINE__,
              qPrintable(mainWidgetName));
-    QList<QObject *> lst = QCoreApplication::instance()->findChildren<QObject *>(mainWidgetName);
+    QList<QObject *> lst
+        = QCoreApplication::instance()->findChildren<QObject *>(mainWidgetName);
     if (lst.isEmpty()) {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             if (mainWidgetName == widget->objectName()) {
@@ -237,8 +238,10 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
     const int maxAttempts
         = (maxTimeToFindWidgetSec * 1000) / sleepTimeForWaitWidgetMs + 1;
     for (int i = 0; i < maxAttempts; ++i) {
-        agent.runCodeInGuiThreadSync(
-            [&w, &objectName] { w = doGetWidgetWithSuchName(objectName); return QString(); });
+        agent.runCodeInGuiThreadSync([&w, &objectName] {
+            w = doGetWidgetWithSuchName(objectName);
+            return QString();
+        });
 
         if (w == nullptr
             || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
@@ -267,7 +270,7 @@ void ScriptAPI::moveMouseTo(const QPoint &point) { QCursor::setPos(point); }
 void ScriptAPI::clickInGuiThread(const QPoint &posA, QWidget &wA,
                                  Qt::MouseButton btn, bool dblClick)
 {
-    DBGPRINT("%s: begin dbl_click %s, x %d, y %d, %p", Q_FUNC_INFO,
+    DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
              dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
 
     QWidget *chw = wA.childAt(posA);
@@ -296,8 +299,8 @@ void ScriptAPI::clickInGuiThread(const QPoint &posA, QWidget &wA,
     QLineEdit *le = qobject_cast<QLineEdit *>(w);
     if (le != nullptr) {
         DBGPRINT("%s: this is line edit", Q_FUNC_INFO);
-        // some times click on line edit do not give
-        // focus to it, because of different size on different OSes
+// some times click on line edit do not give
+// focus to it, because of different size on different OSes
 #ifdef DEBUG_SCRIPT_API
         QRect cr =
 #endif
@@ -347,7 +350,7 @@ void ScriptAPI::doMouseClick(const QString &widgetName,
 void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
                             bool isDblClick, Qt::MatchFlag searchItemFlag)
 {
-    DBGPRINT("%s: begin object_name %s", Q_FUNC_INFO, qPrintable(object_name));
+    DBGPRINT("%s: begin object_name %s", Q_FUNC_INFO, qPrintable(objectName));
 
     QWidget *w = getWidgetWithSuchName(agent_, objectName,
                                        waitWidgetAppearTimeoutSec_, true);
@@ -369,9 +372,12 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
                                 "QListView class");
         return;
     }
-    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout([w, isDblClick, &itemName, searchItemFlag, this] {
-            return activateItemInGuiThread(w, itemName, isDblClick, searchItemFlag);
-        }, newEventLoopWaitTimeoutSecs_);
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [w, isDblClick, &itemName, searchItemFlag, this] {
+            return activateItemInGuiThread(w, itemName, isDblClick,
+                                           searchItemFlag);
+        },
+        newEventLoopWaitTimeoutSecs_);
     if (!errMsg.isEmpty()) {
         DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
         agent_.throwScriptError(std::move(errMsg));
@@ -405,14 +411,16 @@ void ScriptAPI::activateItem(const QString &widget, const QString &actionName,
 }
 
 QString ScriptAPI::clickOnItemInGuiThread(const QList<int> &idxPos,
-                                       QAbstractItemView *view, bool isDblClick)
+                                          QAbstractItemView *view,
+                                          bool isDblClick)
 {
     DBGPRINT("%s: begin", Q_FUNC_INFO);
 
     QAbstractItemModel *model = view->model();
     if (model == nullptr) {
-        DBGPRINT("%s: model is null\n", Q_FUNC_INFO);       
-       return QLatin1String("ActivateItemInView failed, internal error: model is null");
+        DBGPRINT("%s: model is null\n", Q_FUNC_INFO);
+        return QLatin1String(
+            "ActivateItemInView failed, internal error: model is null");
     }
     QModelIndex mi;
     posToModelIndex(model, idxPos, mi);
@@ -422,7 +430,8 @@ QString ScriptAPI::clickOnItemInGuiThread(const QList<int> &idxPos,
 
     const QRect rec = view->visualRect(mi);
     const QPoint pos = rec.center();
-    QWidget *view_port = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
+    QWidget *view_port
+        = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
     moveMouseTo(view_port->mapToGlobal(pos));
     if (isDblClick) {
         DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
@@ -448,7 +457,6 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
 {
     DBGPRINT("%s: begin: item_name %s", Q_FUNC_INFO, qPrintable(itemName));
 
-
     if (QMenu *menu = qobject_cast<QMenu *>(w)) {
         QList<QAction *> acts = w->actions();
 
@@ -464,7 +472,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
                 return QString();
             }
         }
-        DBGPRINT("%s: end: not found %s", Q_FUNC_INFO, qPrintable(item_name));
+        DBGPRINT("%s: end: not found %s", Q_FUNC_INFO, qPrintable(itemName));
         return QString("Item `%1' not found").arg(itemName);
     } else if (QTreeWidget *tw = qobject_cast<QTreeWidget *>(w)) {
         QList<QTreeWidgetItem *> til
@@ -508,7 +516,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         const int idx = qcb->findText(itemName);
         if (idx == -1) {
             DBGPRINT("%s: can not find such item %s", Q_FUNC_INFO,
-                     qPrintable(item_name));
+                     qPrintable(itemName));
             return QString("There are no such item %1").arg(itemName);
         }
 
@@ -530,7 +538,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
                 return QString();
             }
         }
-        DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(item_name));
+        DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(itemName));
         return QString("There are no such item %1 in QTabBar").arg(itemName);
     } else if (QListWidget *lw = qobject_cast<QListWidget *>(w)) {
         DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
@@ -538,7 +546,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
             = lw->findItems(itemName, Qt::MatchExactly);
         if (itms.isEmpty()) {
             return QString("There are no such item %1 in QListWidget")
-                    .arg(itemName);
+                .arg(itemName);
         }
         QListWidgetItem *it = itms.first();
         QRect ir = lw->visualItemRect(it);
@@ -570,11 +578,11 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         for (int i = 0; i < m->rowCount(); ++i) {
             const QString data = m->index(i, 0).data().toString();
             DBGPRINT("%s: we check\n`%s'\nvs\n`%s'\n", Q_FUNC_INFO,
-                     qPrintable(data), qPrintable(item_name));
+                     qPrintable(data), qPrintable(itemName));
             if (itemName == data) {
                 const QRect r = lv->visualRect(m->index(i, 0));
-                QWidget *view_port
-                    = lv->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
+                QWidget *view_port = lv->findChild<QWidget *>(
+                    QLatin1String("qt_scrollarea_viewport"));
                 assert(view_port != nullptr);
                 const QPoint pos = r.center();
                 moveMouseTo(view_port->mapToGlobal(pos));

@@ -118,6 +118,6 @@ if (USE_TESTS)
   add_executable(json11_test contrib/json11/test.cpp)
   target_link_libraries(json11_test common_app_lib)
   add_test(json11_test json11_test)
-
   add_subdirectory(tests/test_app)
+  add_test(NAME gui_tests COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_gui_tests.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test1.js")
 endif ()
