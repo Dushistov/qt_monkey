@@ -251,11 +251,13 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
     for (int i = 0; i < maxAttempts; ++i) {
         agent.runCodeInGuiThreadSync([&w, &objectName] {
             w = doGetWidgetWithSuchName(objectName);
+            if (w != nullptr && canNotFind(*w))
+                w = nullptr;
             return QString();
         });
 
         if (w == nullptr
-            || canNotFind(*w) || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
+            || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(sleepTimeForWaitWidgetMs));
         } else {
