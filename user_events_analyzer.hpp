@@ -1,13 +1,18 @@
 #pragma once
 
-#include <QtCore/QObject>
 #include <list>
 #include <set>
+
+#include <QKeySequence>
+#include <QtCore/QObject>
+#include <QtCore/QEvent>
+#include <QtCore/QDateTime>
 
 #include "custom_event_analyzer.hpp"
 
 class QTreeWidget;
 class QTreeWidgetItem;
+class QKeyEvent;
 
 namespace qt_monkey_agent
 {
@@ -60,19 +65,28 @@ class UserEventsAnalyzer
     Q_OBJECT
 signals:
     void userEventInScriptForm(const QString &);
-
+    void scriptLog(const QString &);
 public:
-    explicit UserEventsAnalyzer(
-        std::list<CustomEventAnalyzer> customEventAnalyzers,
-        QObject *parent = nullptr);
+    UserEventsAnalyzer(const QKeySequence &showObjectShortCut,
+                       std::list<CustomEventAnalyzer> customEventAnalyzers,
+                       QObject *parent = nullptr);
 
 private:
+    struct {
+        QEvent::Type type = QEvent::None;
+        QDateTime timestamp;
+        int key = -1;
+    } lastKeyEvent_;
+    size_t keyPress_ = 0;
+    size_t keyRelease_ = 0;
     std::list<CustomEventAnalyzer> customEventAnalyzers_;
     const GenerateCommand generateScriptCmd_;
+    const QKeySequence showObjectShortCut_;
 
     bool eventFilter(QObject *obj, QEvent *event) override;
     QString
     callCustomEventAnalyzers(QObject *obj, QEvent *event,
                              const std::pair<QWidget *, QString> &widget) const;
+    bool alreedySawSuchKeyEvent(QKeyEvent *keyEvent);
 };
 }

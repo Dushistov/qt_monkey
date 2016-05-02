@@ -1,13 +1,16 @@
 #pragma once
 
+#include <cassert>
+
+#include <QKeySequence>
 #include <QtCore/QEvent>
 #include <QtCore/QObject>
 #include <QtCore/QSemaphore>
-#include <cassert>
 
 #include "custom_event_analyzer.hpp"
 
 class QThread;
+
 namespace qt_monkey_agent
 {
 class UserEventsAnalyzer;
@@ -39,7 +42,8 @@ public:
      * @param customEventAnalyzers custom event analyzers, it is possible
      * to use them as event analyzer extension point
      */
-    explicit Agent(std::list<CustomEventAnalyzer> customEventAnalyzers = {});
+    explicit Agent(const QKeySequence &showObjectShortcut = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
+                   std::list<CustomEventAnalyzer> customEventAnalyzers = {});
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
@@ -56,7 +60,7 @@ public:
      */
     QString runCodeInGuiThreadSync(std::function<QString()> func);
     QString runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
-                                           int timeoutSecs);
+                                              int timeoutSecs);
     //@}
     void throwScriptError(QString msg);
 private slots:
@@ -64,6 +68,7 @@ private slots:
     void onCommunicationError(const QString &);
     void onRunScriptCommand(const qt_monkey_agent::Private::Script &);
     void onAppAboutToQuit();
+    void onScriptLog(const QString &);
 private:
     struct CurrentScriptContext final {
         CurrentScriptContext(Private::ScriptRunner *cur,

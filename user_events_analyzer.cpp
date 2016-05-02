@@ -355,7 +355,56 @@ static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
     {Qt::RightButton, QLatin1String("Qt.RightButton")},
     {Qt::MidButton, QLatin1String("Qt.MidButton")},
 };
+
+static QString widgetUnderCursorInfo()
+{
+    QWidget *w = QApplication::widgetAt(QCursor::pos());
+
+    QString res = QStringLiteral("Widget at cursor info:\n");
+
+    QWidget *win = qApp->activeModalWidget();
+    if (win)
+        res += QStringLiteral("Modal Widget %1\n").arg(win->objectName());
+    else
+        res += QStringLiteral("Modal Windget null\n");
+
+    win = qApp->activePopupWidget();
+    if (win)
+        res += QStringLiteral("Popup Widget %1\n").arg(win->objectName());
+    else
+        res += QStringLiteral("Popup Window nullptr\n");
+
+    win = qApp->activeWindow();
+    if (win)
+        res += QStringLiteral("Active Widget %1\n").arg(win->objectName());
+    else
+        res += QStringLiteral("Active Widget nullptr\n");
+
+    if (w == nullptr)
+        return res;
+
+    const QObjectList &childs = w->children();
+
+    res += QStringLiteral("class name %1, object name %2\n")
+               .arg(w->metaObject()->className())
+               .arg(w->objectName());
+    QObject *obj = w->parent();
+    while (obj != nullptr) {
+        res += QStringLiteral("parent class name %1, object name %2\n")
+                   .arg(obj->metaObject()->className())
+                   .arg(obj->objectName());
+        obj = obj->parent();
+    }
+    for (QObject *child : childs) {
+        res += QStringLiteral("child class name %1, object name %2\n")
+                   .arg(child->metaObject()->className())
+                   .arg(child->objectName());
+    }
+
+    res += QStringLiteral("Widget at cursor info END\n");
+    return res;
 }
+} // namespace {
 
 bool qt_monkey_agent::stringToMouseButton(const QString &str,
                                           Qt::MouseButton &bt)
@@ -393,10 +442,12 @@ QString qt_monkey_agent::fullQtWidgetId(const QWidget &w)
 }
 
 UserEventsAnalyzer::UserEventsAnalyzer(
+    const QKeySequence &showObjectShortCut,
     std::list<CustomEventAnalyzer> customEventAnalyzers, QObject *parent)
     : QObject(parent), customEventAnalyzers_(std::move(customEventAnalyzers)),
       generateScriptCmd_(
-          [this](QString code) { emit userEventInScriptForm(code); })
+          [this](QString code) { emit userEventInScriptForm(code); }),
+      showObjectShortCut_(showObjectShortCut)
 {
     for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick,
                        qcomboBoxActivateClick, qlistWidgetActivateClick})
@@ -416,14 +467,57 @@ QString UserEventsAnalyzer::callCustomEventAnalyzers(
     return code;
 }
 
+bool UserEventsAnalyzer::alreedySawSuchKeyEvent(QKeyEvent *keyEvent)
+{
+    const QDateTime now = QDateTime::currentDateTime();
+    if (lastKeyEvent_.type == keyEvent->type()
+        && keyEvent->key() == lastKeyEvent_.key
+        && std::llabs(now.msecsTo(lastKeyEvent_.timestamp)) < 5)
+        return true;
+
+    lastKeyEvent_.type = keyEvent->type();
+    lastKeyEvent_.timestamp = now;
+    lastKeyEvent_.key = keyEvent->key();
+
+    if (keyEvent->type() == QEvent::KeyPress) {
+        ++keyPress_;
+        DBGPRINT("%s: Press obj %p, ev %p, keypress %zu", Q_FUNC_INFO, obj,
+                 event, keyPress_);
+    } else if (keyEvent->type() == QEvent::KeyRelease) {
+        ++keyRelease_;
+        DBGPRINT("%s: Release obj %p, ev %p, key_press_ %zu, keyrelease %zu",
+                 Q_FUNC_INFO, obj, event, keyPress_, keyRelease_);
+        if (keyPress_ == keyRelease_)
+            return true;
+        keyPress_ = keyRelease_ = 0;
+    }
+    return false;
+}
+
 bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
 {
     switch (event->type()) {
     case QEvent::KeyPress:
-    case QEvent::KeyRelease:
+    case QEvent::KeyRelease: {
         DBGPRINT("%s: key event for '%s'\n", Q_FUNC_INFO,
                  qPrintable(obj->objectName()));
-        break;
+        auto keyEvent = static_cast<QKeyEvent *>(event);
+
+        if (alreedySawSuchKeyEvent(keyEvent))
+            break;
+
+        // ignore special keys alone
+        if (keyEvent->key() == Qt::Key_Shift || keyEvent->key() == Qt::Key_Alt
+            || keyEvent->key() == Qt::Key_Control
+            || keyEvent->key() == Qt::Key_Meta) {
+            DBGPRINT("%s: special key alone", Q_FUNC_INFO);
+            break;
+        }
+        const QKeySequence curKey{keyEvent->key() | keyEvent->modifiers()};
+        if (keyEvent->type() == QEvent::KeyPress
+            && curKey == showObjectShortCut_)
+            emit scriptLog(widgetUnderCursorInfo());
+    } break;
     case QEvent::MouseButtonDblClick:
     case QEvent::MouseButtonPress: {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);

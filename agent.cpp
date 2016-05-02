@@ -113,9 +113,10 @@ private:
 };
 }
 
-Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
-    : eventAnalyzer_(
-          new UserEventsAnalyzer(std::move(customEventAnalyzers), this))
+Agent::Agent(const QKeySequence &showObjectShortcut,
+             std::list<CustomEventAnalyzer> customEventAnalyzers)
+    : eventAnalyzer_(new UserEventsAnalyzer(
+          showObjectShortcut, std::move(customEventAnalyzers), this))
 {
     // make sure that type is referenced, fix bug with qt4 and static lib
     qMetaTypeId<qt_monkey_agent::Private::Script>();
@@ -123,6 +124,8 @@ Agent::Agent(std::list<CustomEventAnalyzer> customEventAnalyzers)
     connect(qApp, SIGNAL(aboutToQuit()), this, SLOT(onAppAboutToQuit()));
     connect(eventAnalyzer_, SIGNAL(userEventInScriptForm(const QString &)),
             this, SLOT(onUserEventInScriptForm(const QString &)));
+    connect(eventAnalyzer_, SIGNAL(scriptLog(const QString &)), this,
+            SLOT(onScriptLog(const QString &)));
     QCoreApplication::instance()->installEventFilter(eventAnalyzer_);
     thread_ = new AgentThread(this);
     thread_->start();
@@ -257,4 +260,12 @@ void Agent::onAppAboutToQuit()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
     qt_monkey_common::processEventsFor(300 /*ms*/);
+}
+
+void Agent::onScriptLog(const QString &msg)
+{
+    assert(QThread::currentThread() != thread_);
+    GET_THREAD(thread)
+    thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptLog,
+                                             msg);
 }

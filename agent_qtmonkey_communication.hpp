@@ -18,7 +18,7 @@ class Script;
 
 enum class PacketTypeForAgent : uint32_t {
     RunScript,
-    // TODO: may be need?
+    // TODO: may be we need stuff bellow?
     SetBreakPointInScript,
     ContinueScript,
     HaltScript,
