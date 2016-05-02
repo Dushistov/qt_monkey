@@ -24,6 +24,11 @@ class ScriptAPI
 {
     Q_OBJECT
 public:
+    class Step final {
+    public:
+        explicit Step(Agent &agent);
+        ~Step();
+    };
     explicit ScriptAPI(Agent &agent, QObject *parent = nullptr);
 public slots:
     /**
@@ -81,6 +86,11 @@ public slots:
      */
     void expandItemInTree(const QString &treeWidgetName, const QString &itemName);
 
+    /**
+     * sleep some time (in help thread, main gui thread works at this time)
+     * @param ms amount of milliseconds to sleep
+     */
+    void Wait(int ms);
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

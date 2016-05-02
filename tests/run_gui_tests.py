@@ -62,7 +62,7 @@ def compare_two_func_calls(f1_call, f2_call):
         if type(p1) is int and type(p2) is int:
             continue
         if p1 != p2:
-            print("params not equal %s vs %s" % (p1, p2))
+            print("params not equal %s vs %s" % (p1, p2), file=sys.stderr)
             return False
     return True
 
@@ -70,9 +70,11 @@ qt_monkey_app_path = sys.argv[1]
 test_app_path = sys.argv[2]
 script_path = sys.argv[3]
 
-monkey = subprocess.Popen([qt_monkey_app_path, "--script", script_path,
-                           "--exit-on-script-error",
-                           "--user-app", test_app_path], stdout=subprocess.PIPE,
+monkey_cmd = [qt_monkey_app_path, "--script", script_path,
+              "--exit-on-script-error",
+              "--user-app", test_app_path]
+
+monkey = subprocess.Popen(monkey_cmd, stdout=subprocess.PIPE,
                           stdin=subprocess.PIPE, stderr=sys.stderr)
 
 code_listing = []
@@ -95,5 +97,6 @@ with open(script_path, "r") as fin:
         line = line.strip()
         if not compare_two_func_calls(line, code_listing[i]):
             print("Line %d, expected\n`%s'\n, actual\n`%s'\n" % (i + 1, line, code_listing[i]), file=sys.stderr)
+            print("Full log:\n%s\n" % "\n".join(code_listing), file=sys.stderr)
             sys.exit(1)
         i += 1

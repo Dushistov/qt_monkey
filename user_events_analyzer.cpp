@@ -288,6 +288,31 @@ qlistWidgetActivateClick(QObject *, QEvent *event,
     return res;
 }
 
+static QString qtabBarActivateClick(QObject *, QEvent *event,
+                                    const std::pair<QWidget *, QString> &widget,
+                                    const GenerateCommand &)
+{
+    QString res;
+    if (widget.first == nullptr || event == nullptr
+        || !(event->type() == QEvent::MouseButtonDblClick
+             || event->type() == QEvent::MouseButtonPress))
+        return res;
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+
+    auto tabBar = qobject_cast<QTabBar *>(widget.first);
+    if (tabBar == nullptr)
+        return res;
+    const int tab = tabBar->tabAt(pos);
+    if (tab == -1) {
+        qWarning("%s: not tab at pos %d %d", Q_FUNC_INFO, pos.x(), pos.y());
+        return res;
+    }
+    return QStringLiteral("Test.activateItem('%1', '%2');")
+        .arg(qt_monkey_agent::fullQtWidgetId(*tabBar))
+        .arg(tabBar->tabText(tab));
+}
+
 #if 0
     static QString qTreeViewActivateClick()
     {
@@ -449,8 +474,9 @@ UserEventsAnalyzer::UserEventsAnalyzer(
           [this](QString code) { emit userEventInScriptForm(code); }),
       showObjectShortCut_(showObjectShortCut)
 {
-    for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick,
-                       qcomboBoxActivateClick, qlistWidgetActivateClick})
+    for (auto &&fun :
+         {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick,
+          qlistWidgetActivateClick, qtabBarActivateClick})
         customEventAnalyzers_.emplace_back(fun);
 }
 
@@ -481,12 +507,12 @@ bool UserEventsAnalyzer::alreedySawSuchKeyEvent(QKeyEvent *keyEvent)
 
     if (keyEvent->type() == QEvent::KeyPress) {
         ++keyPress_;
-        DBGPRINT("%s: Press obj %p, ev %p, keypress %zu", Q_FUNC_INFO, obj,
-                 event, keyPress_);
+        DBGPRINT("%s: Press ev %p, keypress %zu", Q_FUNC_INFO, keyEvent,
+                 keyPress_);
     } else if (keyEvent->type() == QEvent::KeyRelease) {
         ++keyRelease_;
-        DBGPRINT("%s: Release obj %p, ev %p, key_press_ %zu, keyrelease %zu",
-                 Q_FUNC_INFO, obj, event, keyPress_, keyRelease_);
+        DBGPRINT("%s: Release ev %p, keyPress %zu, keyRelease %zu", Q_FUNC_INFO,
+                 keyEvent, keyPress_, keyRelease_);
         if (keyPress_ == keyRelease_)
             return true;
         keyPress_ = keyRelease_ = 0;
@@ -513,7 +539,8 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             DBGPRINT("%s: special key alone", Q_FUNC_INFO);
             break;
         }
-        const QKeySequence curKey{keyEvent->key() | keyEvent->modifiers()};
+        const QKeySequence curKey{keyEvent->key()
+                                  | static_cast<int>(keyEvent->modifiers())};
         if (keyEvent->type() == QEvent::KeyPress
             && curKey == showObjectShortCut_)
             emit scriptLog(widgetUnderCursorInfo());
@@ -526,18 +553,18 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                  event->type() == QEvent::MouseButtonDblClick
                      ? "double click"
                      : "release event");
-        QWidget *w = QApplication::widgetAt(mouseEvent->globalPos());
+        const QPoint clickPos = mouseEvent->globalPos();
+        QWidget *w = QApplication::widgetAt(clickPos);
         if (w == nullptr) {
-#ifdef DEBUG_ANALYZER
-            QPoint p = mouseEvent->globalPos();
-#endif
-            DBGPRINT(
-                "(%s, %d): Can not find out what widget is used(x %d, y %d)!!!",
-                Q_FUNC_INFO, __LINE__, p.x(), p.y());
+            DBGPRINT("(%s, %d): Can not find out what widget is used(x %d, y "
+                     "%d, w %p, tw %p)!!!",
+                     Q_FUNC_INFO, __LINE__, clickPos.x(), clickPos.y(),
+                     QApplication::widgetAt(clickPos),
+                     QApplication::topLevelAt(clickPos));
             return false;
         }
 
-        QPoint pos = w->mapFromGlobal(mouseEvent->globalPos());
+        QPoint pos = w->mapFromGlobal(clickPos);
         QString widgetName = fullQtWidgetId(*w);
         QString scriptLine
             = callCustomEventAnalyzers(obj, event, {w, widgetName});
@@ -549,7 +576,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             while (w != nullptr && w->objectName().isEmpty())
                 w = qobject_cast<QWidget *>(w->parent());
             if (w != nullptr && w != baseWidget) {
-                pos = w->mapFromGlobal(mouseEvent->globalPos());
+                pos = w->mapFromGlobal(clickPos);
                 widgetName = fullQtWidgetId(*w);
                 QString anotherScript
                     = callCustomEventAnalyzers(obj, event, {w, widgetName});

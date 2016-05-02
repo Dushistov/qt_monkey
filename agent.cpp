@@ -1,12 +1,14 @@
 //#define DEBUG_AGENT
 #include "agent.hpp"
 
-#include <QtCore/QCoreApplication>
-#include <QtCore/QThread>
 #include <atomic>
+#include <thread>
 #include <cassert>
 #include <chrono>
 #include <functional>
+
+#include <QtCore/QCoreApplication>
+#include <QtCore/QThread>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"

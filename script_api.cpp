@@ -224,6 +224,17 @@ static void posToModelIndex(const QAbstractItemModel *model,
         mi = mi.child(row, column);
     }
 }
+
+static bool canNotFind(QWidget &w)
+{
+//in Qt5 we can start app find all widgets via parent<->child tree
+//but they are actually not visible on real screen
+//so check that widget visible on screen
+    const QPoint pos = w.mapToGlobal(w.rect().center());
+    QWidget *wdgAtPos = QApplication::widgetAt(pos);
+    return wdgAtPos == nullptr;
+}
+
 } // namespace {
 
 QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
@@ -244,7 +255,7 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
         });
 
         if (w == nullptr
-            || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
+            || canNotFind(*w) || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(sleepTimeForWaitWidgetMs));
         } else {
@@ -367,9 +378,9 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
         && qobject_cast<QTabBar *>(w) == nullptr
         && qobject_cast<QListWidget *>(w) == nullptr
         && qobject_cast<QListView *>(w) == nullptr) {
-        agent_.throwScriptError("Can not activateItem for object not: QMenu or "
-                                "QTreeWidget or QComboBox or QListWidget or "
-                                "QListView class");
+        agent_.throwScriptError(QStringLiteral("Can not activateItem for object not: QMenu or "
+                                "QTreeWidget or QComboBox or QTabBar or QListWidget or "
+                                               "QListView class"));
         return;
     }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
@@ -387,26 +398,26 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
 
 void ScriptAPI::mouseClick(QString widgetName, QString button, int x, int y)
 {
-    agent_.scriptCheckPoint();
+    Step step(agent_);
     doMouseClick(widgetName, button, x, y, false);
 }
 
 void ScriptAPI::mouseDClick(QString widgetName, QString button, int x, int y)
 {
-    agent_.scriptCheckPoint();
+    Step step(agent_);
     doMouseClick(widgetName, button, x, y, true);
 }
 
 void ScriptAPI::activateItem(const QString &widget, const QString &actionName)
 {
-    agent_.scriptCheckPoint();
+    Step step(agent_);
     doClickItem(widget, actionName, false);
 }
 
 void ScriptAPI::activateItem(const QString &widget, const QString &actionName,
                              const QString &searchFlags)
 {
-    agent_.scriptCheckPoint();
+    Step step(agent_);
     doClickItem(widget, actionName, false, matchFlagFromString(searchFlags));
 }
 
@@ -468,7 +479,6 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
                 QPoint pos = rect.center();
                 moveMouseTo(menu->mapToGlobal(pos));
                 QTest::mouseClick(menu, Qt::LeftButton, 0, pos);
-                //				action->trigger();
                 return QString();
             }
         }
@@ -534,12 +544,16 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
             if (tb->tabText(i) == itemName) {
                 DBGPRINT("(%s, %d) set current index to %d", Q_FUNC_INFO,
                          __LINE__, i);
-                tb->setCurrentIndex(i);
+                const QRect tabRect = tb->tabRect(i);
+                if (tabRect.isNull())
+                    return QStringLiteral("Null rect for tab %1").arg(itemName);
+                //tb->setCurrentIndex(i);
+                QTest::mouseClick(tb, Qt::LeftButton, 0, tabRect.center());
                 return QString();
             }
         }
         DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(itemName));
-        return QString("There are no such item %1 in QTabBar").arg(itemName);
+        return QStringLiteral("There are no such item %1 in QTabBar").arg(itemName);
     } else if (QListWidget *lw = qobject_cast<QListWidget *>(w)) {
         DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
         QList<QListWidgetItem *> itms
@@ -597,24 +611,27 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
     }
 }
 
-void ScriptAPI::expandItemInTree(const QString &treeWidgetName, const QString &itemName)
+void ScriptAPI::expandItemInTree(const QString &treeWidgetName,
+                                 const QString &itemName)
 {
-    agent_.scriptCheckPoint();
-    QWidget *w = getWidgetWithSuchName(agent_, treeWidgetName, waitWidgetAppearTimeoutSec_, true);
+    Step step(agent_);
+    QWidget *w = getWidgetWithSuchName(agent_, treeWidgetName,
+                                       waitWidgetAppearTimeoutSec_, true);
     if (w == nullptr) {
-        agent_.throwScriptError(T_("Can not find such widget %1").arg(treeWidgetName));
+        agent_.throwScriptError(
+            QStringLiteral("Can not find such widget %1").arg(treeWidgetName));
         return;
     }
     auto treeWidget = qobject_cast<QTreeWidget *>(w);
     if (treeWidget == nullptr) {
-        agent_.throwScriptError(T_("%1 is not QTreeWidget").arg(treeWidgetName));
+        agent_.throwScriptError(
+            QStringLiteral("%1 is not QTreeWidget").arg(treeWidgetName));
         return;
     }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
         [&itemName, treeWidget] {
             QList<QTreeWidgetItem *> til = treeWidget->findItems(
-                itemName,
-                Qt::MatchStartsWith | Qt::MatchRecursive);
+                itemName, Qt::MatchStartsWith | Qt::MatchRecursive);
             if (til.isEmpty()) {
                 qWarning("%s: there are no such item", Q_FUNC_INFO);
                 return QString("Item `%1' not found").arg(itemName);
@@ -629,4 +646,29 @@ void ScriptAPI::expandItemInTree(const QString &treeWidgetName, const QString &i
         DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
         agent_.throwScriptError(std::move(errMsg));
     }
+}
+
+void ScriptAPI::Wait(int ms)
+{
+    Step step(agent_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+ScriptAPI::Step::Step(Agent &agent)
+{
+    agent.scriptCheckPoint();
+#if 0
+    //for protocol mode add delay so we can take event before
+    //next event will be played
+    qApp->processEvents(QEventLoop::AllEvents, 50);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+#endif
+}
+
+ScriptAPI::Step::~Step()
+{
+#if 0
+    qApp->processEvents(QEventLoop::AllEvents, 50);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+#endif
 }
