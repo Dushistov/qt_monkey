@@ -1,8 +1,9 @@
 #tested with such version, if works with previous also, inform me
 cmake_minimum_required(VERSION 3.2)
 
+#TODO: check compiler versions, check qt versions
 include(compiler.cmake)
-#project(
+
 set(USE_TESTS False CACHE BOOL "enable testing")
 set(QT_VARIANT "qt4" CACHE STRING "variant of qt: qt4 or qt5")
 
