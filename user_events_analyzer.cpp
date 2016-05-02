@@ -9,6 +9,9 @@
 #include <QMenu>
 #include <QTreeWidget>
 #include <QWidget>
+#include <QListView>
+#include <QComboBox>
+#include <QListWidget>
 #include <QtCore/QEvent>
 #include <QtGui/QMouseEvent>
 
@@ -176,7 +179,7 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
     assert(tw != nullptr);
     QTreeWidgetItem *twi = tw->itemAt(pos);
 #ifdef DEBUG_ANALYZER
-    QRect tir =  tw->visualItemRect(twi);
+    QRect tir = tw->visualItemRect(twi);
 #endif
     DBGPRINT("%s: tir.x %d, tir.y %d, pos.x %d, pos.y %d, %s", Q_FUNC_INFO,
              tir.x(), tir.y(), pos.x(), pos.y(),
@@ -196,51 +199,67 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
                           .arg(qt_monkey_agent::fullQtWidgetId(*tw))
                           .arg(text);
 
-            if (treeWidgetWatcher.watch(tw)) {//new one
-                QObject::connect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)), &treeWidgetWatcher,
-                        SLOT(itemExpanded(QTreeWidgetItem *)));
-                QObject::connect(tw, SIGNAL(destroyed(QObject *)), &treeWidgetWatcher,
-                        SLOT(treeWidgetDestroyed(QObject *)));
+            if (treeWidgetWatcher.watch(tw)) { // new one
+                QObject::connect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)),
+                                 &treeWidgetWatcher,
+                                 SLOT(itemExpanded(QTreeWidgetItem *)));
+                QObject::connect(tw, SIGNAL(destroyed(QObject *)),
+                                 &treeWidgetWatcher,
+                                 SLOT(treeWidgetDestroyed(QObject *)));
             }
         }
     }
     return res;
 }
 
+static QString
+qcomboBoxActivateClick(QObject *, QEvent *event,
+                       const std::pair<QWidget *, QString> &widget,
+                       const GenerateCommand &)
+{
+    QString res;
+    if (widget.first == nullptr || event == nullptr
+        || !(event->type() == QEvent::MouseButtonDblClick
+             || event->type() == QEvent::MouseButtonPress))
+        return res;
+
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+
+    if (QWidget *combobox
+        = searchThroghSuperClassesAndParents(widget.first, "QComboBox")) {
+        DBGPRINT("%s: this is combobox", Q_FUNC_INFO);
+        if (widget.first == combobox)
+            return res;
+        QListView *lv = qobject_cast<QListView *>(widget.first);
+        if (lv == nullptr && widget.first->parent() != nullptr)
+            lv = qobject_cast<QListView *>(widget.first->parent());
+        if (lv == nullptr)
+            return res;
+        DBGPRINT("%s catch press on QListView falldown list", Q_FUNC_INFO);
+        QModelIndex idx = lv->indexAt(pos);
+        DBGPRINT("%s: row %d", Q_FUNC_INFO, idx.row());
+        return QStringLiteral("Test.activateItem('%1', '%2');")
+            .arg(qt_monkey_agent::fullQtWidgetId(*combobox))
+            .arg(qobject_cast<QComboBox *>(combobox)->itemText(
+                     idx.row()));
+    } else if (QWidget *alistwdg = searchThroghSuperClassesAndParents(
+                   widget.first, "QListWidget")) {
+        DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
+        QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
+        if (listwdg == nullptr)
+            return res;
+        QListWidgetItem *it = listwdg->itemAt(pos);
+        if (it == nullptr)
+            return res;
+        return QStringLiteral("Test.activateItem('%1', '%2');")
+            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg))
+            .arg(it->text());
+    }
+    return res;
+}
+
 #if 0
-    static QString qComboBoxActivateClick()
-    {
-if (QWidget *combobox =
-		   search_throgh_super_classes_and_parents(widget, "QComboBox")) {
-		DBGPRINT("%s: this is combobox", Q_FUNC_INFO);
-		if (widget == combobox)
-			return Unknown;
-		QListView *lv = qobject_cast<QListView *>(widget);
-		if (lv == nullptr && widget->parent() != nullptr)
-			lv = qobject_cast<QListView *>(widget->parent());
-		if (lv == nullptr)
-			return Unknown;
-		DBGPRINT("%s catch press on QListView falldown list",
-		       Q_FUNC_INFO);
-		QModelIndex idx = lv->indexAt(pos);
-		DBGPRINT("%s: row %d", Q_FUNC_INFO, idx.row());
-		scriptLine = QString("Test.activateItem('%1', '%2');")
-			.arg(full_qt_widget_id(combobox))
-			.arg(qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
-		return CodeGenerated;
-	} else if (QWidget *alistwdg = search_throgh_super_classes_and_parents(widget, "QListWidget")) {
-		DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
-		QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
-		if (listwdg == nullptr)
-			return Unknown;
-		QListWidgetItem *it = listwdg->itemAt(pos);
-		if (it == nullptr)
-			return Unknown;
-		scriptLine = QString("Test.activateItem('%1', '%2');")
-			.arg(full_qt_widget_id(listwdg)).arg(it->text());
-		return CodeGenerated;
-    }
-    }
 static QString qListWidgetActivateClick()
 {
 if (QWidget *alistwdg = search_throgh_super_classes_and_parents(widget, "QListWidget")) {
@@ -365,9 +384,9 @@ UserEventsAnalyzer::UserEventsAnalyzer(
     : QObject(parent), customEventAnalyzers_(std::move(customEventAnalyzers)),
       generateScriptCmd_(
           [this](QString code) { emit userEventInScriptForm(code); })
-{
-    customEventAnalyzers_.emplace_back(qmenuActivateClick);
-    customEventAnalyzers_.emplace_back(qtreeWidgetActivateClick);
+{    
+    for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick})
+        customEventAnalyzers_.emplace_back(fun);    
 }
 
 QString UserEventsAnalyzer::callCustomEventAnalyzers(
@@ -452,27 +471,28 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
 
 void TreeWidgetWatcher::itemExpanded(QTreeWidgetItem *twi)
 {
-	DBGPRINT("%s begin", Q_FUNC_INFO);
+    DBGPRINT("%s begin", Q_FUNC_INFO);
     assert(twi != nullptr);
-	QTreeWidget *tw = twi->treeWidget();
+    QTreeWidget *tw = twi->treeWidget();
     assert(tw != nullptr);
-	generateScriptCmd_(QStringLiteral("Test.expandItemInTree('%1', '%2');")
-                       .arg(fullQtWidgetId(*tw)).arg(twi->text(0)));
+    generateScriptCmd_(QStringLiteral("Test.expandItemInTree('%1', '%2');")
+                           .arg(fullQtWidgetId(*tw))
+                           .arg(twi->text(0)));
 
-	disconnect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)),
-               this, SLOT(itemExpanded(QTreeWidgetItem *)));
+    disconnect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)), this,
+               SLOT(itemExpanded(QTreeWidgetItem *)));
     auto it = treeWidgetsSet_.find(tw);
-	assert(it != treeWidgetsSet_.end());
-	treeWidgetsSet_.erase(it);
+    assert(it != treeWidgetsSet_.end());
+    treeWidgetsSet_.erase(it);
 }
 
 void TreeWidgetWatcher::treeWidgetDestroyed(QObject *obj)
 {
-	DBGPRINT("begin %s", Q_FUNC_INFO);
-	assert(obj != nullptr);
+    DBGPRINT("begin %s", Q_FUNC_INFO);
+    assert(obj != nullptr);
     auto it = treeWidgetsSet_.find(obj);
-	if (it != treeWidgetsSet_.end())
-		treeWidgetsSet_.erase(it);
+    if (it != treeWidgetsSet_.end())
+        treeWidgetsSet_.erase(it);
 }
 
 bool TreeWidgetWatcher::watch(QTreeWidget *tw)

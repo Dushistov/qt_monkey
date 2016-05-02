@@ -1,4 +1,6 @@
 Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.pushButton', 'Qt.LeftButton', 67, 13);
+Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Qt.LeftButton', 135, 20);
+Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'item2');
 Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_tabbar', 'Qt.LeftButton', 155, 17);
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_2.treeWidget', '1');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_2.treeWidget', '1');
