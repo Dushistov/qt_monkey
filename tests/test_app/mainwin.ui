@@ -103,6 +103,31 @@
         </item>
        </widget>
       </widget>
+      <widget class="QWidget" name="tab_3">
+       <attribute name="title">
+        <string>Tab 3</string>
+       </attribute>
+       <widget class="QListWidget" name="listWidget">
+        <property name="geometry">
+         <rect>
+          <x>25</x>
+          <y>21</y>
+          <width>691</width>
+          <height>411</height>
+         </rect>
+        </property>
+        <item>
+         <property name="text">
+          <string>list item1</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>list item2</string>
+         </property>
+        </item>
+       </widget>
+      </widget>
      </widget>
     </item>
    </layout>

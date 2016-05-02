@@ -6,12 +6,12 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
+#include <QListView>
+#include <QListWidget>
 #include <QMenu>
 #include <QTreeWidget>
 #include <QWidget>
-#include <QListView>
-#include <QComboBox>
-#include <QListWidget>
 #include <QtCore/QEvent>
 #include <QtGui/QMouseEvent>
 
@@ -241,8 +241,7 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
         DBGPRINT("%s: row %d", Q_FUNC_INFO, idx.row());
         return QStringLiteral("Test.activateItem('%1', '%2');")
             .arg(qt_monkey_agent::fullQtWidgetId(*combobox))
-            .arg(qobject_cast<QComboBox *>(combobox)->itemText(
-                     idx.row()));
+            .arg(qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
     } else if (QWidget *alistwdg = searchThroghSuperClassesAndParents(
                    widget.first, "QListWidget")) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
@@ -259,27 +258,41 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
     return res;
 }
 
-#if 0
-static QString qListWidgetActivateClick()
+static QString
+qlistWidgetActivateClick(QObject *, QEvent *event,
+                         const std::pair<QWidget *, QString> &widget,
+                         const GenerateCommand &)
 {
-if (QWidget *alistwdg = search_throgh_super_classes_and_parents(widget, "QListWidget")) {
-		DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
-		QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
-		if (listwdg == nullptr)
-			return Unknown;
-		QListWidgetItem *it = listwdg->itemAt(pos);
-		if (it == nullptr)
-			return Unknown;
-		scriptLine = QString("Test.activateItem('%1', '%2');")
-			.arg(full_qt_widget_id(listwdg)).arg(it->text());
-		return CodeGenerated;
-	}
+    QString res;
+    if (widget.first == nullptr || event == nullptr
+        || !(event->type() == QEvent::MouseButtonDblClick
+             || event->type() == QEvent::MouseButtonPress))
+        return res;
+
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+
+    if (QWidget *alistwdg
+        = searchThroghSuperClassesAndParents(widget.first, "QListWidget")) {
+        DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
+        QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
+        if (listwdg == nullptr)
+            return res;
+        QListWidgetItem *it = listwdg->itemAt(pos);
+        if (it == nullptr)
+            return res;
+        return QStringLiteral("Test.activateItem('%1', '%2');")
+            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg))
+            .arg(it->text());
+    }
+    return res;
 }
 
+#if 0
     static QString qTreeViewActivateClick()
     {
 if (QWidget *tree_view =
-		   search_throgh_super_classes_and_parents(widget, "QTreeView", 2)) {
+		   searchThroghSuperClassesAndParents(widget, "QTreeView", 2)) {
 		if (widget == tree_view ||
 		    qobject_cast<QWidget *>(widget->parent()) == tree_view) {
 			DBGPRINT("%s: yeah, it is tree view", Q_FUNC_INFO);
@@ -291,10 +304,10 @@ if (QWidget *tree_view =
 				       mi.column(), mi.row(), mi.parent() == QModelIndex() ? "false" : "true");
 				if (mouseEvent->type() == QEvent::MouseButtonDblClick)
 					scriptLine = QString("Test.doubleClickOnItemInView('%1', %2);")
-						.arg(full_qt_widget_id(tv)).arg(model_index_to_pos(mi));
+						.arg(fullQtWidgetId(tv)).arg(model_index_to_pos(mi));
 				else
 					scriptLine = QString("Test.activateItemInView('%1', %2);")
-						.arg(full_qt_widget_id(tv)).arg(model_index_to_pos(mi));
+						.arg(fullQtWidgetId(tv)).arg(model_index_to_pos(mi));
 
 				if (!treeViewSet_.contains(tv)) {
 					treeViewSet_ += tv;
@@ -315,7 +328,7 @@ if (QWidget *tree_view =
 
     static QString qListViewActivateClick()
     {
- if (QWidget *list_view = search_throgh_super_classes_and_parents(widget, "QListView", 2)) {
+ if (QWidget *list_view = searchThroghSuperClassesAndParents(widget, "QListView", 2)) {
         if (widget == list_view || qobject_cast<QWidget *>(widget->parent()) == list_view) {
             DBGPRINT("%s: yeah, it is list view", Q_FUNC_INFO);
             QListView *lv = qobject_cast<QListView *>(list_view);
@@ -327,7 +340,7 @@ if (QWidget *tree_view =
                 text.replace(QChar('\n'), "\\n");
                 text.replace(QChar('\''), "\\'");
                 scriptLine = QString("Test.activateItem('%1', '%2');")
-                    .arg(full_qt_widget_id(lv)).arg(text);
+                    .arg(fullQtWidgetId(lv)).arg(text);
 
 				return CodeGenerated;
 			} else {
@@ -384,9 +397,10 @@ UserEventsAnalyzer::UserEventsAnalyzer(
     : QObject(parent), customEventAnalyzers_(std::move(customEventAnalyzers)),
       generateScriptCmd_(
           [this](QString code) { emit userEventInScriptForm(code); })
-{    
-    for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick})
-        customEventAnalyzers_.emplace_back(fun);    
+{
+    for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick,
+                       qcomboBoxActivateClick, qlistWidgetActivateClick})
+        customEventAnalyzers_.emplace_back(fun);
 }
 
 QString UserEventsAnalyzer::callCustomEventAnalyzers(
