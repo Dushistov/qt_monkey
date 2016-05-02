@@ -59,7 +59,8 @@ static void msgHandler(QtMsgType type, const char *msg)
 
 static QString usage()
 {
-    return T_("Usage: %1 [--script path/to/script] --user-app "
+    return T_("Usage: %1 [--exit-on-script-error] [--script path/to/script] "
+              "--user-app "
               "path/to/application [application's command line args]\n")
         .arg(QCoreApplication::applicationFilePath());
 }
@@ -89,7 +90,7 @@ int main(int argc, char *argv[])
             ++i;
             scripts.append(QFile::decodeName(argv[i]));
         } else if (std::strcmp(argv[i], "--exit-on-script-error") == 0) {
-            exitOnScriptError = true;   
+            exitOnScriptError = true;
         } else {
             std::cerr << qPrintable(T_("Unknown option: %1\n").arg(argv[i]))
                       << qPrintable(usage());
