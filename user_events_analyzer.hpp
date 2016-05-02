@@ -46,6 +46,7 @@ public:
     }
     //! \return false if already watched
     bool watch(QTreeWidget *tw);
+    void disconnectAll();
 private slots:
     void itemExpanded(QTreeWidgetItem *);
     void treeWidgetDestroyed(QObject *);

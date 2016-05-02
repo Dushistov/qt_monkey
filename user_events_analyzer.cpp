@@ -162,9 +162,16 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
     static TreeWidgetWatcher treeWidgetWatcher(asyncCodeGen);
 
     QString res;
-    if (widget.first == nullptr || event == nullptr
-        || !(event->type() == QEvent::MouseButtonDblClick
-             || event->type() == QEvent::MouseButtonPress))
+    if (widget.first == nullptr || event == nullptr)
+        return res;
+
+    if (event->type() == QEvent::MouseButtonRelease) {
+        treeWidgetWatcher.disconnectAll();
+        return res;
+    }
+
+    if (!(event->type() == QEvent::MouseButtonDblClick
+          || event->type() == QEvent::MouseButtonPress))
         return res;
 
     auto mouseEvent = static_cast<QMouseEvent *>(event);
@@ -502,7 +509,8 @@ bool UserEventsAnalyzer::alreadySawSuchKeyEvent(QKeyEvent *keyEvent)
     const QDateTime now = QDateTime::currentDateTime();
     if (lastKeyEvent_.type == keyEvent->type()
         && keyEvent->key() == lastKeyEvent_.key
-        && std::llabs(now.msecsTo(lastKeyEvent_.timestamp)) < repeatEventTimeoutMs)
+        && std::llabs(now.msecsTo(lastKeyEvent_.timestamp))
+               < repeatEventTimeoutMs)
         return true;
 
     lastKeyEvent_.type = keyEvent->type();
@@ -537,7 +545,8 @@ bool UserEventsAnalyzer::alreadySawSuchMouseEvent(const QString &widgetName,
              mouseEvent->globalPos() == lastMouseEvent_.globalPos ? "t" : "f",
              mouseEvent->buttons() == lastMouseEvent_.buttons ? "t" : "f");
     if (mouseEvent->type() == lastMouseEvent_.type
-        && std::llabs(now.msecsTo(lastMouseEvent_.timestamp)) < repeatEventTimeoutMs
+        && std::llabs(now.msecsTo(lastMouseEvent_.timestamp))
+               < repeatEventTimeoutMs
         && mouseEvent->globalPos() == lastMouseEvent_.globalPos
         && mouseEvent->buttons() == lastMouseEvent_.buttons
         && lastMouseEvent_.widgetName == widgetName) {
@@ -674,4 +683,15 @@ bool TreeWidgetWatcher::watch(QTreeWidget *tw)
 {
     assert(tw != nullptr);
     return treeWidgetsSet_.insert(tw).second;
+}
+
+void TreeWidgetWatcher::disconnectAll()
+{
+    for (QObject *obj : treeWidgetsSet_) {
+        QObject::disconnect(obj, SIGNAL(itemExpanded(QTreeWidgetItem *)), this,
+                            SLOT(itemExpanded(QTreeWidgetItem *)));
+        QObject::disconnect(obj, SIGNAL(destroyed(QObject *)), this,
+                            SLOT(treeWidgetDestroyed(QObject *)));
+    }
+    treeWidgetsSet_.clear();
 }
