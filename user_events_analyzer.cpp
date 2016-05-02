@@ -31,6 +31,9 @@ using qt_monkey_agent::TreeWidgetWatcher;
 
 namespace
 {
+
+static const int repeatEventTimeoutMs = 100;
+
 static QString numAmongOthersWithTheSameClass(const QObject &w)
 {
     QObject *p = w.parent();
@@ -429,6 +432,7 @@ static QString widgetUnderCursorInfo()
     res += QStringLiteral("Widget at cursor info END\n");
     return res;
 }
+
 } // namespace {
 
 bool qt_monkey_agent::stringToMouseButton(const QString &str,
@@ -493,12 +497,12 @@ QString UserEventsAnalyzer::callCustomEventAnalyzers(
     return code;
 }
 
-bool UserEventsAnalyzer::alreedySawSuchKeyEvent(QKeyEvent *keyEvent)
+bool UserEventsAnalyzer::alreadySawSuchKeyEvent(QKeyEvent *keyEvent)
 {
     const QDateTime now = QDateTime::currentDateTime();
     if (lastKeyEvent_.type == keyEvent->type()
         && keyEvent->key() == lastKeyEvent_.key
-        && std::llabs(now.msecsTo(lastKeyEvent_.timestamp)) < 5)
+        && std::llabs(now.msecsTo(lastKeyEvent_.timestamp)) < repeatEventTimeoutMs)
         return true;
 
     lastKeyEvent_.type = keyEvent->type();
@@ -520,6 +524,35 @@ bool UserEventsAnalyzer::alreedySawSuchKeyEvent(QKeyEvent *keyEvent)
     return false;
 }
 
+bool UserEventsAnalyzer::alreadySawSuchMouseEvent(const QString &widgetName,
+                                                  QMouseEvent *mouseEvent)
+{
+    const QDateTime now = QDateTime::currentDateTime();
+    DBGPRINT("widgetName %s, last name %s, %s", qPrintable(widgetName),
+             qPrintable(lastMouseEvent_.widgetName),
+             widgetName == lastMouseEvent_.widgetName ? "true" : "false");
+    DBGPRINT("1 %s 2 %lld 3 %s 4 %s",
+             mouseEvent->type() == lastMouseEvent_.type ? "t" : "f",
+             std::llabs(now.msecsTo(lastMouseEvent_.timestamp)),
+             mouseEvent->globalPos() == lastMouseEvent_.globalPos ? "t" : "f",
+             mouseEvent->buttons() == lastMouseEvent_.buttons ? "t" : "f");
+    if (mouseEvent->type() == lastMouseEvent_.type
+        && std::llabs(now.msecsTo(lastMouseEvent_.timestamp)) < repeatEventTimeoutMs
+        && mouseEvent->globalPos() == lastMouseEvent_.globalPos
+        && mouseEvent->buttons() == lastMouseEvent_.buttons
+        && lastMouseEvent_.widgetName == widgetName) {
+        DBGPRINT("%s: true", Q_FUNC_INFO);
+        return true;
+    }
+    lastMouseEvent_.type = mouseEvent->type();
+    lastMouseEvent_.timestamp = now;
+    lastMouseEvent_.globalPos = mouseEvent->globalPos();
+    lastMouseEvent_.buttons = mouseEvent->buttons();
+    lastMouseEvent_.widgetName = widgetName;
+    DBGPRINT("%s: false", Q_FUNC_INFO);
+    return false;
+}
+
 bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
 {
     switch (event->type()) {
@@ -529,7 +562,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                  qPrintable(obj->objectName()));
         auto keyEvent = static_cast<QKeyEvent *>(event);
 
-        if (alreedySawSuchKeyEvent(keyEvent))
+        if (alreadySawSuchKeyEvent(keyEvent))
             break;
 
         // ignore special keys alone
@@ -545,14 +578,17 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             && curKey == showObjectShortCut_)
             emit scriptLog(widgetUnderCursorInfo());
     } break;
+    case QEvent::MouseButtonRelease:
+        lastMouseEvent_.type = QEvent::None;
+        break;
     case QEvent::MouseButtonDblClick:
     case QEvent::MouseButtonPress: {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
-        DBGPRINT("%s: mouse event for '%s': %s\n", Q_FUNC_INFO,
-                 qPrintable(obj->objectName()),
-                 event->type() == QEvent::MouseButtonDblClick
-                     ? "double click"
-                     : "release event");
+        DBGPRINT("%s: mouse event(%p) for %p'%s'[%s]: %s\n", Q_FUNC_INFO, event,
+                 obj, qPrintable(obj->objectName()),
+                 qPrintable(obj->metaObject()->className()),
+                 event->type() == QEvent::MouseButtonDblClick ? "double click"
+                                                              : "press event");
         const QPoint clickPos = mouseEvent->globalPos();
         QWidget *w = QApplication::widgetAt(clickPos);
         if (w == nullptr) {
@@ -564,10 +600,12 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             return false;
         }
 
-        QPoint pos = w->mapFromGlobal(clickPos);
         QString widgetName = fullQtWidgetId(*w);
+        if (alreadySawSuchMouseEvent(widgetName, mouseEvent))
+            break;
         QString scriptLine
             = callCustomEventAnalyzers(obj, event, {w, widgetName});
+        QPoint pos = w->mapFromGlobal(clickPos);
         if (scriptLine.isEmpty())
             scriptLine = mouseEventToJavaScript(widgetName, mouseEvent, pos);
 
@@ -578,6 +616,8 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
             if (w != nullptr && w != baseWidget) {
                 pos = w->mapFromGlobal(clickPos);
                 widgetName = fullQtWidgetId(*w);
+                if (alreadySawSuchMouseEvent(widgetName, mouseEvent))
+                    return QObject::eventFilter(obj, event);
                 QString anotherScript
                     = callCustomEventAnalyzers(obj, event, {w, widgetName});
                 if (anotherScript.isEmpty())

@@ -4,6 +4,7 @@
 #include <set>
 
 #include <QKeySequence>
+#include <QPoint>
 #include <QtCore/QObject>
 #include <QtCore/QEvent>
 #include <QtCore/QDateTime>
@@ -13,6 +14,7 @@
 class QTreeWidget;
 class QTreeWidgetItem;
 class QKeyEvent;
+class QMouseEvent;
 
 namespace qt_monkey_agent
 {
@@ -77,6 +79,13 @@ private:
         QDateTime timestamp;
         int key = -1;
     } lastKeyEvent_;
+    struct {
+        QEvent::Type type = QEvent::None;
+        QDateTime timestamp;
+        QPoint globalPos;
+        Qt::MouseButtons buttons;
+        QString widgetName;
+    } lastMouseEvent_;
     size_t keyPress_ = 0;
     size_t keyRelease_ = 0;
     std::list<CustomEventAnalyzer> customEventAnalyzers_;
@@ -87,6 +96,7 @@ private:
     QString
     callCustomEventAnalyzers(QObject *obj, QEvent *event,
                              const std::pair<QWidget *, QString> &widget) const;
-    bool alreedySawSuchKeyEvent(QKeyEvent *keyEvent);
+    bool alreadySawSuchKeyEvent(QKeyEvent *keyEvent);
+    bool alreadySawSuchMouseEvent(const QString &widgetName, QMouseEvent *mouseEvent);
 };
 }
