@@ -26,7 +26,9 @@ MainWin::MainWin()
     preparedRow.first()->appendRow(secondRow);
 
     treeView->setModel(standardModel);
-    //    treeView->expandAll();
+
+
+    listView->setModel(standardModel);
 }
 
 void MainWin::on_actionQuit_triggered() { qApp->quit(); }
