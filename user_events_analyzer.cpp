@@ -71,6 +71,66 @@ static QString qtObjectId(const QObject &w)
     return name;
 }
 
+static QString keyReleaseEventToScript(const QString &widgetName,
+                                       QKeyEvent *keyEvent)
+{
+    if (keyEvent->key() == 0)
+        return QStringLiteral("//some special key");
+
+    DBGPRINT("%s: widgtName: %s, key %X, %s", Q_FUNC_INFO,
+             qPrintable(widgetName), keyEvent->key(),
+             keyEvent->key() != Qt::Key_unknown ? "known key" : "unknown key");
+
+    int modifiers[4] = {0, 0, 0};
+    int curMod = 0;
+
+    if (keyEvent->modifiers() & Qt::ShiftModifier)
+        modifiers[curMod++] = Qt::ShiftModifier;
+
+    if (keyEvent->modifiers() & Qt::AltModifier)
+        modifiers[curMod++] = Qt::AltModifier;
+
+    if (keyEvent->modifiers() & Qt::ControlModifier)
+        modifiers[curMod++] = Qt::ControlModifier;
+
+    if (keyEvent->modifiers() & Qt::MetaModifier)
+        modifiers[curMod++] = Qt::MetaModifier;
+
+    QKeySequence keySeq;
+    switch (curMod) {
+    case 1:
+        if (keyEvent->key() != Qt::Key_unknown)
+            keySeq = QKeySequence(modifiers[0], keyEvent->key());
+        else
+            keySeq = QKeySequence(modifiers[0]);
+        break;
+    case 2:
+        if (keyEvent->key() != Qt::Key_unknown)
+            keySeq = QKeySequence(modifiers[0], modifiers[1], keyEvent->key());
+        else
+            keySeq = QKeySequence(modifiers[0], modifiers[1]);
+        break;
+    case 3:
+        if (keyEvent->key() != Qt::Key_unknown)
+            keySeq = QKeySequence(modifiers[0], modifiers[1], modifiers[2],
+                                  keyEvent->key());
+        else
+            keySeq = QKeySequence(modifiers[0], modifiers[1], modifiers[2]);
+        break;
+    case 4:
+        keySeq = QKeySequence(keyEvent->text());
+        break;
+    case 0:
+    default:
+        keySeq = QKeySequence(keyEvent->key());
+        break;
+    }
+
+    return QStringLiteral("Test.keyClick('%1', '%2');")
+        .arg(widgetName)
+        .arg(keySeq.toString());
+}
+
 static QString mouseEventToJavaScript(const QString &widgetName,
                                       QMouseEvent *mouseEvent,
                                       const QPoint &pos)
@@ -79,13 +139,13 @@ static QString mouseEventToJavaScript(const QString &widgetName,
         = qt_monkey_agent::mouseButtonEnumToString(mouseEvent->button());
 
     if (mouseEvent->type() == QEvent::MouseButtonDblClick)
-        return QString("Test.mouseDClick('%1', '%2', %3, %4);")
+        return QStringLiteral("Test.mouseDClick('%1', '%2', %3, %4);")
             .arg(widgetName)
             .arg(mouseBtn)
             .arg(pos.x())
             .arg(pos.y());
     else
-        return QString("Test.mouseClick('%1', '%2', %3, %4);")
+        return QStringLiteral("Test.mouseClick('%1', '%2', %3, %4);")
             .arg(widgetName)
             .arg(mouseBtn)
             .arg(pos.x())
@@ -243,13 +303,13 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
         DBGPRINT("%s: this is combobox", Q_FUNC_INFO);
         if (widget.first == combobox)
             return res;
-        QListView *lv = qobject_cast<QListView *>(widget.first);
+        auto lv = qobject_cast<QListView *>(widget.first);
         if (lv == nullptr && widget.first->parent() != nullptr)
             lv = qobject_cast<QListView *>(widget.first->parent());
         if (lv == nullptr)
             return res;
         DBGPRINT("%s catch press on QListView falldown list", Q_FUNC_INFO);
-        QModelIndex idx = lv->indexAt(pos);
+        const QModelIndex idx = lv->indexAt(pos);
         DBGPRINT("%s: row %d", Q_FUNC_INFO, idx.row());
         return QStringLiteral("Test.activateItem('%1', '%2');")
             .arg(qt_monkey_agent::fullQtWidgetId(*combobox))
@@ -257,10 +317,10 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
     } else if (QWidget *alistwdg = searchThroghSuperClassesAndParents(
                    widget.first, "QListWidget")) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
-        QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
+        auto listwdg = qobject_cast<QListWidget *>(alistwdg);
         if (listwdg == nullptr)
             return res;
-        QListWidgetItem *it = listwdg->itemAt(pos);
+        const QListWidgetItem *it = listwdg->itemAt(pos);
         if (it == nullptr)
             return res;
         return QStringLiteral("Test.activateItem('%1', '%2');")
@@ -567,8 +627,10 @@ bool UserEventsAnalyzer::alreadySawSuchKeyEvent(QKeyEvent *keyEvent)
     if (lastKeyEvent_.type == keyEvent->type()
         && keyEvent->key() == lastKeyEvent_.key
         && std::llabs(now.msecsTo(lastKeyEvent_.timestamp))
-               < repeatEventTimeoutMs)
+               < repeatEventTimeoutMs) {
+        DBGPRINT("%s: we saw it already", Q_FUNC_INFO);
         return true;
+    }
 
     lastKeyEvent_.type = keyEvent->type();
     lastKeyEvent_.timestamp = now;
@@ -582,8 +644,10 @@ bool UserEventsAnalyzer::alreadySawSuchKeyEvent(QKeyEvent *keyEvent)
         ++keyRelease_;
         DBGPRINT("%s: Release ev %p, keyPress %zu, keyRelease %zu", Q_FUNC_INFO,
                  keyEvent, keyPress_, keyRelease_);
-        if (keyPress_ == keyRelease_)
+        if (keyPress_ == keyRelease_) {
+            DBGPRINT("%s: we already see it via key press", Q_FUNC_INFO);
             return true;
+        }
         keyPress_ = keyRelease_ = 0;
     }
     return false;
@@ -641,9 +705,28 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
         const QKeySequence curKey{keyEvent->key()
                                   | static_cast<int>(keyEvent->modifiers())};
         if (keyEvent->type() == QEvent::KeyPress
-            && curKey == showObjectShortCut_)
+            && curKey == showObjectShortCut_) {
             emit scriptLog(widgetUnderCursorInfo());
-    } break;
+            break;
+        }
+        QWidget *w = QApplication::focusWidget();
+        if (w == nullptr) {
+            w = QApplication::widgetAt(QCursor::pos());
+            if (w == nullptr) {
+                DBGPRINT("(%s, %d): Can not find out what widget is used!!!",
+                         Q_FUNC_INFO, __LINE__);
+                break;
+            }
+        }
+        const QString widgetName = qt_monkey_agent::fullQtWidgetId(*w);
+        QString scriptLine
+            = callCustomEventAnalyzers(obj, event, {w, widgetName});
+        if (scriptLine.isEmpty())
+            scriptLine = keyReleaseEventToScript(widgetName, keyEvent);
+        DBGPRINT("%s: we emit '%s'", Q_FUNC_INFO, qPrintable(scriptLine));
+        emit userEventInScriptForm(scriptLine);
+        break;
+    }
     case QEvent::MouseButtonRelease:
         lastMouseEvent_.type = QEvent::None;
         break;
