@@ -2,6 +2,8 @@
 
 import subprocess, sys, io, json, re
 
+ANOTHER_VARIANT = "//another variant:"
+
 def args_str_to_list(args_str):
     def append_to_args(args, arg):
         if arg.isdigit():
@@ -42,10 +44,16 @@ def args_str_to_list(args_str):
     return res
 
 def extract_func_name_and_params(line_with_func_call):
-     func_m = re.match('(?P<func_prefix>[^\(]+)\((?P<args>.*)\);$', line_with_func_call)
-     args_str = func_m.group("args")
-     args = args_str_to_list(args_str)
-     return (func_m.group("func_prefix"), args)
+    try:
+        func_m = re.match('(?P<func_prefix>[^\(]+)\((?P<args>.*)\);$', line_with_func_call)
+        args_str = func_m.group("args")
+        args = args_str_to_list(args_str)
+        return (func_m.group("func_prefix"), args)
+    except AttributeError:
+        sys.stderr.write("error happens with |%s|\n" % line_with_func_call)
+        raise
+    except Exception as e:
+        raise type(e)(e.message + " happens with '%s'" % line_with_func_call)
 
 (prefix, params) = extract_func_name_and_params("Test.mouseClick('MainWindow.centralwidget.pushButton', 'Qt.LeftButton', 67, 13);")
 print("params %s" % params)
@@ -62,7 +70,7 @@ def compare_two_func_calls(f1_call, f2_call):
         if type(p1) is int and type(p2) is int:
             continue
         if p1 != p2:
-            print("params not equal %s vs %s" % (p1, p2), file=sys.stderr)
+            sys.stderr.write("params not equal %s vs %s\n" % (p1, p2))
             return False
     return True
 
@@ -86,17 +94,21 @@ for line in io.TextIOWrapper(monkey.stdout, encoding="utf-8"):
         event = msg.get("event")
         if event:
             code = event["script"]
-            code_listing.append(code)
+            for line in code.split("\n"):
+                code_listing.append(line)
 
 with open(script_path, "r") as fin:
     i = 0
     for line in fin.readlines():
         if i >= len(code_listing):
-            print("Unexpected end of actual result", file=sys.stderr)
+            sys.stderr.write("Unexpected end of actual result\n")
             sys.exit(1)
         line = line.strip()
         if not compare_two_func_calls(line, code_listing[i]):
-            print("Line %d, expected\n`%s'\n, actual\n`%s'\n" % (i + 1, line, code_listing[i]), file=sys.stderr)
-            print("Full log:\n%s\n" % "\n".join(code_listing), file=sys.stderr)
-            sys.exit(1)
+            if (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
+                i += 1
+            else:
+                sys.stderr.write(("Line %d, expected\n`%s'\n, actual\n`%s'\n"
+                                  "Full log:\n%s\n") % (i + 1, line, code_listing[i], "\n".join(code_listing)))
+                sys.exit(1)
         i += 1

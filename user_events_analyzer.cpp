@@ -377,7 +377,7 @@ static QString qtabBarActivateClick(QObject *, QEvent *event,
         return res;
     const int tab = tabBar->tabAt(pos);
     if (tab == -1) {
-        qWarning("%s: not tab at pos %d %d", Q_FUNC_INFO, pos.x(), pos.y());
+        DBGPRINT("%s: not tab at pos %d %d", Q_FUNC_INFO, pos.x(), pos.y());
         return res;
     }
     return QStringLiteral("Test.activateItem('%1', '%2');")
@@ -773,7 +773,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                     anotherScript
                         = mouseEventToJavaScript(widgetName, mouseEvent, pos);
                 if (scriptLine != anotherScript)
-                    scriptLine = QString("%1\n//%2")
+                    scriptLine = QString("%1\n//another variant:%2")
                                      .arg(scriptLine)
                                      .arg(anotherScript);
             }
