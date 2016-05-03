@@ -43,7 +43,7 @@ set(qtmonkey_app_MOC_HDRS
   qtmonkey.hpp
   )
 
-set(qtmonkey_gui_MOC_HDRS qtmonkey_gui.hpp)
+set(qtmonkey_gui_MOC_HDRS qtmonkey_gui.hpp jsedit.h)
 set(qtmonkey_gui_UIS qtmonkey_gui.ui)
 
 if ("${QT_VARIANT}" STREQUAL "qt4")
@@ -101,6 +101,7 @@ add_executable(qtmonkey_gui
   ${qtmonkey_gui_MOC_SRCS}
   ${qtmonkey_gui_MOC_HDRS}
   ${qtmonkey_gui_UIS_H}
+  jsedit.cpp
   qtmonkey_gui.cpp
   )
 target_compile_definitions(qtmonkey_gui PRIVATE -DQTMONKEY_APP_NAME="$<TARGET_FILE_NAME:qtmonkey_app>")

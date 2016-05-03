@@ -305,7 +305,7 @@ void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
         if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
             teScriptEdit_->insertPlainText(scriptLine + "\n");
         else
-            teScriptEdit_->append(scriptLine);
+            teScriptEdit_->appendPlainText(scriptLine);
     } else if (state_ == State::PlayingEvents
                && cbProtocolRunning_->isChecked()) {
         logNewLine(MsgType::Protocol, scriptLine);

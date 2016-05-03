@@ -151,11 +151,7 @@
      <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
-     <widget class="QTextEdit" name="teScriptEdit_">
-      <property name="lineWrapMode">
-       <enum>QTextEdit::NoWrap</enum>
-      </property>
-     </widget>
+     <widget class="JSEdit" name="teScriptEdit_"/>
      <widget class="QFrame" name="outputCtrlFrame_">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -323,6 +319,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>JSEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>jsedit.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
