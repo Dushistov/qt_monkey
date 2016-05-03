@@ -154,6 +154,8 @@ Agent::~Agent()
 
 void Agent::onUserEventInScriptForm(const QString &script)
 {
+    if (script.isEmpty())
+        return;
     GET_THREAD(thread)
     thread->channelWithMonkey()->sendCommand(
         PacketTypeForMonkey::NewUserAppEvent, script);
