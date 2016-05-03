@@ -33,7 +33,7 @@ After that create `qt_monkey_agent::Agent` like this
    qt_monkey_agent::Agent agent;
 
 That's all. After that your can run `qtmonkey_gui` application,
-and record or run your scripts. See https://github.com/Dushistov/qt_monkey/blob/master/tests/main.cpp
+and record or run your scripts. See https://github.com/Dushistov/qt_monkey/blob/master/tests/test_app/main.cpp
 for more complex usage example.
 
 Internals
