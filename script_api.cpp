@@ -13,7 +13,12 @@
 #include <QStyleOption>
 #include <QTreeWidget>
 #include <QWidget>
-#include <QWorkspace>
+#if QT_VERSION < 0x050000
+#  include <QWorkspace>
+#else
+#  include <QMdiArea>
+#  define QWorkspace QMdiArea
+#endif
 #include <QtCore/QStringList>
 #include <QtScript/QScriptEngine>
 #include <QtTest/QTest>
