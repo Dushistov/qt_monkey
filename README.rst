@@ -9,7 +9,21 @@ Tests are written on `Javascript` (`Qt`'s variant).
 To write tests just run your application (instrumented by `Qt Monkey`) and click
 on widget, input text etc. As result, script on `Javascript` was generated
 (see example https://github.com/Dushistov/qt_monkey/blob/master/tests/test1.js).
+
+.. image:: https://github.com/Dushistov/qt_monkey/blob/master/docs/qtmonkey_gui.png
+    :alt: script record
+    :width: 700
+    :height: 488
+    :align: center
+
+
 After that you can add suitable asserts and run this script via command line or GUI tool.
+
+.. image:: https://github.com/Dushistov/qt_monkey/blob/master/docs/script_run_demo.gif
+    :alt: run script
+    :width: 320
+    :height: 209
+    :align: center
 
 How to use
 ----------
