@@ -269,13 +269,6 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="pbRunScriptDebug_">
-       <property name="text">
-        <string>Run Script(Debug mode)</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <spacer>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
