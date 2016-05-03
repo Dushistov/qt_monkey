@@ -1,13 +1,14 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <set>
 
 #include <QKeySequence>
 #include <QPoint>
-#include <QtCore/QObject>
-#include <QtCore/QEvent>
 #include <QtCore/QDateTime>
+#include <QtCore/QEvent>
+#include <QtCore/QObject>
 
 #include "custom_event_analyzer.hpp"
 
@@ -15,6 +16,9 @@ class QTreeWidget;
 class QTreeWidgetItem;
 class QKeyEvent;
 class QMouseEvent;
+class QTreeView;
+class QModelIndex;
+class QAbstractItemModel;
 
 namespace qt_monkey_agent
 {
@@ -29,6 +33,8 @@ QString mouseButtonEnumToString(Qt::MouseButton b);
 bool stringToMouseButton(const QString &str, Qt::MouseButton &bt);
 //@}
 
+namespace Private
+{
 //! helper class to work with QTreeWidgetItem
 //! \todo remove when we drop support of Qt 4.x
 class TreeWidgetWatcher
@@ -56,6 +62,32 @@ private:
     std::set<QObject *> treeWidgetsSet_;
 };
 
+class TreeViewWatcher
+#ifndef Q_MOC_RUN
+    final
+#endif
+    : public QObject
+{
+    Q_OBJECT
+public:
+    TreeViewWatcher(const GenerateCommand &generateScriptCmd,
+                    QObject *parent = nullptr)
+        : QObject(parent), generateScriptCmd_(generateScriptCmd)
+    {
+    }
+    void watch(QTreeView &tw);
+    void disconnectAll();
+private slots:
+    void treeViewExpanded(const QModelIndex &index);
+    void treeViewDestroyed(QObject *obj);
+
+private:
+    const GenerateCommand &generateScriptCmd_;
+    std::set<const QObject *> treeViewSet_;
+    std::map<const QAbstractItemModel *, const QObject *> modelToView_;
+};
+}
+
 /**
  * Analyzer user event and genearte based of them javascript code
  */
@@ -69,6 +101,7 @@ class UserEventsAnalyzer
 signals:
     void userEventInScriptForm(const QString &);
     void scriptLog(const QString &);
+
 public:
     UserEventsAnalyzer(const QKeySequence &showObjectShortCut,
                        std::list<CustomEventAnalyzer> customEventAnalyzers,
@@ -98,6 +131,7 @@ private:
     callCustomEventAnalyzers(QObject *obj, QEvent *event,
                              const std::pair<QWidget *, QString> &widget) const;
     bool alreadySawSuchKeyEvent(QKeyEvent *keyEvent);
-    bool alreadySawSuchMouseEvent(const QString &widgetName, QMouseEvent *mouseEvent);
+    bool alreadySawSuchMouseEvent(const QString &widgetName,
+                                  QMouseEvent *mouseEvent);
 };
 }

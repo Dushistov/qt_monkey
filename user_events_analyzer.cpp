@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <deque>
 
 #include <QAction>
 #include <QApplication>
@@ -19,7 +20,8 @@
 
 using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::GenerateCommand;
-using qt_monkey_agent::TreeWidgetWatcher;
+using qt_monkey_agent::Private::TreeWidgetWatcher;
+using qt_monkey_agent::Private::TreeViewWatcher;
 
 #ifdef DEBUG_ANALYZER
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
@@ -323,44 +325,80 @@ static QString qtabBarActivateClick(QObject *, QEvent *event,
         .arg(tabBar->tabText(tab));
 }
 
-#if 0
-    static QString qTreeViewActivateClick()
-    {
-if (QWidget *tree_view =
-		   searchThroghSuperClassesAndParents(widget, "QTreeView", 2)) {
-		if (widget == tree_view ||
-		    qobject_cast<QWidget *>(widget->parent()) == tree_view) {
-			DBGPRINT("%s: yeah, it is tree view", Q_FUNC_INFO);
-			QTreeView *tv = qobject_cast<QTreeView *>(tree_view);
+static QString modelIndexToPos(const QModelIndex &mi)
+{
+    std::deque<std::pair<int, int>> idxs;
+    QModelIndex null_idx = QModelIndex();
+    QModelIndex cur_idx = mi;
 
-			QModelIndex mi = tv->indexAt(pos);
-			if (mi.isValid()) {
-				DBGPRINT("%s: column %d, row %d, have parent %s", Q_FUNC_INFO,
-				       mi.column(), mi.row(), mi.parent() == QModelIndex() ? "false" : "true");
-				if (mouseEvent->type() == QEvent::MouseButtonDblClick)
-					scriptLine = QString("Test.doubleClickOnItemInView('%1', %2);")
-						.arg(fullQtWidgetId(tv)).arg(model_index_to_pos(mi));
-				else
-					scriptLine = QString("Test.activateItemInView('%1', %2);")
-						.arg(fullQtWidgetId(tv)).arg(model_index_to_pos(mi));
+    do {
+        idxs.push_back(std::make_pair(cur_idx.column(), cur_idx.row()));
+        cur_idx = cur_idx.parent();
+    } while (cur_idx != null_idx);
 
-				if (!treeViewSet_.contains(tv)) {
-					treeViewSet_ += tv;
-					model_to_view_[tv->model()] = tv;
-					connect(tv, SIGNAL(expanded(const QModelIndex&)),
-						this, SLOT(treeViewExpanded(const QModelIndex &)));
-					connect(tv, SIGNAL(destroyed(QObject *)),
-						this, SLOT(treeViewDestroyed(QObject *)));
-				}
+    QString res = "[";
+    for (auto it = idxs.rbegin(); it != idxs.rend(); ++it)
+        res += QStringLiteral("%1, %2,").arg(it->first).arg(it->second);
+    // last ','
+    res[res.size() - 1] = ']';
+    return res;
+}
 
-				return CodeGenerated;
-			} else {
-				DBGPRINT("%s: not valid model index for tv", Q_FUNC_INFO);
-            }
-		}
-	}
+static QString
+qtreeViewActivateClick(QObject *, QEvent *event,
+                       const std::pair<QWidget *, QString> &widget,
+                       const GenerateCommand &asyncCodeGen)
+{
+    QString res;
+    if (widget.first == nullptr || event == nullptr)
+        return res;
+
+    static TreeViewWatcher watcher(asyncCodeGen);
+
+    if (event->type() == QEvent::MouseButtonRelease) {
+        watcher.disconnectAll();
+        return res;
     }
 
+    if (!(event->type() == QEvent::MouseButtonDblClick
+          || event->type() == QEvent::MouseButtonPress))
+        return res;
+
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+
+    QWidget *tree_view
+        = searchThroghSuperClassesAndParents(widget.first, "QTreeView", 2);
+    if (tree_view == nullptr)
+        return res;
+
+    if (widget.first == tree_view
+        || qobject_cast<QWidget *>(widget.first->parent()) == tree_view) {
+        DBGPRINT("%s: yeah, it is tree view", Q_FUNC_INFO);
+        QTreeView *tv = qobject_cast<QTreeView *>(tree_view);
+        if (tv == nullptr)
+            return res;
+        QModelIndex mi = tv->indexAt(pos);
+        if (mi.isValid()) {
+            DBGPRINT("%s: column %d, row %d, have parent %s", Q_FUNC_INFO,
+                     mi.column(), mi.row(),
+                     mi.parent() == QModelIndex() ? "false" : "true");
+            if (mouseEvent->type() == QEvent::MouseButtonDblClick)
+                res = QStringLiteral("Test.doubleClickOnItemInView('%1', %2);")
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv))
+                          .arg(modelIndexToPos(mi));
+            else
+                res = QStringLiteral("Test.activateItemInView('%1', %2);")
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv))
+                          .arg(modelIndexToPos(mi));
+            watcher.watch(*tv);
+        } else {
+            DBGPRINT("%s: not valid model index for tv", Q_FUNC_INFO);
+        }
+    }
+    return res;
+}
+#if 0
     static QString qListViewActivateClick()
     {
  if (QWidget *list_view = searchThroghSuperClassesAndParents(widget, "QListView", 2)) {
@@ -485,9 +523,9 @@ UserEventsAnalyzer::UserEventsAnalyzer(
           [this](QString code) { emit userEventInScriptForm(code); }),
       showObjectShortCut_(showObjectShortCut)
 {
-    for (auto &&fun :
-         {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick,
-          qlistWidgetActivateClick, qtabBarActivateClick})
+    for (auto &&fun : {qmenuActivateClick, qtreeWidgetActivateClick,
+                       qcomboBoxActivateClick, qlistWidgetActivateClick,
+                       qtabBarActivateClick, qtreeViewActivateClick})
         customEventAnalyzers_.emplace_back(fun);
 }
 
@@ -694,4 +732,60 @@ void TreeWidgetWatcher::disconnectAll()
                             SLOT(treeWidgetDestroyed(QObject *)));
     }
     treeWidgetsSet_.clear();
+}
+
+void TreeViewWatcher::treeViewExpanded(const QModelIndex &index)
+{
+	DBGPRINT("%s begin", Q_FUNC_INFO);
+	auto it = modelToView_.find(index.model());
+	assert(it != modelToView_.end());
+	auto tv = qobject_cast<const QTreeView *>(it->second);
+	assert(tv != nullptr);
+	generateScriptCmd_(QStringLiteral("Test.expandItemInTreeView('%1', %2);")
+                       .arg(qt_monkey_agent::fullQtWidgetId(*tv)).arg(modelIndexToPos(index)));
+	disconnect(tv, SIGNAL(expanded(const QModelIndex&)),
+		   this, SLOT(treeViewExpanded(const QModelIndex&)));
+    auto jt = treeViewSet_.find(tv);
+	assert(jt != treeViewSet_.end());
+	treeViewSet_.erase(jt);
+}
+
+void TreeViewWatcher::treeViewDestroyed(QObject *obj)
+{
+	DBGPRINT("begin %s", Q_FUNC_INFO);
+	assert(obj != nullptr);
+    auto it = treeViewSet_.find(obj);
+	if (it != treeViewSet_.end())
+		treeViewSet_.erase(it);
+
+	for (auto it = modelToView_.begin(); it != modelToView_.end(); ++it)
+		if (it->second == obj) {
+			modelToView_.erase(it);
+			break;
+		}
+}
+
+void TreeViewWatcher::watch(QTreeView &tv)
+{
+    if (treeViewSet_.insert(&tv).second) {//we insert something
+        if (tv.model() == nullptr)
+            return;
+        modelToView_[tv.model()] = &tv;
+        connect(&tv, SIGNAL(expanded(const QModelIndex&)),
+                this, SLOT(treeViewExpanded(const QModelIndex &)));
+        connect(&tv, SIGNAL(destroyed(QObject *)),
+                this, SLOT(treeViewDestroyed(QObject *)));
+    }
+}
+
+void TreeViewWatcher::disconnectAll()
+{
+    for (const QObject *obj : treeViewSet_) {
+        disconnect(obj, SIGNAL(expanded(const QModelIndex&)),
+				   this, SLOT(treeViewExpanded(const QModelIndex&)));
+        disconnect(obj, SIGNAL(destroyed(QObject *)),
+                   this, SLOT(treeViewDestroyed(QObject *)));
+    }
+    treeViewSet_.clear();
+    modelToView_.clear();
 }

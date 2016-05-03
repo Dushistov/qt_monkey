@@ -398,13 +398,13 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
     DBGPRINT("%s: done", Q_FUNC_INFO);
 }
 
-void ScriptAPI::mouseClick(QString widgetName, QString button, int x, int y)
+void ScriptAPI::mouseClick(const QString &widgetName, const QString &button, int x, int y)
 {
     Step step(agent_);
     doMouseClick(widgetName, button, x, y, false);
 }
 
-void ScriptAPI::mouseDClick(QString widgetName, QString button, int x, int y)
+void ScriptAPI::mouseDClick(const QString &widgetName, const QString &button, int x, int y)
 {
     Step step(agent_);
     doMouseClick(widgetName, button, x, y, true);
@@ -673,4 +673,96 @@ ScriptAPI::Step::~Step()
     qApp->processEvents(QEventLoop::AllEvents, 50);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 #endif
+}
+
+void ScriptAPI::activateItemInView(const QString &widgetName, const QList<QVariant> &vpos)
+{
+    Step step(agent_);
+
+    DBGPRINT("%s: begin widget %s, dbl_click %s",
+           Q_FUNC_INFO, qPrintable(widgetName));
+
+    QWidget *w = getWidgetWithSuchName(agent_, widgetName,
+                                       waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr) {
+        DBGPRINT("%s: can not find widget", Q_FUNC_INFO);
+        agent_.throwScriptError(
+                    QStringLiteral("Can not find widget with such name %1")
+                    .arg(widgetName));
+        return;
+    }
+    auto view = qobject_cast<QTreeView *>(w);
+    if (view == nullptr) {
+        DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
+        agent_.throwScriptError(QStringLiteral("Can not activate(double click) in not QTreeView widget"));
+        return;
+    }
+
+    if (vpos.size() % 2) {
+        DBGPRINT("%s: wrong position", Q_FUNC_INFO);
+        agent_.throwScriptError(QStringLiteral("wrong position in treeview, should be even"));
+        return;
+    }
+
+    QList<int> pos;
+
+    for (const QVariant &var : vpos)
+        pos.push_back(var.toInt());
+
+
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [this, &pos, view] {
+            return clickOnItemInGuiThread(pos, view, false);
+        },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
+}
+
+void ScriptAPI::expandItemInTreeView(const QString &treeName, const QList<QVariant> &vpos)
+{
+    Step step(agent_);
+    QWidget *w = getWidgetWithSuchName(agent_, treeName,
+                                       waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr) {
+        agent_.throwScriptError(QStringLiteral("Can not find such widget %1").arg(treeName));
+        return;
+    }
+
+    auto view = qobject_cast<QTreeView *>(w);
+    if (view == nullptr) {
+        DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
+        agent_.throwScriptError(QStringLiteral("Can not activate(double click) in not QTreeView widget"));
+        return;
+    }
+
+    if (vpos.size() % 2) {
+        agent_.throwScriptError(QStringLiteral("wrong position in treeview(%1), should be even").arg(treeName));
+        return;
+    }
+
+    QList<int> pos;
+    for (const QVariant &var : vpos)
+        pos.push_back(var.toInt());
+
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [view, &pos] {
+            QAbstractItemModel *model = view->model();
+            if (model == nullptr)
+                return QStringLiteral("ExpandItemInTree failed, internal error: model is null");
+
+            QModelIndex mi;
+            posToModelIndex(model, pos, mi);
+            view->setExpanded(mi, true);
+            return QString();
+        },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
 }

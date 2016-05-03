@@ -45,8 +45,8 @@ public slots:
      * @param x x of click in widget coordinate system
      * @param y y of click in widget coordinate system
      */
-    void mouseClick(QString widget, QString button, int x, int y);
-    void mouseDClick(QString widget, QString button, int x, int y);
+    void mouseClick(const QString &widget, const QString &button, int x, int y);
+    void mouseDClick(const QString &widget, const QString &button, int x, int y);
     //@}
     //@{
     /**
@@ -59,6 +59,12 @@ public slots:
     void activateItem(const QString &widget, const QString &actionName,
                       const QString &searchFlags);
     //@}
+    /**
+     * Activate element using as identifier of element pair of indexes
+     * number of row and number of column
+     */
+    void activateItemInView(const QString &widget, const QList<QVariant> &indexesList);
+
     /**
      * How many time to wait QWidget appearing before give up
      * @param v timeout in seconds
@@ -79,13 +85,15 @@ public slots:
      */
     void setNewEventLoopWaitTimeout(int v) { newEventLoopWaitTimeoutSecs_ = v; }
 
+    //@{
     /**
-     * Expand subtree in QTreeWidget
-     * @param treeWidgetName widget name
-     * @param itemName caption of subtree
+     * Expand subtree in QTreeWidget and QTreeView
+     * @param treeName widget name
+     * @param item caption of subtree or index in QTreeView
      */
-    void expandItemInTree(const QString &treeWidgetName, const QString &itemName);
-
+    void expandItemInTree(const QString &treeName, const QString &item);
+    void expandItemInTreeView(const QString &treeName, const QList<QVariant> &item);
+    //@}
     /**
      * sleep some time (in help thread, main gui thread works at this time)
      * @param ms amount of milliseconds to sleep

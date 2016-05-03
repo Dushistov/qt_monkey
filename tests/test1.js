@@ -14,5 +14,10 @@ Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_tabbar', 'Tab 3');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_3.listWidget', 'list item1');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_3.listWidget', 'list item2');
+Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_tabbar', 'Tab 4');
+Test.activateItemInView('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_4.treeView', [0, 0]);
+Test.activateItemInView('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_4.treeView', [0, 0]);
+Test.expandItemInTreeView('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_4.treeView', [0, 0]);
+Test.activateItemInView('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_4.treeView', [0, 0,0, 0]);
 Test.mouseClick('MainWindow.menubar', 'Qt.LeftButton', 25, 12);
 Test.activateItem('MainWindow.menubar.menuFiles', 'Quit');

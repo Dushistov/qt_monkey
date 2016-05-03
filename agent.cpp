@@ -23,7 +23,6 @@ using namespace qt_monkey_agent::Private;
 #define GET_THREAD(__name__)                                                   \
     auto __name__ = static_cast<AgentThread *>(thread_);                       \
     if (__name__->isFinished()) {                                              \
-        qWarning("%s: thread is finished", Q_FUNC_INFO);                       \
         return;                                                                \
     }
 
