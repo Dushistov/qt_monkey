@@ -114,15 +114,8 @@ private:
 
     void doMouseClick(const QString &widgetName, const QString &buttonName,
                       int x, int y, bool doubleClick);
-    void clickInGuiThread(const QPoint &posA, QWidget &wA, Qt::MouseButton btn,
-                          bool dblClick);
-    void moveMouseTo(const QPoint &);
     void doClickItem(const QString &objectName, const QString &itemName,
                      bool isDblClick,
                      Qt::MatchFlag searchItemFlag = Qt::MatchStartsWith);
-    QString activateItemInGuiThread(QWidget *w, const QString &itemName,
-                                    bool dblClick, Qt::MatchFlag matchFlag);
-    QString clickOnItemInGuiThread(const QList<int> &idxPos,
-                                QAbstractItemView *view, bool dblClick);
 };
 }

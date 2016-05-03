@@ -235,6 +235,249 @@ static bool canNotFind(QWidget &w)
     return wdgAtPos == nullptr;
 }
 
+    static void moveMouseTo(qt_monkey_agent::Agent &, const QPoint &point) { QCursor::setPos(point); }
+
+static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA, QWidget &wA,
+                                 Qt::MouseButton btn, bool dblClick)
+{
+    DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
+             dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
+
+    QWidget *chw = wA.childAt(posA);
+    QWidget *w = &wA;
+    QPoint pos = posA;
+    if (chw != nullptr) {
+        DBGPRINT("%s: there is child at pos", Q_FUNC_INFO);
+        pos = chw->mapFrom(w, pos);
+        w = chw;
+    }
+    DBGPRINT("%s: width %d, height %d", Q_FUNC_INFO, w->width(), w->height());
+    if (pos.x() >= w->width())
+        pos.rx() = w->width() / 2 - 1;
+    if (pos.y() >= w->height())
+        pos.ry() = w->height() / 2 - 1;
+
+    DBGPRINT("%s: class name is %s", Q_FUNC_INFO, w->metaObject()->className());
+    QMenuBar *mb = qobject_cast<QMenuBar *>(w);
+    if (mb != nullptr) {
+        // we click on menu, to fix different size of font issue, lets
+        // click on the middle
+        DBGPRINT("%s: this widget is QMenuBar", Q_FUNC_INFO);
+        pos.ry() = w->height() / 2 - 1;
+    }
+
+    QLineEdit *le = qobject_cast<QLineEdit *>(w);
+    if (le != nullptr) {
+        DBGPRINT("%s: this is line edit", Q_FUNC_INFO);
+// some times click on line edit do not give
+// focus to it, because of different size on different OSes
+#ifdef DEBUG_SCRIPT_API
+        QRect cr =
+#endif
+            MyLineEdit::adjustedContentsRect(*le);
+        DBGPRINT("%s: begin of content of QLineEdit  x %d, y %d, w %d, h %d",
+                 Q_FUNC_INFO, cr.x(), cr.y(), cr.width(), cr.height());
+    }
+
+    moveMouseTo(agent, w->mapToGlobal(pos));
+
+    if (dblClick)
+        QTest::mouseDClick(w, btn, 0, pos, -1);
+    else
+        QTest::mouseClick(w, btn, 0, pos, -1);
+}
+
+static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent, const QList<int> &idxPos,
+                                      QAbstractItemView *view,
+                                      bool isDblClick)
+{
+    DBGPRINT("%s: begin", Q_FUNC_INFO);
+
+    QAbstractItemModel *model = view->model();
+    if (model == nullptr) {
+        DBGPRINT("%s: model is null\n", Q_FUNC_INFO);
+        return QLatin1String(
+            "ActivateItemInView failed, internal error: model is null");
+    }
+    QModelIndex mi;
+    posToModelIndex(model, idxPos, mi);
+    DBGPRINT("%s: index is %s, and %s", Q_FUNC_INFO,
+             mi == QModelIndex() ? "empty" : "not empty",
+             mi.isValid() ? "valid" : "not valid");
+
+    const QRect rec = view->visualRect(mi);
+    const QPoint pos = rec.center();
+    QWidget *view_port
+        = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
+    moveMouseTo(agent, view_port->mapToGlobal(pos));
+    if (isDblClick) {
+        DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
+                 qPrintable(view_port->objectName()));
+        QTest::mouseClick(view_port, Qt::LeftButton, 0,
+                          pos // QPoint(65, 55),
+                          );
+        QTest::mouseDClick(view_port, Qt::LeftButton, 0,
+                           pos // QPoint(65, 55),
+                           );
+        DBGPRINT("%s: double click done", Q_FUNC_INFO);
+    } else {
+        QTest::mouseClick(view_port, Qt::LeftButton, 0,
+                          pos // QPoint(65, 55),
+                          );
+    }
+    return QString();
+}
+
+static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent, QWidget *w, const QString &itemName,
+                                       bool isDblClick,
+                                       Qt::MatchFlag matchFlag)
+{
+    DBGPRINT("%s: begin: item_name %s", Q_FUNC_INFO, qPrintable(itemName));
+
+    if (auto menu = qobject_cast<QMenu *>(w)) {
+        const QList<QAction *> acts = w->actions();
+
+        for (QAction *action : acts) {
+            DBGPRINT("%s: check %s", Q_FUNC_INFO, qPrintable(action->text()));
+            if (action->text() == itemName) {
+                DBGPRINT("%s: found", Q_FUNC_INFO);
+                QRect rect = menu->actionGeometry(action);
+                QPoint pos = rect.center();
+                moveMouseTo(agent, menu->mapToGlobal(pos));
+                QTest::mouseClick(menu, Qt::LeftButton, 0, pos);
+                return QString();
+            }
+        }
+        DBGPRINT("%s: end: not found %s", Q_FUNC_INFO, qPrintable(itemName));
+        return QStringLiteral("Item `%1' not found").arg(itemName);
+    } else if (auto tw = qobject_cast<QTreeWidget *>(w)) {
+        const QList<QTreeWidgetItem *> til
+            = tw->findItems(itemName, matchFlag | Qt::MatchRecursive);
+        if (til.isEmpty()) {
+            DBGPRINT("%s: there are no such item", Q_FUNC_INFO);
+            return QStringLiteral("There are no such item %1").arg(itemName);
+        }
+        QTreeWidgetItem *ti = til.first();
+        tw->scrollToItem(ti);
+        DBGPRINT("%s: item name %s, result number %d", Q_FUNC_INFO,
+                 qPrintable(ti->text(0)), til.size());
+        const QRect ir = tw->visualItemRect(ti);
+
+        DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
+        // tw->setCurrentItem(ti);
+        // QTest::qWait(100);
+        QWidget *view_port
+            = tw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
+        assert(view_port != nullptr);
+        const QPoint pos = ir.center();
+        moveMouseTo(agent, view_port->mapToGlobal(pos));
+        if (isDblClick) {
+            DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
+                     qPrintable(view_port->objectName()));
+            QTest::mouseClick(view_port, Qt::LeftButton, 0,
+                              pos // QPoint(65, 55),
+                              );
+            QTest::mouseDClick(view_port, Qt::LeftButton, 0,
+                               pos // QPoint(65, 55),
+                               );
+            DBGPRINT("%s: double click done", Q_FUNC_INFO);
+        } else {
+            QTest::mouseClick(view_port, Qt::LeftButton, 0,
+                              pos // QPoint(65, 55),
+                              );
+        }
+
+        return QString();
+    } else if (auto qcb = qobject_cast<QComboBox *>(w)) {
+        const int idx = qcb->findText(itemName);
+        if (idx == -1) {
+            DBGPRINT("%s: can not find such item %s", Q_FUNC_INFO,
+                     qPrintable(itemName));
+            return QStringLiteral("There are no such item %1").arg(itemName);
+        }
+
+        QList<int> pos;
+        pos.push_back(0);
+        pos.push_back(idx);
+        clickOnItemInGuiThread(agent, pos, qcb->view(), false);
+//        QTest::keyClick(qcb->view(), Qt::Key_Enter);
+        return QString();
+    } else if (auto tb = qobject_cast<QTabBar *>(w)) {
+        DBGPRINT("(%s, %d): this is tab bar", Q_FUNC_INFO, __LINE__);
+        const int n = tb->count();
+        moveMouseTo(agent, tb->mapToGlobal(tb->rect().center()));
+        for (int i = 0; i < n; ++i) {
+            if (tb->tabText(i) == itemName) {
+                DBGPRINT("(%s, %d) set current index to %d", Q_FUNC_INFO,
+                         __LINE__, i);
+                const QRect tabRect = tb->tabRect(i);
+                if (tabRect.isNull())
+                    return QStringLiteral("Null rect for tab %1").arg(itemName);
+                // tb->setCurrentIndex(i);
+                QTest::mouseClick(tb, Qt::LeftButton, 0, tabRect.center());
+                return QString();
+            }
+        }
+        DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(itemName));
+        return QStringLiteral("There are no such item %1 in QTabBar")
+            .arg(itemName);
+    } else if (auto lw = qobject_cast<QListWidget *>(w)) {
+        DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
+        const QList<QListWidgetItem *> itms
+            = lw->findItems(itemName, Qt::MatchExactly);
+        if (itms.isEmpty()) {
+            return QStringLiteral("There are no such item %1 in QListWidget")
+                .arg(itemName);
+        }
+        QListWidgetItem *it = itms.first();
+        QRect ir = lw->visualItemRect(it);
+
+        DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
+        QWidget *viewPort
+            = lw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
+        assert(viewPort != nullptr);
+        const QPoint pos = ir.center();
+        moveMouseTo(agent, viewPort->mapToGlobal(pos));
+        if (isDblClick) {
+            DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
+                     qPrintable(view_port->objectName()));
+            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
+                              pos // QPoint(65, 55),
+                              );
+            QTest::mouseDClick(viewPort, Qt::LeftButton, 0,
+                               pos // QPoint(65, 55),
+                               );
+            DBGPRINT("%s: double click done", Q_FUNC_INFO);
+        } else {
+            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
+                              pos // QPoint(65, 55),
+                              );
+        }
+        return QString();
+    } else if (auto lv = qobject_cast<QListView *>(w)) {
+        const QAbstractItemModel *m = lv->model();
+        for (int i = 0; i < m->rowCount(); ++i) {
+            const QString data = m->index(i, 0).data().toString();
+            DBGPRINT("%s: we check\n`%s'\nvs\n`%s'\n", Q_FUNC_INFO,
+                     qPrintable(data), qPrintable(itemName));
+            if (itemName == data) {
+                const QRect r = lv->visualRect(m->index(i, 0));
+                QWidget *viewPort = lv->findChild<QWidget *>(
+                    QLatin1String("qt_scrollarea_viewport"));
+                assert(viewPort != nullptr);
+                const QPoint pos = r.center();
+                moveMouseTo(agent, viewPort->mapToGlobal(pos));
+                QTest::mouseClick(viewPort, Qt::LeftButton, 0, pos);
+                break;
+            }
+        }
+        return QString();
+    } else {
+        DBGPRINT("%s: unknown type of widget", Q_FUNC_INFO);
+        return QStringLiteral("Activate item probelm: unknown type of widget");
+    }
+}
+
 } // namespace {
 
 QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
@@ -278,58 +521,6 @@ void ScriptAPI::log(const QString &msgStr)
     agent_.sendToLog(std::move(msgStr));
 }
 
-void ScriptAPI::moveMouseTo(const QPoint &point) { QCursor::setPos(point); }
-
-void ScriptAPI::clickInGuiThread(const QPoint &posA, QWidget &wA,
-                                 Qt::MouseButton btn, bool dblClick)
-{
-    DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
-             dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
-
-    QWidget *chw = wA.childAt(posA);
-    QWidget *w = &wA;
-    QPoint pos = posA;
-    if (chw != nullptr) {
-        DBGPRINT("%s: there is child at pos", Q_FUNC_INFO);
-        pos = chw->mapFrom(w, pos);
-        w = chw;
-    }
-    DBGPRINT("%s: width %d, height %d", Q_FUNC_INFO, w->width(), w->height());
-    if (pos.x() >= w->width())
-        pos.rx() = w->width() / 2 - 1;
-    if (pos.y() >= w->height())
-        pos.ry() = w->height() / 2 - 1;
-
-    DBGPRINT("%s: class name is %s", Q_FUNC_INFO, w->metaObject()->className());
-    QMenuBar *mb = qobject_cast<QMenuBar *>(w);
-    if (mb != nullptr) {
-        // we click on menu, to fix different size of font issue, lets
-        // click on the middle
-        DBGPRINT("%s: this widget is QMenuBar", Q_FUNC_INFO);
-        pos.ry() = w->height() / 2 - 1;
-    }
-
-    QLineEdit *le = qobject_cast<QLineEdit *>(w);
-    if (le != nullptr) {
-        DBGPRINT("%s: this is line edit", Q_FUNC_INFO);
-// some times click on line edit do not give
-// focus to it, because of different size on different OSes
-#ifdef DEBUG_SCRIPT_API
-        QRect cr =
-#endif
-            MyLineEdit::adjustedContentsRect(*le);
-        DBGPRINT("%s: begin of content of QLineEdit  x %d, y %d, w %d, h %d",
-                 Q_FUNC_INFO, cr.x(), cr.y(), cr.width(), cr.height());
-    }
-
-    moveMouseTo(w->mapToGlobal(pos));
-
-    if (dblClick)
-        QTest::mouseDClick(w, btn, 0, pos, -1);
-    else
-        QTest::mouseClick(w, btn, 0, pos, -1);
-}
-
 void ScriptAPI::doMouseClick(const QString &widgetName,
                              const QString &buttonName, int x, int y,
                              bool doubleClick)
@@ -351,10 +542,12 @@ void ScriptAPI::doMouseClick(const QString &widgetName,
     }
 
     const QPoint pos{x, y};
+    Agent *agent = &agent_;
     agent_.runCodeInGuiThreadSyncWithTimeout(
-        [pos, doubleClick, w, this, btn] {
+        [pos, doubleClick, w, btn, agent] {
             assert(w != nullptr);
-            clickInGuiThread(pos, *w, btn, doubleClick);
+            assert(agent != nullptr);
+            clickInGuiThread(*agent, pos, *w, btn, doubleClick);
             return QString();
         },
         newEventLoopWaitTimeoutSecs_);
@@ -386,9 +579,11 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
             "QListView class"));
         return;
     }
+    Agent *agent = &agent_;
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [w, isDblClick, itemName, searchItemFlag, this] {
-            return activateItemInGuiThread(w, itemName, isDblClick,
+        [w, isDblClick, itemName, searchItemFlag, agent] {
+            assert(agent != nullptr);
+            return activateItemInGuiThread(*agent, w, itemName, isDblClick,
                                            searchItemFlag);
         },
         newEventLoopWaitTimeoutSecs_);
@@ -424,197 +619,6 @@ void ScriptAPI::activateItem(const QString &widget, const QString &actionName,
 {
     Step step(agent_);
     doClickItem(widget, actionName, false, matchFlagFromString(searchFlags));
-}
-
-QString ScriptAPI::clickOnItemInGuiThread(const QList<int> &idxPos,
-                                          QAbstractItemView *view,
-                                          bool isDblClick)
-{
-    DBGPRINT("%s: begin", Q_FUNC_INFO);
-
-    QAbstractItemModel *model = view->model();
-    if (model == nullptr) {
-        DBGPRINT("%s: model is null\n", Q_FUNC_INFO);
-        return QLatin1String(
-            "ActivateItemInView failed, internal error: model is null");
-    }
-    QModelIndex mi;
-    posToModelIndex(model, idxPos, mi);
-    DBGPRINT("%s: index is %s, and %s", Q_FUNC_INFO,
-             mi == QModelIndex() ? "empty" : "not empty",
-             mi.isValid() ? "valid" : "not valid");
-
-    const QRect rec = view->visualRect(mi);
-    const QPoint pos = rec.center();
-    QWidget *view_port
-        = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
-    moveMouseTo(view_port->mapToGlobal(pos));
-    if (isDblClick) {
-        DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
-                 qPrintable(view_port->objectName()));
-        QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                          pos // QPoint(65, 55),
-                          );
-        QTest::mouseDClick(view_port, Qt::LeftButton, 0,
-                           pos // QPoint(65, 55),
-                           );
-        DBGPRINT("%s: double click done", Q_FUNC_INFO);
-    } else {
-        QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                          pos // QPoint(65, 55),
-                          );
-    }
-    return QString();
-}
-
-QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
-                                           bool isDblClick,
-                                           Qt::MatchFlag matchFlag)
-{
-    DBGPRINT("%s: begin: item_name %s", Q_FUNC_INFO, qPrintable(itemName));
-
-    if (auto menu = qobject_cast<QMenu *>(w)) {
-        const QList<QAction *> acts = w->actions();
-
-        for (QAction *action : acts) {
-            DBGPRINT("%s: check %s", Q_FUNC_INFO, qPrintable(action->text()));
-            if (action->text() == itemName) {
-                DBGPRINT("%s: found", Q_FUNC_INFO);
-                QRect rect = menu->actionGeometry(action);
-                QPoint pos = rect.center();
-                moveMouseTo(menu->mapToGlobal(pos));
-                QTest::mouseClick(menu, Qt::LeftButton, 0, pos);
-                return QString();
-            }
-        }
-        DBGPRINT("%s: end: not found %s", Q_FUNC_INFO, qPrintable(itemName));
-        return QStringLiteral("Item `%1' not found").arg(itemName);
-    } else if (auto tw = qobject_cast<QTreeWidget *>(w)) {
-        const QList<QTreeWidgetItem *> til
-            = tw->findItems(itemName, matchFlag | Qt::MatchRecursive);
-        if (til.isEmpty()) {
-            DBGPRINT("%s: there are no such item", Q_FUNC_INFO);
-            return QStringLiteral("There are no such item %1").arg(itemName);
-        }
-        QTreeWidgetItem *ti = til.first();
-        tw->scrollToItem(ti);
-        DBGPRINT("%s: item name %s, result number %d", Q_FUNC_INFO,
-                 qPrintable(ti->text(0)), til.size());
-        const QRect ir = tw->visualItemRect(ti);
-
-        DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
-        // tw->setCurrentItem(ti);
-        // QTest::qWait(100);
-        QWidget *view_port
-            = tw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
-        assert(view_port != nullptr);
-        const QPoint pos = ir.center();
-        moveMouseTo(view_port->mapToGlobal(pos));
-        if (isDblClick) {
-            DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
-                     qPrintable(view_port->objectName()));
-            QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                              pos // QPoint(65, 55),
-                              );
-            QTest::mouseDClick(view_port, Qt::LeftButton, 0,
-                               pos // QPoint(65, 55),
-                               );
-            DBGPRINT("%s: double click done", Q_FUNC_INFO);
-        } else {
-            QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                              pos // QPoint(65, 55),
-                              );
-        }
-
-        return QString();
-    } else if (auto qcb = qobject_cast<QComboBox *>(w)) {
-        const int idx = qcb->findText(itemName);
-        if (idx == -1) {
-            DBGPRINT("%s: can not find such item %s", Q_FUNC_INFO,
-                     qPrintable(itemName));
-            return QStringLiteral("There are no such item %1").arg(itemName);
-        }
-
-        QList<int> pos;
-        pos.push_back(0);
-        pos.push_back(idx);
-        clickOnItemInGuiThread(pos, qcb->view(), false);
-//        QTest::keyClick(qcb->view(), Qt::Key_Enter);
-        return QString();
-    } else if (auto tb = qobject_cast<QTabBar *>(w)) {
-        DBGPRINT("(%s, %d): this is tab bar", Q_FUNC_INFO, __LINE__);
-        const int n = tb->count();
-        moveMouseTo(tb->mapToGlobal(tb->rect().center()));
-        for (int i = 0; i < n; ++i) {
-            if (tb->tabText(i) == itemName) {
-                DBGPRINT("(%s, %d) set current index to %d", Q_FUNC_INFO,
-                         __LINE__, i);
-                const QRect tabRect = tb->tabRect(i);
-                if (tabRect.isNull())
-                    return QStringLiteral("Null rect for tab %1").arg(itemName);
-                // tb->setCurrentIndex(i);
-                QTest::mouseClick(tb, Qt::LeftButton, 0, tabRect.center());
-                return QString();
-            }
-        }
-        DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(itemName));
-        return QStringLiteral("There are no such item %1 in QTabBar")
-            .arg(itemName);
-    } else if (auto lw = qobject_cast<QListWidget *>(w)) {
-        DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
-        const QList<QListWidgetItem *> itms
-            = lw->findItems(itemName, Qt::MatchExactly);
-        if (itms.isEmpty()) {
-            return QStringLiteral("There are no such item %1 in QListWidget")
-                .arg(itemName);
-        }
-        QListWidgetItem *it = itms.first();
-        QRect ir = lw->visualItemRect(it);
-
-        DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
-        QWidget *viewPort
-            = lw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
-        assert(viewPort != nullptr);
-        const QPoint pos = ir.center();
-        moveMouseTo(viewPort->mapToGlobal(pos));
-        if (isDblClick) {
-            DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
-                     qPrintable(view_port->objectName()));
-            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
-                              pos // QPoint(65, 55),
-                              );
-            QTest::mouseDClick(viewPort, Qt::LeftButton, 0,
-                               pos // QPoint(65, 55),
-                               );
-            DBGPRINT("%s: double click done", Q_FUNC_INFO);
-        } else {
-            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
-                              pos // QPoint(65, 55),
-                              );
-        }
-        return QString();
-    } else if (auto lv = qobject_cast<QListView *>(w)) {
-        const QAbstractItemModel *m = lv->model();
-        for (int i = 0; i < m->rowCount(); ++i) {
-            const QString data = m->index(i, 0).data().toString();
-            DBGPRINT("%s: we check\n`%s'\nvs\n`%s'\n", Q_FUNC_INFO,
-                     qPrintable(data), qPrintable(itemName));
-            if (itemName == data) {
-                const QRect r = lv->visualRect(m->index(i, 0));
-                QWidget *viewPort = lv->findChild<QWidget *>(
-                    QLatin1String("qt_scrollarea_viewport"));
-                assert(viewPort != nullptr);
-                const QPoint pos = r.center();
-                moveMouseTo(viewPort->mapToGlobal(pos));
-                QTest::mouseClick(viewPort, Qt::LeftButton, 0, pos);
-                break;
-            }
-        }
-        return QString();
-    } else {
-        DBGPRINT("%s: unknown type of widget", Q_FUNC_INFO);
-        return QStringLiteral("Activate item probelm: unknown type of widget");
-    }
 }
 
 void ScriptAPI::expandItemInTree(const QString &treeWidgetName,
@@ -715,9 +719,12 @@ void ScriptAPI::activateItemInView(const QString &widgetName,
 
     for (const QVariant &var : vpos)
         pos.push_back(var.toInt());
-
+    Agent *agent = &agent_;
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [this, pos, view] { return clickOnItemInGuiThread(pos, view, false); },
+        [pos, view, agent] {
+            assert(agent != nullptr);
+            return clickOnItemInGuiThread(*agent, pos, view, false);
+        },
         newEventLoopWaitTimeoutSecs_);
 
     if (!errMsg.isEmpty()) {
