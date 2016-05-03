@@ -48,6 +48,14 @@ public slots:
     void mouseClick(const QString &widget, const QString &button, int x, int y);
     void mouseDClick(const QString &widget, const QString &button, int x, int y);
     //@}
+    /**
+     * Emulation of key press
+     * @param widgetName name of widget
+     * @param keyseq key to press and possible special keys modifiers,
+     * for example Ctrl+P
+     */
+    void keyClick(const QString &widgetName, const QString &keyseq);
+
     //@{
     /**
      * Group of functions to emulate activate item (menu item, list item etc)

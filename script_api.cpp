@@ -227,9 +227,9 @@ static void posToModelIndex(const QAbstractItemModel *model,
 
 static bool canNotFind(QWidget &w)
 {
-//in Qt5 we can start app find all widgets via parent<->child tree
-//but they are actually not visible on real screen
-//so check that widget visible on screen
+    // in Qt5 we can start app find all widgets via parent<->child tree
+    // but they are actually not visible on real screen
+    // so check that widget visible on screen
     const QPoint pos = w.mapToGlobal(w.rect().center());
     QWidget *wdgAtPos = QApplication::widgetAt(pos);
     return wdgAtPos == nullptr;
@@ -352,7 +352,7 @@ void ScriptAPI::doMouseClick(const QString &widgetName,
 
     const QPoint pos{x, y};
     agent_.runCodeInGuiThreadSyncWithTimeout(
-        [&pos, doubleClick, w, this, btn] {
+        [pos, doubleClick, w, this, btn] {
             assert(w != nullptr);
             clickInGuiThread(pos, *w, btn, doubleClick);
             return QString();
@@ -380,13 +380,14 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
         && qobject_cast<QTabBar *>(w) == nullptr
         && qobject_cast<QListWidget *>(w) == nullptr
         && qobject_cast<QListView *>(w) == nullptr) {
-        agent_.throwScriptError(QStringLiteral("Can not activateItem for object not: QMenu or "
-                                "QTreeWidget or QComboBox or QTabBar or QListWidget or "
-                                               "QListView class"));
+        agent_.throwScriptError(QStringLiteral(
+            "Can not activateItem for object not: QMenu or "
+            "QTreeWidget or QComboBox or QTabBar or QListWidget or "
+            "QListView class"));
         return;
     }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [w, isDblClick, &itemName, searchItemFlag, this] {
+        [w, isDblClick, itemName, searchItemFlag, this] {
             return activateItemInGuiThread(w, itemName, isDblClick,
                                            searchItemFlag);
         },
@@ -398,13 +399,15 @@ void ScriptAPI::doClickItem(const QString &objectName, const QString &itemName,
     DBGPRINT("%s: done", Q_FUNC_INFO);
 }
 
-void ScriptAPI::mouseClick(const QString &widgetName, const QString &button, int x, int y)
+void ScriptAPI::mouseClick(const QString &widgetName, const QString &button,
+                           int x, int y)
 {
     Step step(agent_);
     doMouseClick(widgetName, button, x, y, false);
 }
 
-void ScriptAPI::mouseDClick(const QString &widgetName, const QString &button, int x, int y)
+void ScriptAPI::mouseDClick(const QString &widgetName, const QString &button,
+                            int x, int y)
 {
     Step step(agent_);
     doMouseClick(widgetName, button, x, y, true);
@@ -470,8 +473,8 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
 {
     DBGPRINT("%s: begin: item_name %s", Q_FUNC_INFO, qPrintable(itemName));
 
-    if (QMenu *menu = qobject_cast<QMenu *>(w)) {
-        QList<QAction *> acts = w->actions();
+    if (auto menu = qobject_cast<QMenu *>(w)) {
+        const QList<QAction *> acts = w->actions();
 
         for (QAction *action : acts) {
             DBGPRINT("%s: check %s", Q_FUNC_INFO, qPrintable(action->text()));
@@ -485,13 +488,13 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
             }
         }
         DBGPRINT("%s: end: not found %s", Q_FUNC_INFO, qPrintable(itemName));
-        return QString("Item `%1' not found").arg(itemName);
-    } else if (QTreeWidget *tw = qobject_cast<QTreeWidget *>(w)) {
-        QList<QTreeWidgetItem *> til
+        return QStringLiteral("Item `%1' not found").arg(itemName);
+    } else if (auto tw = qobject_cast<QTreeWidget *>(w)) {
+        const QList<QTreeWidgetItem *> til
             = tw->findItems(itemName, matchFlag | Qt::MatchRecursive);
         if (til.isEmpty()) {
             DBGPRINT("%s: there are no such item", Q_FUNC_INFO);
-            return QString("There are no such item %1").arg(itemName);
+            return QStringLiteral("There are no such item %1").arg(itemName);
         }
         QTreeWidgetItem *ti = til.first();
         tw->scrollToItem(ti);
@@ -524,12 +527,12 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         }
 
         return QString();
-    } else if (QComboBox *qcb = qobject_cast<QComboBox *>(w)) {
+    } else if (auto qcb = qobject_cast<QComboBox *>(w)) {
         const int idx = qcb->findText(itemName);
         if (idx == -1) {
             DBGPRINT("%s: can not find such item %s", Q_FUNC_INFO,
                      qPrintable(itemName));
-            return QString("There are no such item %1").arg(itemName);
+            return QStringLiteral("There are no such item %1").arg(itemName);
         }
 
         QList<int> pos;
@@ -538,7 +541,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         clickOnItemInGuiThread(pos, qcb->view(), false);
         QTest::keyClick(qcb->view(), Qt::Key_Enter);
         return QString();
-    } else if (QTabBar *tb = qobject_cast<QTabBar *>(w)) {
+    } else if (auto tb = qobject_cast<QTabBar *>(w)) {
         DBGPRINT("(%s, %d): this is tab bar", Q_FUNC_INFO, __LINE__);
         const int n = tb->count();
         moveMouseTo(tb->mapToGlobal(tb->rect().center()));
@@ -549,47 +552,48 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
                 const QRect tabRect = tb->tabRect(i);
                 if (tabRect.isNull())
                     return QStringLiteral("Null rect for tab %1").arg(itemName);
-                //tb->setCurrentIndex(i);
+                // tb->setCurrentIndex(i);
                 QTest::mouseClick(tb, Qt::LeftButton, 0, tabRect.center());
                 return QString();
             }
         }
         DBGPRINT("%s: item %s not found", Q_FUNC_INFO, qPrintable(itemName));
-        return QStringLiteral("There are no such item %1 in QTabBar").arg(itemName);
-    } else if (QListWidget *lw = qobject_cast<QListWidget *>(w)) {
+        return QStringLiteral("There are no such item %1 in QTabBar")
+            .arg(itemName);
+    } else if (auto lw = qobject_cast<QListWidget *>(w)) {
         DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
-        QList<QListWidgetItem *> itms
+        const QList<QListWidgetItem *> itms
             = lw->findItems(itemName, Qt::MatchExactly);
         if (itms.isEmpty()) {
-            return QString("There are no such item %1 in QListWidget")
+            return QStringLiteral("There are no such item %1 in QListWidget")
                 .arg(itemName);
         }
         QListWidgetItem *it = itms.first();
         QRect ir = lw->visualItemRect(it);
 
         DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());
-        QWidget *view_port
+        QWidget *viewPort
             = lw->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
-        assert(view_port != nullptr);
+        assert(viewPort != nullptr);
         const QPoint pos = ir.center();
-        moveMouseTo(view_port->mapToGlobal(pos));
+        moveMouseTo(viewPort->mapToGlobal(pos));
         if (isDblClick) {
             DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
                      qPrintable(view_port->objectName()));
-            QTest::mouseClick(view_port, Qt::LeftButton, 0,
+            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
                               );
-            QTest::mouseDClick(view_port, Qt::LeftButton, 0,
+            QTest::mouseDClick(viewPort, Qt::LeftButton, 0,
                                pos // QPoint(65, 55),
                                );
             DBGPRINT("%s: double click done", Q_FUNC_INFO);
         } else {
-            QTest::mouseClick(view_port, Qt::LeftButton, 0,
+            QTest::mouseClick(viewPort, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
                               );
         }
         return QString();
-    } else if (QListView *lv = qobject_cast<QListView *>(w)) {
+    } else if (auto lv = qobject_cast<QListView *>(w)) {
         const QAbstractItemModel *m = lv->model();
         for (int i = 0; i < m->rowCount(); ++i) {
             const QString data = m->index(i, 0).data().toString();
@@ -597,19 +601,19 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
                      qPrintable(data), qPrintable(itemName));
             if (itemName == data) {
                 const QRect r = lv->visualRect(m->index(i, 0));
-                QWidget *view_port = lv->findChild<QWidget *>(
+                QWidget *viewPort = lv->findChild<QWidget *>(
                     QLatin1String("qt_scrollarea_viewport"));
-                assert(view_port != nullptr);
+                assert(viewPort != nullptr);
                 const QPoint pos = r.center();
-                moveMouseTo(view_port->mapToGlobal(pos));
-                QTest::mouseClick(view_port, Qt::LeftButton, 0, pos);
+                moveMouseTo(viewPort->mapToGlobal(pos));
+                QTest::mouseClick(viewPort, Qt::LeftButton, 0, pos);
                 break;
             }
         }
         return QString();
     } else {
         DBGPRINT("%s: unknown type of widget", Q_FUNC_INFO);
-        return QLatin1String("ActivateWidget probelm: unknown type of widget");
+        return QStringLiteral("Activate item probelm: unknown type of widget");
     }
 }
 
@@ -631,7 +635,7 @@ void ScriptAPI::expandItemInTree(const QString &treeWidgetName,
         return;
     }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [&itemName, treeWidget] {
+        [itemName, treeWidget] {
             QList<QTreeWidgetItem *> til = treeWidget->findItems(
                 itemName, Qt::MatchStartsWith | Qt::MatchRecursive);
             if (til.isEmpty()) {
@@ -675,32 +679,35 @@ ScriptAPI::Step::~Step()
 #endif
 }
 
-void ScriptAPI::activateItemInView(const QString &widgetName, const QList<QVariant> &vpos)
+void ScriptAPI::activateItemInView(const QString &widgetName,
+                                   const QList<QVariant> &vpos)
 {
     Step step(agent_);
 
-    DBGPRINT("%s: begin widget %s, dbl_click %s",
-           Q_FUNC_INFO, qPrintable(widgetName));
+    DBGPRINT("%s: begin widget %s, dbl_click %s", Q_FUNC_INFO,
+             qPrintable(widgetName));
 
     QWidget *w = getWidgetWithSuchName(agent_, widgetName,
                                        waitWidgetAppearTimeoutSec_, true);
     if (w == nullptr) {
         DBGPRINT("%s: can not find widget", Q_FUNC_INFO);
         agent_.throwScriptError(
-                    QStringLiteral("Can not find widget with such name %1")
-                    .arg(widgetName));
+            QStringLiteral("Can not find widget with such name %1")
+                .arg(widgetName));
         return;
     }
     auto view = qobject_cast<QTreeView *>(w);
     if (view == nullptr) {
         DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
-        agent_.throwScriptError(QStringLiteral("Can not activate(double click) in not QTreeView widget"));
+        agent_.throwScriptError(QStringLiteral(
+            "Can not activate(double click) in not QTreeView widget"));
         return;
     }
 
     if (vpos.size() % 2) {
         DBGPRINT("%s: wrong position", Q_FUNC_INFO);
-        agent_.throwScriptError(QStringLiteral("wrong position in treeview, should be even"));
+        agent_.throwScriptError(
+            QStringLiteral("wrong position in treeview, should be even"));
         return;
     }
 
@@ -709,10 +716,58 @@ void ScriptAPI::activateItemInView(const QString &widgetName, const QList<QVaria
     for (const QVariant &var : vpos)
         pos.push_back(var.toInt());
 
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [this, pos, view] { return clickOnItemInGuiThread(pos, view, false); },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
+}
+
+void ScriptAPI::expandItemInTreeView(const QString &treeName,
+                                     const QList<QVariant> &vpos)
+{
+    Step step(agent_);
+    QWidget *w = getWidgetWithSuchName(agent_, treeName,
+                                       waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr) {
+        agent_.throwScriptError(
+            QStringLiteral("Can not find such widget %1").arg(treeName));
+        return;
+    }
+
+    auto view = qobject_cast<QTreeView *>(w);
+    if (view == nullptr) {
+        DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
+        agent_.throwScriptError(QStringLiteral(
+            "Can not activate(double click) in not QTreeView widget"));
+        return;
+    }
+
+    if (vpos.size() % 2) {
+        agent_.throwScriptError(
+            QStringLiteral("wrong position in treeview(%1), should be even")
+                .arg(treeName));
+        return;
+    }
+
+    QList<int> pos;
+    for (const QVariant &var : vpos)
+        pos.push_back(var.toInt());
 
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [this, &pos, view] {
-            return clickOnItemInGuiThread(pos, view, false);
+        [view, pos] {
+            QAbstractItemModel *model = view->model();
+            if (model == nullptr)
+                return QStringLiteral(
+                    "ExpandItemInTree failed, internal error: model is null");
+
+            QModelIndex mi;
+            posToModelIndex(model, pos, mi);
+            view->setExpanded(mi, true);
+            return QString();
         },
         newEventLoopWaitTimeoutSecs_);
 
@@ -722,41 +777,37 @@ void ScriptAPI::activateItemInView(const QString &widgetName, const QList<QVaria
     }
 }
 
-void ScriptAPI::expandItemInTreeView(const QString &treeName, const QList<QVariant> &vpos)
+void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
 {
     Step step(agent_);
-    QWidget *w = getWidgetWithSuchName(agent_, treeName,
+
+    DBGPRINT("%s begin name %s, keys %s", Q_FUNC_INFO, qPrintable(widgetName),
+             qPrintable(keyseqStr));
+
+    QWidget *w = getWidgetWithSuchName(agent_, widgetName,
                                        waitWidgetAppearTimeoutSec_, true);
+
     if (w == nullptr) {
-        agent_.throwScriptError(QStringLiteral("Can not find such widget %1").arg(treeName));
+        agent_.throwScriptError(
+            QString("Can not find widget with such name %1").arg(widgetName));
         return;
     }
 
-    auto view = qobject_cast<QTreeView *>(w);
-    if (view == nullptr) {
-        DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
-        agent_.throwScriptError(QStringLiteral("Can not activate(double click) in not QTreeView widget"));
+    const QKeySequence keySeq = QKeySequence::fromString(keyseqStr);
+    if (keySeq.isEmpty()) {
+        agent_.throwScriptError(
+            QStringLiteral("Invalid key sequnce(%1): empty").arg(keyseqStr));
         return;
     }
-
-    if (vpos.size() % 2) {
-        agent_.throwScriptError(QStringLiteral("wrong position in treeview(%1), should be even").arg(treeName));
-        return;
-    }
-
-    QList<int> pos;
-    for (const QVariant &var : vpos)
-        pos.push_back(var.toInt());
-
+    Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+    for (unsigned int i = 0; i < keySeq.count() - 1; ++i)
+        modifiers |= static_cast<Qt::KeyboardModifier>(keySeq[i]);
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
-        [view, &pos] {
-            QAbstractItemModel *model = view->model();
-            if (model == nullptr)
-                return QStringLiteral("ExpandItemInTree failed, internal error: model is null");
-
-            QModelIndex mi;
-            posToModelIndex(model, pos, mi);
-            view->setExpanded(mi, true);
+        [w, keySeq, modifiers] {
+            if (!w->hasFocus())
+                w->setFocus(Qt::ShortcutFocusReason);
+            QTest::keyClick(w, static_cast<Qt::Key>(keySeq[keySeq.count() - 1]),
+                            modifiers, -1);
             return QString();
         },
         newEventLoopWaitTimeoutSecs_);
