@@ -5,6 +5,7 @@
 #include <cstring>
 #include <deque>
 
+#include <QAbstractButton>
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
@@ -501,6 +502,70 @@ qlistViewActivateClick(QObject *, QEvent *event,
     return res;
 }
 
+static QString workspaceTitleBarPressed(QObject *, QEvent *event,
+                                        const std::pair<QWidget *, QString> &,
+                                        const GenerateCommand &)
+{
+    QString res;
+    if (event->type() != QEvent::MouseButtonPress)
+        return res;
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    if (mouseEvent->button() != Qt::LeftButton)
+        return res;
+    QWidget *w = QApplication::widgetAt(mouseEvent->globalPos());
+    if (w == nullptr
+        || std::strcmp(w->metaObject()->className(), "QWorkspaceTitleBar") != 0
+        || w->parent() == nullptr
+        || std::strcmp(w->parent()->metaObject()->className(),
+                       "QWorkspaceChild")
+               != 0
+        || w->parent()->parent() == nullptr
+        || std::strcmp(w->parent()->parent()->metaObject()->className(),
+                       "QWorkspace")
+               != 0)
+        return res;
+
+    w = qobject_cast<QWidget *>(w->parent());
+    auto parent = qobject_cast<QWidget *>(w->parent());
+    if (w == nullptr || parent == nullptr)
+        return res;
+    return QStringLiteral("Test.chooseWindowWithTitle('%1', '%2');")
+        .arg(qt_monkey_agent::fullQtWidgetId(*parent))
+        .arg(w->windowTitle());
+}
+
+static void makeTextReadyForScript(QString &text)
+{
+    text.replace(QChar('\n'), "\\n");
+}
+
+static QString clickOnUnnamedButton(QObject *, QEvent *event,
+                                    const std::pair<QWidget *, QString> &,
+                                    const GenerateCommand &)
+{
+    QString res;
+    if (event->type() != QEvent::MouseButtonPress)
+        return res;
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    if (mouseEvent->button() != Qt::LeftButton)
+        return res;
+    QWidget *w = QApplication::widgetAt(mouseEvent->globalPos());
+    QAbstractButton *bt;
+    if (w == nullptr || (bt = qobject_cast<QAbstractButton *>(w)) == nullptr)
+        return res;
+    if (!bt->objectName().isEmpty() || bt->text().isEmpty()
+        || bt->parent() == nullptr)
+        return res;
+    QString text = bt->text();
+    makeTextReadyForScript(text);
+    auto parent = qobject_cast<QWidget *>(bt->parent());
+    if (parent == nullptr)
+        return res;
+    return QStringLiteral("Test.pressButtonWithText('%1', '%2');")
+        .arg(qt_monkey_agent::fullQtWidgetId(*parent))
+        .arg(text);
+}
+
 static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
     {Qt::LeftButton, QLatin1String("Qt.LeftButton")},
     {Qt::RightButton, QLatin1String("Qt.RightButton")},
@@ -604,7 +669,8 @@ UserEventsAnalyzer::UserEventsAnalyzer(
     for (auto &&fun :
          {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick,
           qlistWidgetActivateClick, qtabBarActivateClick,
-          qtreeViewActivateClick, qlistViewActivateClick})
+          qtreeViewActivateClick, qlistViewActivateClick,
+          workspaceTitleBarPressed, clickOnUnnamedButton})
         customEventAnalyzers_.emplace_back(fun);
 }
 

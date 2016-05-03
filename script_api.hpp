@@ -107,6 +107,14 @@ public slots:
      * @param ms amount of milliseconds to sleep
      */
     void Wait(int ms);
+
+    /**
+     * Activate MDI window with such title
+     * @param workspace name of WorkSpace
+     * @param title window title
+     */
+    void chooseWindowWithTitle(const QString &workspace, const QString &title);
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

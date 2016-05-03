@@ -1,6 +1,10 @@
 //#define DEBUG_SCRIPT_API
 #include "script_api.hpp"
 
+#include <cassert>
+#include <chrono>
+#include <thread>
+
 #include <QApplication>
 #include <QComboBox>
 #include <QLineEdit>
@@ -9,12 +13,10 @@
 #include <QStyleOption>
 #include <QTreeWidget>
 #include <QWidget>
+#include <QWorkspace>
 #include <QtCore/QStringList>
 #include <QtScript/QScriptEngine>
 #include <QtTest/QTest>
-#include <cassert>
-#include <chrono>
-#include <thread>
 
 #include "agent.hpp"
 #include "common.hpp"
@@ -816,6 +818,43 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
             QTest::keyClick(w, static_cast<Qt::Key>(keySeq[keySeq.count() - 1]),
                             modifiers, -1);
             return QString();
+        },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
+}
+
+void ScriptAPI::chooseWindowWithTitle(const QString &widgetName, const QString &title)
+{
+    Step step(agent_);
+    DBGPRINT("%s: begin", Q_FUNC_INFO);
+    QWidget *w = getWidgetWithSuchName(agent_, widgetName,
+                                       waitWidgetAppearTimeoutSec_, true);
+
+    if (w == nullptr) {
+        agent_.throwScriptError(
+                    QStringLiteral("There is no such widget %1").arg(widgetName));
+        return;
+    }
+    auto workspace = qobject_cast<QWorkspace *>(w);
+    if (workspace == nullptr) {
+        agent_.throwScriptError(
+                    QStringLiteral("This is not QWorkspace %1").arg(widgetName));
+        return;
+    }
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [workspace, title] {
+            const QWidgetList wl = workspace->windowList();
+            for (QWidget *win : wl) {
+                if (win->windowTitle() == title) {
+                    workspace->setActiveWindow(win);
+                    return QString();
+                }
+            }
+            return QStringLiteral("No window with such title %1").arg(title);
         },
         newEventLoopWaitTimeoutSecs_);
 
