@@ -8,6 +8,7 @@
 #include <QtCore/QSemaphore>
 
 #include "custom_event_analyzer.hpp"
+#include "custom_script_extension.hpp"
 
 class QThread;
 
@@ -39,11 +40,13 @@ public:
     /**
      * using QApplication::installEventFilter, so it should be after all
      * other calls to QApplication::installEventFilter in user app
+     * @param showObjectShortcut shorutcut key to show object info under mouse cursor
      * @param customEventAnalyzers custom event analyzers, it is possible
+     * @param apiExtension this object will be registered by it's objectName() as script context
      * to use them as event analyzer extension point
      */
     explicit Agent(const QKeySequence &showObjectShortcut = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
-                   std::list<CustomEventAnalyzer> customEventAnalyzers = {});
+                   std::list<CustomEventAnalyzer> customEventAnalyzers = {}, PopulateScriptContext = {});
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
@@ -62,7 +65,9 @@ public:
     QString runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                               int timeoutSecs);
     //@}
+    //! throw exception inside script
     void throwScriptError(QString msg);
+    static Agent *instance() { return gAgent_; }
 private slots:
     void onUserEventInScriptForm(const QString &);
     void onCommunicationError(const QString &);
@@ -88,6 +93,8 @@ private:
     Private::ScriptRunner *curScriptRunner_ = nullptr;
     QEvent::Type eventType_;
     QSemaphore guiRunSem_{0};
+    PopulateScriptContext populateScriptContextCallback_;
+    static Agent *gAgent_;
 
     void customEvent(QEvent *event) override;
 };

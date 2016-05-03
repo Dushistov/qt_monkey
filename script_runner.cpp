@@ -17,12 +17,15 @@ static int extractLineNumFromBacktraceLine(const QString& line)
     return line.right(line.size() - ln - 1).toUInt();	
 }
 
-ScriptRunner::ScriptRunner(ScriptAPI &api, QObject *extension)
+ScriptRunner::ScriptRunner(ScriptAPI &api, const PopulateScriptContext &onInitCb)
 {
 	QScriptValue testCtrl = scriptEngine_.newQObject(&api);
 	QScriptValue global = scriptEngine_.globalObject();
 
 	global.setProperty(QLatin1String("Test"), testCtrl);
+
+    if (onInitCb != nullptr)
+        onInitCb(scriptEngine_);
 }
 
 void ScriptRunner::runScript(const Script &script, QString &errMsg)

@@ -2,6 +2,8 @@
 
 #include <QtScript/QScriptEngine>
 
+#include "custom_script_extension.hpp"
+
 namespace qt_monkey_agent
 {
 class ScriptAPI;
@@ -13,7 +15,7 @@ class Script;
 class ScriptRunner final
 {
 public:
-    explicit ScriptRunner(ScriptAPI &api, QObject *apiExtension = nullptr);
+    explicit ScriptRunner(ScriptAPI &api, const PopulateScriptContext &onInitCb);
     void runScript(const Script &, QString &errMsg);
     int currentLineNum() const;
     void throwError(QString errMsg);

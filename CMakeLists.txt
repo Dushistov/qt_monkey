@@ -63,6 +63,7 @@ add_library(qtmonkey_agent STATIC
   ${qtmonkey_agent_MOC_HDRS}
   user_events_analyzer.cpp
   custom_event_analyzer.hpp
+  custom_script_extension.hpp
   agent_qtmonkey_communication.cpp
   agent.cpp
   script_runner.cpp

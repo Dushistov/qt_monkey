@@ -237,8 +237,6 @@ static bool canNotFind(QWidget &w)
     return wdgAtPos == nullptr;
 }
 
-    static void moveMouseTo(qt_monkey_agent::Agent &, const QPoint &point) { QCursor::setPos(point); }
-
 static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA, QWidget &wA,
                                  Qt::MouseButton btn, bool dblClick)
 {
@@ -863,3 +861,5 @@ void ScriptAPI::chooseWindowWithTitle(const QString &widgetName, const QString &
         agent_.throwScriptError(std::move(errMsg));
     }
 }
+
+void qt_monkey_agent::moveMouseTo(qt_monkey_agent::Agent &, const QPoint &point) { QCursor::setPos(point); }

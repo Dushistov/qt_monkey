@@ -2,10 +2,10 @@
 #include "agent.hpp"
 
 #include <atomic>
-#include <thread>
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <thread>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QThread>
@@ -19,6 +19,8 @@
 
 using namespace qt_monkey_agent;
 using namespace qt_monkey_agent::Private;
+
+Agent *Agent::gAgent_ = nullptr;
 
 #define GET_THREAD(__name__)                                                   \
     auto __name__ = static_cast<AgentThread *>(thread_);                       \
@@ -115,9 +117,11 @@ private:
 }
 
 Agent::Agent(const QKeySequence &showObjectShortcut,
-             std::list<CustomEventAnalyzer> customEventAnalyzers)
+             std::list<CustomEventAnalyzer> customEventAnalyzers,
+             PopulateScriptContext psc)
     : eventAnalyzer_(new UserEventsAnalyzer(
-          showObjectShortcut, std::move(customEventAnalyzers), this))
+          showObjectShortcut, std::move(customEventAnalyzers), this)),
+      populateScriptContextCallback_(std::move(psc))
 {
     // make sure that type is referenced, fix bug with qt4 and static lib
     qMetaTypeId<qt_monkey_agent::Private::Script>();
@@ -133,6 +137,8 @@ Agent::Agent(const QKeySequence &showObjectShortcut,
     while (!thread_->isFinished()
            && static_cast<AgentThread *>(thread_)->isNotReady())
         ;
+    assert(gAgent_ == nullptr);
+    gAgent_ = this;
 }
 
 void Agent::onCommunicationError(const QString &err)
@@ -167,7 +173,7 @@ void Agent::onRunScriptCommand(const Private::Script &script)
     assert(QThread::currentThread() == thread_);
     DBGPRINT("%s: run script", Q_FUNC_INFO);
     ScriptAPI api{*this};
-    ScriptRunner sr{api};
+    ScriptRunner sr{api, populateScriptContextCallback_};
     QString errMsg;
     {
         CurrentScriptContext context(&sr, curScriptRunner_);

@@ -61,6 +61,13 @@
            </spacer>
           </item>
           <item>
+           <widget class="MyCustomButton" name="pushButton_2">
+            <property name="text">
+             <string>Custom Button</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="pushButton">
             <property name="text">
              <string>PushButton</string>
@@ -213,6 +220,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MyCustomButton</class>
+   <extends>QPushButton</extends>
+   <header>my_custom_button.hpp</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
