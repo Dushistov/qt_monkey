@@ -14,10 +14,11 @@
 #include <QTreeWidget>
 #include <QWidget>
 #if QT_VERSION < 0x050000
-#  include <QWorkspace>
+#include <QWorkspace>
 #else
-#  include <QMdiArea>
-#  define QWorkspace QMdiArea
+#include <QMdiArea>
+#include <QMdiSubWindow>
+#define QWorkspace QMdiArea
 #endif
 #include <QtCore/QStringList>
 #include <QtScript/QScriptEngine>
@@ -242,8 +243,8 @@ static bool canNotFind(QWidget &w)
     return wdgAtPos == nullptr;
 }
 
-static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA, QWidget &wA,
-                                 Qt::MouseButton btn, bool dblClick)
+static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA,
+                             QWidget &wA, Qt::MouseButton btn, bool dblClick)
 {
     DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
              dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
@@ -292,9 +293,9 @@ static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA, 
         QTest::mouseClick(w, btn, 0, pos, -1);
 }
 
-static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent, const QList<int> &idxPos,
-                                      QAbstractItemView *view,
-                                      bool isDblClick)
+static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent,
+                                      const QList<int> &idxPos,
+                                      QAbstractItemView *view, bool isDblClick)
 {
     DBGPRINT("%s: begin", Q_FUNC_INFO);
 
@@ -312,30 +313,26 @@ static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent, const QList
 
     const QRect rec = view->visualRect(mi);
     const QPoint pos = rec.center();
-    QWidget *view_port
+    QWidget *viewPort
         = view->findChild<QWidget *>(QLatin1String("qt_scrollarea_viewport"));
-    moveMouseTo(agent, view_port->mapToGlobal(pos));
+    DBGPRINT("%s: pos map %d %d -> %d %d", Q_FUNC_INFO, pos.x(), pos.y(),
+             view->mapToGlobal(pos).x(), view->mapToGlobal(pos).y());
+    moveMouseTo(agent, viewPort->mapToGlobal(pos));
     if (isDblClick) {
         DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
-                 qPrintable(view_port->objectName()));
-        QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                          pos // QPoint(65, 55),
-                          );
-        QTest::mouseDClick(view_port, Qt::LeftButton, 0,
-                           pos // QPoint(65, 55),
-                           );
+                 qPrintable(viewPort->objectName()));
+        QTest::mouseClick(viewPort, Qt::LeftButton, 0, pos);
+        QTest::mouseDClick(viewPort, Qt::LeftButton, 0, pos);
         DBGPRINT("%s: double click done", Q_FUNC_INFO);
     } else {
-        QTest::mouseClick(view_port, Qt::LeftButton, 0,
-                          pos // QPoint(65, 55),
-                          );
+        QTest::mouseClick(viewPort, Qt::LeftButton, 0, pos);
     }
     return QString();
 }
 
-static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent, QWidget *w, const QString &itemName,
-                                       bool isDblClick,
-                                       Qt::MatchFlag matchFlag)
+static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
+                                       QWidget *w, const QString &itemName,
+                                       bool isDblClick, Qt::MatchFlag matchFlag)
 {
     DBGPRINT("%s: begin: item_name %s", Q_FUNC_INFO, qPrintable(itemName));
 
@@ -401,16 +398,14 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent, QWidget *w
             return QStringLiteral("There are no such item %1").arg(itemName);
         }
 
-        QList<int> pos;
-        pos.push_back(0);
-        pos.push_back(idx);
+        QList<int> pos = {0, idx};
         clickOnItemInGuiThread(agent, pos, qcb->view(), false);
-//        QTest::keyClick(qcb->view(), Qt::Key_Enter);
+        //hack to fix drop down list hiding
+        QTest::keyClick(qcb->view(), Qt::Key_Enter);
         return QString();
     } else if (auto tb = qobject_cast<QTabBar *>(w)) {
         DBGPRINT("(%s, %d): this is tab bar", Q_FUNC_INFO, __LINE__);
         const int n = tb->count();
-        moveMouseTo(agent, tb->mapToGlobal(tb->rect().center()));
         for (int i = 0; i < n; ++i) {
             if (tb->tabText(i) == itemName) {
                 DBGPRINT("(%s, %d) set current index to %d", Q_FUNC_INFO,
@@ -419,7 +414,9 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent, QWidget *w
                 if (tabRect.isNull())
                     return QStringLiteral("Null rect for tab %1").arg(itemName);
                 // tb->setCurrentIndex(i);
-                QTest::mouseClick(tb, Qt::LeftButton, 0, tabRect.center());
+                const QPoint clickPos = tabRect.center();
+                moveMouseTo(agent, tb->mapToGlobal(clickPos));
+                QTest::mouseClick(tb, Qt::LeftButton, 0, clickPos);
                 return QString();
             }
         }
@@ -445,7 +442,7 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent, QWidget *w
         moveMouseTo(agent, viewPort->mapToGlobal(pos));
         if (isDblClick) {
             DBGPRINT("%s: run dbl click on %s", Q_FUNC_INFO,
-                     qPrintable(view_port->objectName()));
+                     qPrintable(viewPort->objectName()));
             QTest::mouseClick(viewPort, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
                               );
@@ -672,29 +669,19 @@ void ScriptAPI::Wait(int ms)
 ScriptAPI::Step::Step(Agent &agent)
 {
     agent.scriptCheckPoint();
-#if 0
-    //for protocol mode add delay so we can take event before
-    //next event will be played
-    qApp->processEvents(QEventLoop::AllEvents, 50);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-#endif
+    if (agent.demonstrationMode()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
 }
 
-ScriptAPI::Step::~Step()
-{
-#if 0
-    qApp->processEvents(QEventLoop::AllEvents, 50);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-#endif
-}
+ScriptAPI::Step::~Step() {}
 
 void ScriptAPI::activateItemInView(const QString &widgetName,
                                    const QList<QVariant> &vpos)
 {
     Step step(agent_);
 
-    DBGPRINT("%s: begin widget %s, dbl_click %s", Q_FUNC_INFO,
-             qPrintable(widgetName));
+    DBGPRINT("%s: begin widget %s", Q_FUNC_INFO, qPrintable(widgetName));
 
     QWidget *w = getWidgetWithSuchName(agent_, widgetName,
                                        waitWidgetAppearTimeoutSec_, true);
@@ -812,7 +799,8 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
         return;
     }
     Qt::KeyboardModifiers modifiers = Qt::NoModifier;
-    for (unsigned int i = 0; i < keySeq.count() - 1; ++i)
+    for (decltype(keySeq.count()) i = 0;
+         keySeq.count() > 0 && i < (keySeq.count() - 1); ++i)
         modifiers |= static_cast<Qt::KeyboardModifier>(keySeq[i]);
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
         [w, keySeq, modifiers] {
@@ -830,7 +818,8 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
     }
 }
 
-void ScriptAPI::chooseWindowWithTitle(const QString &widgetName, const QString &title)
+void ScriptAPI::chooseWindowWithTitle(const QString &widgetName,
+                                      const QString &title)
 {
     Step step(agent_);
     DBGPRINT("%s: begin", Q_FUNC_INFO);
@@ -839,21 +828,33 @@ void ScriptAPI::chooseWindowWithTitle(const QString &widgetName, const QString &
 
     if (w == nullptr) {
         agent_.throwScriptError(
-                    QStringLiteral("There is no such widget %1").arg(widgetName));
+            QStringLiteral("There is no such widget %1").arg(widgetName));
         return;
     }
     auto workspace = qobject_cast<QWorkspace *>(w);
     if (workspace == nullptr) {
         agent_.throwScriptError(
-                    QStringLiteral("This is not QWorkspace %1").arg(widgetName));
+            QStringLiteral("This is not QWorkspace %1").arg(widgetName));
         return;
     }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
         [workspace, title] {
-            const QWidgetList wl = workspace->windowList();
-            for (QWidget *win : wl) {
+            const auto wl = workspace->
+#if QT_VERSION < 0x050000
+                            windowList()
+#else
+                            subWindowList()
+#endif
+                ;
+            for (auto &&win : wl) {
                 if (win->windowTitle() == title) {
-                    workspace->setActiveWindow(win);
+                    workspace->
+#if QT_VERSION < 0x050000
+                        setActiveWindow(win)
+#else
+                        setActiveSubWindow(win)
+#endif
+                        ;
                     return QString();
                 }
             }
@@ -867,4 +868,38 @@ void ScriptAPI::chooseWindowWithTitle(const QString &widgetName, const QString &
     }
 }
 
-void qt_monkey_agent::moveMouseTo(qt_monkey_agent::Agent &, const QPoint &point) { QCursor::setPos(point); }
+void qt_monkey_agent::moveMouseTo(qt_monkey_agent::Agent &agent,
+                                  const QPoint &to)
+{
+    DBGPRINT("%s: %d %d -> %d %d", Q_FUNC_INFO, QCursor::pos().x(),
+             QCursor::pos().y(), to.x(), to.y());
+    if (agent.demonstrationMode()) {
+        static constexpr int timeoutPerPixelMs = 6;
+
+        const QPoint from = QCursor::pos();
+        DBGPRINT("%s: was x %d y %d", Q_FUNC_INFO, from.x(), from.y());
+        const int dx = to.x() - from.x();
+        const int step = dx >= 0 ? 1 : -1;
+        const int dy = to.y() - from.y();
+        const double k = double(dy) / dx;
+
+        for (int x = 0; x != dx + step; x += step) {
+            const int y = static_cast<int>(k * x + 0.5);
+            QCursor::setPos(from.x() + x, from.y() + y);
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents,
+                                            timeoutPerPixelMs / 2);
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(timeoutPerPixelMs / 2));
+        }
+    }
+    DBGPRINT("%s: now x %d y %d", Q_FUNC_INFO, to.x(), to.y());
+    QCursor::setPos(to);
+    DBGPRINT("%s: real now x %d y %d", Q_FUNC_INFO, QCursor::pos().x(),
+             QCursor::pos().y());
+}
+
+void ScriptAPI::setDemonstrationMode(bool val)
+{
+    Step step(agent_);
+    agent_.setDemonstrationMode(val);
+}

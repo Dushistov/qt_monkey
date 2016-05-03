@@ -91,6 +91,9 @@ int main(int argc, char *argv[])
             scripts.append(QFile::decodeName(argv[i]));
         } else if (std::strcmp(argv[i], "--exit-on-script-error") == 0) {
             exitOnScriptError = true;
+        } else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            std::cout << qPrintable(usage());
+            return EXIT_SUCCESS;
         } else {
             std::cerr << qPrintable(T_("Unknown option: %1\n").arg(argv[i]))
                       << qPrintable(usage());

@@ -44,7 +44,7 @@ void ScriptExt::pressButton(const QString &caption)
 
     QString errMsg = agent->runCodeInGuiThreadSyncWithTimeout([btn, agent] {
             const QPoint clickPos = btn->rect().center();
-            qt_monkey_agent::moveMouseTo(*agent, clickPos);
+            qt_monkey_agent::moveMouseTo(*agent, btn->mapToGlobal(clickPos));
             QTest::mouseClick(btn, Qt::LeftButton, 0, clickPos);
             return QString();
         }, 5);

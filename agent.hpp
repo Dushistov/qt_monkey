@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <atomic>
 
 #include <QKeySequence>
 #include <QtCore/QEvent>
@@ -67,6 +68,8 @@ public:
     //@}
     //! throw exception inside script
     void throwScriptError(QString msg);
+    void setDemonstrationMode(bool val) { demonstrationMode_ = val; }
+    bool demonstrationMode() const { return demonstrationMode_; }
     static Agent *instance() { return gAgent_; }
 private slots:
     void onUserEventInScriptForm(const QString &);
@@ -95,6 +98,7 @@ private:
     QSemaphore guiRunSem_{0};
     PopulateScriptContext populateScriptContextCallback_;
     static Agent *gAgent_;
+    std::atomic<bool> demonstrationMode_{false};
 
     void customEvent(QEvent *event) override;
 };

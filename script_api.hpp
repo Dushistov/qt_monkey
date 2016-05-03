@@ -120,6 +120,8 @@ public slots:
      */
     void chooseWindowWithTitle(const QString &workspace, const QString &title);
 
+    //! switch on/off demo mode (when emulated user actions done on slow speed)
+    void setDemonstrationMode(bool val);
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

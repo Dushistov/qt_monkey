@@ -3,6 +3,7 @@
 import subprocess, sys, io, json, re
 
 ANOTHER_VARIANT = "//another variant:"
+EXPECT_LINE = "//expect: "
 
 def args_str_to_list(args_str):
     def append_to_args(args, arg):
@@ -104,6 +105,8 @@ with open(script_path, "r") as fin:
             sys.stderr.write("Unexpected end of actual result\n")
             sys.exit(1)
         line = line.strip()
+        if line.startswith(EXPECT_LINE):
+            line = line[len(EXPECT_LINE):]
         if not compare_two_func_calls(line, code_listing[i]):
             if (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
                 i += 1

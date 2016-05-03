@@ -357,7 +357,9 @@ void QtMonkeyWindow::onMonkeScriptLog(const QString &msg)
 void QtMonkeyWindow::on_pbRunScript__pressed()
 {
     SETUP_WIN_CTRL(ctrl)
-    ctrl->runScript(teScriptEdit_->toPlainText());
+    const QString demoModeStr = QStringLiteral("Test.setDemonstrationMode(%1);")
+        .arg(cbDemonstrationMode_->isChecked() ? "true" : "false");
+    ctrl->runScript(demoModeStr + teScriptEdit_->toPlainText());
     changeState(State::PlayingEvents);
 }
 
