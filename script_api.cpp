@@ -539,7 +539,7 @@ QString ScriptAPI::activateItemInGuiThread(QWidget *w, const QString &itemName,
         pos.push_back(0);
         pos.push_back(idx);
         clickOnItemInGuiThread(pos, qcb->view(), false);
-        QTest::keyClick(qcb->view(), Qt::Key_Enter);
+//        QTest::keyClick(qcb->view(), Qt::Key_Enter);
         return QString();
     } else if (auto tb = qobject_cast<QTabBar *>(w)) {
         DBGPRINT("(%s, %d): this is tab bar", Q_FUNC_INFO, __LINE__);
