@@ -1,13 +1,28 @@
+#
+# Available repositories are listed here:
+# https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
+#
+
+sudo: false
+
 language:
   - cpp
   - python
 
+before_install:
+  - add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - add-apt-repository ppa:kalakris/cmake -y
+  - apt-get update -q
+  - apt-get install gcc-4.8 -y
+  - apt-get upgrade cmake -y
+  - apt-get install libqt4-dev -y
+
 before_script:
-    - mkdir build
-    - cd build
-    - cmake -DQT_VARIANT="qt5" -DUSE_TESTS=True ..
-    - cd ..
+  - mkdir build
+  - cd build
+  - cmake -DQT_VARIANT="qt5" -DUSE_TESTS=True ..
+  - cd ..
 
 script:
-    - make -k -j2 VERBOSE=1 -C build
-    - ctest --output-on-failure
+  - make -k -j2 VERBOSE=1 -C build
+  - ctest --output-on-failure
