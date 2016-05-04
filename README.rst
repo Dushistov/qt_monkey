@@ -28,7 +28,12 @@ After that you can add suitable asserts and run this script via command line or 
 How to use
 ----------
 You need build and link qtmonkey_agent library with your application.
-After that create `qt_monkey_agent::Agent` like this
+::
+   cmake -DQT_VARIANT="qt5" path/to/src
+   cmake --build .
+
+Also you can use -DQT_VARIANT="qt4" to build with Qt 4.x
+After that create object of class `qt_monkey_agent::Agent` like this
 ::
    qt_monkey_agent::Agent agent;
 
