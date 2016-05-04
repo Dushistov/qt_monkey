@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import subprocess, sys, io, json, re
+import subprocess, sys, io, json, re, codecs
 
 ANOTHER_VARIANT = "//another variant:"
 EXPECT_LINE = "//expect: "
@@ -87,7 +87,8 @@ monkey = subprocess.Popen(monkey_cmd, stdout=subprocess.PIPE,
                           stdin=subprocess.PIPE, stderr=sys.stderr)
 
 code_listing = []
-for line in io.TextIOWrapper(monkey.stdout, encoding="utf-8"):
+input_stream = codecs.getreader("utf-8")(monkey.stdout)
+for line in input_stream:
     print("MONKEY: %s" % line)
 #    print("Parsed json: %s" % json.loads(line))
     msg = json.loads(line)
