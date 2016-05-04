@@ -19,6 +19,7 @@ addons:
     - g++-4.8
     - cmake
     - libqt5widgets5
+    - libqt4-dev
 
 env:
 - COMPILER_VERSION=4.8
@@ -26,7 +27,7 @@ env:
 before_script:
   - mkdir build
   - cd build
-  - CC=$CC-${COMPILER_VERSION} CXX=$CXX-${COMPILER_VERSION} cmake -DQT_VARIANT="qt5" -DUSE_TESTS=True ..
+  - CC=$CC-${COMPILER_VERSION} CXX=$CXX-${COMPILER_VERSION} cmake -DQT_VARIANT="qt4" -DUSE_TESTS=True ..
   - cd ..
 
 script:
