@@ -31,5 +31,6 @@ before_script:
   - cd ..
 
 script:
-  - make -k -j2 VERBOSE=1 -C build
+  - cd build
+  - make -k -j2 VERBOSE=1
   - ctest --output-on-failure
