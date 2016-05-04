@@ -9,13 +9,14 @@ language:
   - cpp
   - python
 
-before_install:
-  - add-apt-repository ppa:ubuntu-toolchain-r/test -y
-  - add-apt-repository ppa:kalakris/cmake -y
-  - apt-get update -q
-  - apt-get install gcc-4.8 -y
-  - apt-get upgrade cmake -y
-  - apt-get install libqt4-dev -y
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - kalakris-cmake
+    packages:
+    - gcc-4.8
+    - cmake
 
 before_script:
   - mkdir build
