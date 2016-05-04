@@ -14,11 +14,12 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     - kalakris-cmake
+    - ubuntu-sdk-team
     packages:
     - gcc-4.8
     - cmake
     - libqt5widgets5
-    
+
 env:
 - COMPILER_VERSION=4.8
 
