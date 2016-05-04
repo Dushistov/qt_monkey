@@ -1,7 +1,6 @@
 #tested with such version, if works with previous also, inform me
 cmake_minimum_required(VERSION 2.8)
 
-#TODO: check compiler versions, check qt versions
 include(compiler.cmake)
 
 set(USE_TESTS False CACHE BOOL "enable testing")
