@@ -24,6 +24,6 @@ else ()
 endif()
 
 if (QT_MONKEY_COMPILER_IS_GCC_COMPATIBLE)
-  append("-Wall -Wextra" "-Wformat-security" "-Wcast-align" "-Werror=format" "-Wcast-qual" CMAKE_C_FLAGS)
-  append("-Wall -Wextra" "-Wformat-security" "-Wcast-align" "-Werror=format" "-Wcast-qual" CMAKE_CXX_FLAGS)
+  append("-Wall" "-Wextra" "-Wformat-security" "-Wcast-align" "-Werror=format" "-Wcast-qual" CMAKE_C_FLAGS)
+  append("-Wall" "-pedantic" "-Wextra" "-Wformat-security" "-Wcast-align" "-Werror=format" "-Wcast-qual" CMAKE_CXX_FLAGS)
 endif ()
