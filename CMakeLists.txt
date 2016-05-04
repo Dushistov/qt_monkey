@@ -1,5 +1,5 @@
 #tested with such version, if works with previous also, inform me
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 2.8)
 
 #TODO: check compiler versions, check qt versions
 include(compiler.cmake)
