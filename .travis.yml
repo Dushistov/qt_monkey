@@ -16,7 +16,7 @@ addons:
     - kalakris-cmake
     - ubuntu-sdk-team
     packages:
-    - gcc-4.8
+    - g++-4.8
     - cmake
     - libqt5widgets5
 
