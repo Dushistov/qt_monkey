@@ -1,14 +1,19 @@
 #include "qtmonkey.hpp"
 
-#include <QtCore/QCoreApplication>
-#include <QtCore/QTextCodec>
 #include <cstdio>
+#include <cassert>
+#include <atomic>
+
 #ifdef _WIN32 // windows both 32 bit and 64 bit
 #  include <windows.h>
-#  include <QtCore/QWinEventNotifier>
 #else
-#  include <QtCore/QSocketNotifier>
+#  include <unistd.h>
 #endif
+
+#include <QtCore/QCoreApplication>
+#include <QtCore/QTextCodec>
+#include <QtCore/QThread>
+
 
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
@@ -16,8 +21,98 @@
 using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
+using qt_monkey_app::Private::StdinReader;
 
-static constexpr int waitBeforeExitMs = 300;
+namespace
+{
+	static constexpr int waitBeforeExitMs = 300;
+	/*
+	win32 not allow overlapped I/O (see CreateFile [Consoles section]
+	plus QWinEventNotifier private on Qt 4.x and become public only on Qt 5.x
+	so just create thread for both win32 and posix
+	*/
+	class ReadStdinThread final : public QThread {
+	public:
+		ReadStdinThread(QObject *parent, StdinReader &reader);
+		void run() override;
+		void stop();
+	private:
+		StdinReader &reader_;
+		std::atomic<bool> timeToExit_{ false };
+#ifdef _WIN32
+		HANDLE stdinHandle_;
+#endif
+	};
+
+#ifdef _WIN32
+	ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader) : QThread(parent), reader_(reader)
+	{
+		stdinHandle_ = ::GetStdHandle(STD_INPUT_HANDLE);
+		if (stdinHandle_ == INVALID_HANDLE_VALUE)
+			throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error: " + std::to_string(GetLastError()));
+	}
+
+	void ReadStdinThread::run()
+	{
+		while (!timeToExit_) {
+			char ch;
+			DWORD readBytes = 0;
+			if (!::ReadFile(stdinHandle_, &ch, sizeof(ch), &readBytes, nullptr)) {
+				reader_.emitError(T_("reading from stdin error: %1").arg(GetLastError()));
+				return;
+			}
+			if (readBytes == 0)
+				break;
+			{
+				auto ptr = reader_.data.get();
+				ptr->append(ch);
+			}
+			reader_.emitDataReady();
+		}
+	}
+
+	void ReadStdinThread::stop()
+	{
+		timeToExit_ = true;
+		if (!::CloseHandle(stdinHandle_))
+			throw std::runtime_error("CloseHandle(stdin) error: " + std::to_string(GetLastError()));
+	}
+#else
+	ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader) : QThread(parent), reader_(reader)
+	{
+    }
+
+	void ReadStdinThread::run()
+	{
+		while (!timeToExit_) {
+			char ch;
+			const ssize_t nBytes = ::read(STDIN_FILENO, &ch, sizeof(ch));
+			if (nBytes < 0) {
+				emit error(T_("reading from stdin error: %1").arg(errno));
+				return;
+			} else if (nBytes == 0) {
+				break;
+            }
+			{
+				auto ptr = data.get();
+				ptr->append(ch);
+			}
+			emit dataReady();
+		}
+	}
+
+	void ReadStdinThread::stop()
+	{
+		timeToExit_ = true;
+		do {
+			if (::close(STDIN_FILENO) == 0)
+				return;
+		} while (errno == EINTR);
+		throw std::runtime_error("close(stdin) failure: " + std::to_string(errno));
+	}
+	)
+#endif
+}
 
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)
@@ -51,12 +146,10 @@ QtMonkey::QtMonkey(bool exitOnScriptError)
     if (std::setvbuf(stdin, nullptr, _IONBF, 0))
         throw std::runtime_error("setvbuf failed");
 #ifdef _WIN32
-    HANDLE stdinHandle = ::GetStdHandle(STD_INPUT_HANDLE);
-    if (stdinHandle == INVALID_HANDLE_VALUE)
-        throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error");
-    auto stdinNotifier = new QWinEventNotifier(stdinHandle, this);
-    connect(stdinNotifier, SIGNAL(activated(HANDLE)), this,
-            SLOT(stdinDataReady()));
+	readStdinThread_ = new ReadStdinThread(this, stdinReader_);
+	stdinReader_.moveToThread(readStdinThread_);
+	readStdinThread_->start();
+	connect(&stdinReader_, SIGNAL(dataReady()), this, SLOT(stdinDataReady()));
 #else
     int stdinHandler = ::fileno(stdin);
     if (stdinHandler < 0)
@@ -70,6 +163,11 @@ QtMonkey::QtMonkey(bool exitOnScriptError)
 
 QtMonkey::~QtMonkey()
 {
+	assert(readStdinThread_ != nullptr);
+	auto thread = static_cast<ReadStdinThread *>(readStdinThread_);
+	thread->stop();
+	thread->wait(100/*ms*/);
+	thread->terminate();
     if (userApp_.state() != QProcess::NotRunning) {
         userApp_.terminate();
         QCoreApplication::processEvents(QEventLoop::AllEvents, 3000 /*ms*/);
@@ -128,12 +226,10 @@ void QtMonkey::userAppNewErrOutput()
 
 void QtMonkey::stdinDataReady()
 {
-    int ch;
-    while ((ch = getchar()) != EOF && ch != '\n')
-        stdinBuf_ += static_cast<unsigned char>(ch);
+	auto dataPtr = stdinReader_.data.get();
     size_t parserStopPos;
     parseOutputFromGui(
-        stdinBuf_, parserStopPos,
+        *dataPtr, parserStopPos,
         [this](QString script, QString scriptFileName) {
             toRunList_.push(Script{std::move(script)});
             onAgentReadyToRunScript();
@@ -143,7 +239,7 @@ void QtMonkey::stdinDataReady()
                 << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
         });
     if (parserStopPos != 0)
-        stdinBuf_.remove(0, parserStopPos);
+        dataPtr->remove(0, parserStopPos);
 }
 
 void QtMonkey::onScriptError(QString errMsg)
