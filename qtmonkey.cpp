@@ -1,19 +1,19 @@
 #include "qtmonkey.hpp"
 
-#include <cstdio>
-#include <cassert>
 #include <atomic>
+#include <cassert>
+#include <cstdio>
 
 #ifdef _WIN32 // windows both 32 bit and 64 bit
-#  include <windows.h>
+#include <windows.h>
 #else
-#  include <unistd.h>
+#include <cerrno>
+#include <unistd.h>
 #endif
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QTextCodec>
 #include <QtCore/QThread>
-
 
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
@@ -25,94 +25,100 @@ using qt_monkey_app::Private::StdinReader;
 
 namespace
 {
-	static constexpr int waitBeforeExitMs = 300;
-	/*
-	win32 not allow overlapped I/O (see CreateFile [Consoles section]
-	plus QWinEventNotifier private on Qt 4.x and become public only on Qt 5.x
-	so just create thread for both win32 and posix
-	*/
-	class ReadStdinThread final : public QThread {
-	public:
-		ReadStdinThread(QObject *parent, StdinReader &reader);
-		void run() override;
-		void stop();
-	private:
-		StdinReader &reader_;
-		std::atomic<bool> timeToExit_{ false };
+static constexpr int waitBeforeExitMs = 300;
+/*
+win32 not allow overlapped I/O (see CreateFile [Consoles section]
+plus QWinEventNotifier private on Qt 4.x and become public only on Qt 5.x
+so just create thread for both win32 and posix
+*/
+class ReadStdinThread final : public QThread
+{
+public:
+    ReadStdinThread(QObject *parent, StdinReader &reader);
+    void run() override;
+    void stop();
+
+private:
+    StdinReader &reader_;
+    std::atomic<bool> timeToExit_{false};
 #ifdef _WIN32
-		HANDLE stdinHandle_;
+    HANDLE stdinHandle_;
 #endif
-	};
+};
 
 #ifdef _WIN32
-	ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader) : QThread(parent), reader_(reader)
-	{
-		stdinHandle_ = ::GetStdHandle(STD_INPUT_HANDLE);
-		if (stdinHandle_ == INVALID_HANDLE_VALUE)
-			throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error: " + std::to_string(GetLastError()));
-	}
-
-	void ReadStdinThread::run()
-	{
-		while (!timeToExit_) {
-			char ch;
-			DWORD readBytes = 0;
-			if (!::ReadFile(stdinHandle_, &ch, sizeof(ch), &readBytes, nullptr)) {
-				reader_.emitError(T_("reading from stdin error: %1").arg(GetLastError()));
-				return;
-			}
-			if (readBytes == 0)
-				break;
-			{
-				auto ptr = reader_.data.get();
-				ptr->append(ch);
-			}
-			reader_.emitDataReady();
-		}
-	}
-
-	void ReadStdinThread::stop()
-	{
-		timeToExit_ = true;
-		if (!::CloseHandle(stdinHandle_))
-			throw std::runtime_error("CloseHandle(stdin) error: " + std::to_string(GetLastError()));
-	}
-#else
-	ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader) : QThread(parent), reader_(reader)
-	{
-    }
-
-	void ReadStdinThread::run()
-	{
-		while (!timeToExit_) {
-			char ch;
-			const ssize_t nBytes = ::read(STDIN_FILENO, &ch, sizeof(ch));
-			if (nBytes < 0) {
-				emit error(T_("reading from stdin error: %1").arg(errno));
-				return;
-			} else if (nBytes == 0) {
-				break;
-            }
-			{
-				auto ptr = data.get();
-				ptr->append(ch);
-			}
-			emit dataReady();
-		}
-	}
-
-	void ReadStdinThread::stop()
-	{
-		timeToExit_ = true;
-		do {
-			if (::close(STDIN_FILENO) == 0)
-				return;
-		} while (errno == EINTR);
-		throw std::runtime_error("close(stdin) failure: " + std::to_string(errno));
-	}
-	)
-#endif
+ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader)
+    : QThread(parent), reader_(reader)
+{
+    stdinHandle_ = ::GetStdHandle(STD_INPUT_HANDLE);
+    if (stdinHandle_ == INVALID_HANDLE_VALUE)
+        throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error: "
+                                 + std::to_string(GetLastError()));
 }
+
+void ReadStdinThread::run()
+{
+    while (!timeToExit_) {
+        char ch;
+        DWORD readBytes = 0;
+        if (!::ReadFile(stdinHandle_, &ch, sizeof(ch), &readBytes, nullptr)) {
+            reader_.emitError(
+                T_("reading from stdin error: %1").arg(GetLastError()));
+            return;
+        }
+        if (readBytes == 0)
+            break;
+        {
+            auto ptr = reader_.data.get();
+            ptr->append(ch);
+        }
+        reader_.emitDataReady();
+    }
+}
+
+void ReadStdinThread::stop()
+{
+    timeToExit_ = true;
+    if (!::CloseHandle(stdinHandle_))
+        throw std::runtime_error("CloseHandle(stdin) error: "
+                                 + std::to_string(GetLastError()));
+}
+#else
+ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader)
+    : QThread(parent), reader_(reader)
+{
+}
+
+void ReadStdinThread::run()
+{
+    while (!timeToExit_) {
+        char ch;
+        const ssize_t nBytes = ::read(STDIN_FILENO, &ch, sizeof(ch));
+        if (nBytes < 0) {
+            reader_.emitError(T_("reading from stdin error: %1").arg(errno));
+            return;
+        } else if (nBytes == 0) {
+            break;
+        }
+        {
+            auto ptr = reader_.data.get();
+            ptr->append(ch);
+        }
+        reader_.emitDataReady();
+    }
+}
+
+void ReadStdinThread::stop()
+{
+    timeToExit_ = true;
+    do {
+        if (::close(STDIN_FILENO) == 0)
+            return;
+    } while (errno == EINTR);
+    throw std::runtime_error("close(stdin) failure: " + std::to_string(errno));
+}
+#endif
+} //namespace {
 
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)
@@ -143,31 +149,19 @@ QtMonkey::QtMonkey(bool exitOnScriptError)
     connect(&channelWithAgent_, SIGNAL(scriptLog(QString)), this,
             SLOT(onScriptLog(QString)));
 
-    if (std::setvbuf(stdin, nullptr, _IONBF, 0))
-        throw std::runtime_error("setvbuf failed");
-#ifdef _WIN32
-	readStdinThread_ = new ReadStdinThread(this, stdinReader_);
-	stdinReader_.moveToThread(readStdinThread_);
-	readStdinThread_->start();
-	connect(&stdinReader_, SIGNAL(dataReady()), this, SLOT(stdinDataReady()));
-#else
-    int stdinHandler = ::fileno(stdin);
-    if (stdinHandler < 0)
-        throw std::runtime_error("fileno(stdin) return error");
-    auto stdinNotifier
-        = new QSocketNotifier(stdinHandler, QSocketNotifier::Read, this);
-    connect(stdinNotifier, SIGNAL(activated(int)), this,
-            SLOT(stdinDataReady()));
-#endif
+    readStdinThread_ = new ReadStdinThread(this, stdinReader_);
+    stdinReader_.moveToThread(readStdinThread_);
+    readStdinThread_->start();
+    connect(&stdinReader_, SIGNAL(dataReady()), this, SLOT(stdinDataReady()));
 }
 
 QtMonkey::~QtMonkey()
 {
-	assert(readStdinThread_ != nullptr);
-	auto thread = static_cast<ReadStdinThread *>(readStdinThread_);
-	thread->stop();
-	thread->wait(100/*ms*/);
-	thread->terminate();
+    assert(readStdinThread_ != nullptr);
+    auto thread = static_cast<ReadStdinThread *>(readStdinThread_);
+    thread->stop();
+    thread->wait(100 /*ms*/);
+    thread->terminate();
     if (userApp_.state() != QProcess::NotRunning) {
         userApp_.terminate();
         QCoreApplication::processEvents(QEventLoop::AllEvents, 3000 /*ms*/);
@@ -226,7 +220,7 @@ void QtMonkey::userAppNewErrOutput()
 
 void QtMonkey::stdinDataReady()
 {
-	auto dataPtr = stdinReader_.data.get();
+    auto dataPtr = stdinReader_.data.get();
     size_t parserStopPos;
     parseOutputFromGui(
         *dataPtr, parserStopPos,
@@ -250,8 +244,8 @@ void QtMonkey::onScriptError(QString errMsg)
     cout_.flush();
     if (exitOnScriptError_) {
         qt_monkey_common::processEventsFor(waitBeforeExitMs);
-        throw std::runtime_error(T_("script return error: %1")
-                                 .arg(errMsg).toUtf8().data());
+        throw std::runtime_error(
+            T_("script return error: %1").arg(errMsg).toUtf8().data());
     }
 }
 
