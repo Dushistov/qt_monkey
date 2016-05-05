@@ -2,6 +2,7 @@ Qt Monkey
 =========
 
 .. image:: https://travis-ci.org/Dushistov/qt_monkey.svg?branch=master
+   :target: https://travis-ci.org/Dushistov/qt_monkey
   
 About
 -----
