@@ -1,9 +1,14 @@
 #include "qtmonkey.hpp"
 
 #include <QtCore/QCoreApplication>
-#include <QtCore/QSocketNotifier>
 #include <QtCore/QTextCodec>
 #include <cstdio>
+#ifdef _WIN32 // windows both 32 bit and 64 bit
+#  include <windows.h>
+#  include <QtCore/QWinEventNotifier>
+#else
+#  include <QtCore/QSocketNotifier>
+#endif
 
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
@@ -45,12 +50,12 @@ QtMonkey::QtMonkey(bool exitOnScriptError)
 
     if (std::setvbuf(stdin, nullptr, _IONBF, 0))
         throw std::runtime_error("setvbuf failed");
-#ifdef _WIN32 // windows both 32 bit and 64 bit
+#ifdef _WIN32
     HANDLE stdinHandle = ::GetStdHandle(STD_INPUT_HANDLE);
     if (stdinHandle == INVALID_HANDLE_VALUE)
         throw std::runtime_error("GetStdHandle(STD_INPUT_HANDLE) return error");
     auto stdinNotifier = new QWinEventNotifier(stdinHandle, this);
-    connect(stdinHandle, SIGNAL(activated(HANDLE)), this,
+    connect(stdinNotifier, SIGNAL(activated(HANDLE)), this,
             SLOT(stdinDataReady()));
 #else
     int stdinHandler = ::fileno(stdin);

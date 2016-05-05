@@ -1,5 +1,8 @@
 #tested with such version, if works with previous also, inform me
 cmake_minimum_required(VERSION 2.8)
+#qtmain policy
+cmake_policy(SET CMP0020 NEW)
+project(qt_monkey)
 
 include(compiler.cmake)
 

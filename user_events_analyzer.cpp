@@ -21,6 +21,7 @@
 
 using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::GenerateCommand;
+using qt_monkey_agent::CustomEventAnalyzer;
 using qt_monkey_agent::Private::TreeWidgetWatcher;
 using qt_monkey_agent::Private::TreeViewWatcher;
 

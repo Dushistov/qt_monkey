@@ -30,6 +30,7 @@
 #include "user_events_analyzer.hpp"
 
 using qt_monkey_agent::ScriptAPI;
+using qt_monkey_agent::Agent;
 
 #ifdef DEBUG_SCRIPT_API
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
