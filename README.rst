@@ -1,6 +1,8 @@
 Qt Monkey
 =========
 
+.. image:: https://travis-ci.org/Dushistov/qt_monkey.svg?branch=master
+  
 About
 -----
 `Qt Monkey` is tool to automate testing of Qt based (widgets mainly) applications.
