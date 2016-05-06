@@ -8,6 +8,8 @@
 #include "common.hpp"
 #include "qtmonkey.hpp"
 
+using qt_monkey_common::operator <<;
+
 namespace
 {
 class ConsoleApplication final : public QCoreApplication
@@ -24,6 +26,12 @@ public:
         }
     }
 };
+
+static inline std::ostream &operator<<(std::ostream &os, const QString &str)
+{
+    os << str.toLocal8Bit();
+    return os;
+}
 }
 
 #if QT_VERSION >= 0x050000
@@ -33,7 +41,7 @@ static void msgHandler(QtMsgType type, const QMessageLogContext &,
 static void msgHandler(QtMsgType type, const char *msg)
 #endif
 {
-    QTextStream clog(stderr);
+    using std::clog;
     switch (type) {
     case QtDebugMsg:
         clog << "Debug: " << msg << "\n";
@@ -67,6 +75,7 @@ static QString usage()
 
 int main(int argc, char *argv[])
 {
+    //std::ios_base::sync_with_stdio
     ConsoleApplication app(argc, argv);
 
     INSTALL_QT_MSG_HANDLER(msgHandler);
