@@ -2,7 +2,7 @@
 
 #include <atomic>
 #include <cassert>
-#include <cstdio>
+#include <iostream>
 
 #ifdef _WIN32 // windows both 32 bit and 64 bit
 #include <windows.h>
@@ -22,10 +22,18 @@ using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
 using qt_monkey_app::Private::StdinReader;
+using qt_monkey_common::operator <<;
 
 namespace
 {
 static constexpr int waitBeforeExitMs = 300;
+
+static inline std::ostream &operator <<(std::ostream &os, const QString &str)
+{
+    os << str.toUtf8();
+    return os;
+}
+
 /*
 win32 not allow overlapped I/O (see CreateFile [Consoles section]
 plus QWinEventNotifier private on Qt 4.x and become public only on Qt 5.x
@@ -123,11 +131,6 @@ void ReadStdinThread::stop()
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)
 {
-    if (!stdout_.open(stdout, QIODevice::WriteOnly, QFile::DontCloseHandle)
-        || !stderr_.open(stderr, QIODevice::WriteOnly, QFile::DontCloseHandle))
-        throw std::runtime_error("File -> QFile failed");
-    cout_.setDevice(&stdout_);
-    cerr_.setDevice(&stderr_);
     connect(&userApp_, SIGNAL(error(QProcess::ProcessError)), this,
             SLOT(userAppError(QProcess::ProcessError)));
     connect(&userApp_, SIGNAL(finished(int, QProcess::ExitStatus)), this,
@@ -179,8 +182,8 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    cout_ << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << "\n";
-    cout_.flush();
+    std::cout << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << "\n";
+    std::cout.flush();
 }
 
 void QtMonkey::userAppError(QProcess::ProcessError err)
@@ -214,8 +217,8 @@ void QtMonkey::userAppNewErrOutput()
 {
     const QString errOut
         = QString::fromLocal8Bit(userApp_.readAllStandardError());
-    cout_ << createPacketFromUserAppErrors(errOut) << "\n";
-    cout_.flush();
+    std::cout << createPacketFromUserAppErrors(errOut) << "\n";
+    std::cout.flush();
 }
 
 void QtMonkey::stdinDataReady()
@@ -229,7 +232,7 @@ void QtMonkey::stdinDataReady()
             onAgentReadyToRunScript();
         },
         [this](QString errMsg) {
-            cerr_
+            std::cerr
                 << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
         });
     if (parserStopPos != 0)
@@ -240,8 +243,8 @@ void QtMonkey::onScriptError(QString errMsg)
 {
     qDebug("%s: begin %s", Q_FUNC_INFO, qPrintable(errMsg));
     setScriptRunningState(false);
-    cout_ << createPacketFromUserAppErrors(errMsg) << "\n";
-    cout_.flush();
+    std::cout << createPacketFromUserAppErrors(errMsg) << "\n";
+    std::cout.flush();
     if (exitOnScriptError_) {
         qt_monkey_common::processEventsFor(waitBeforeExitMs);
         throw std::runtime_error(
@@ -260,7 +263,7 @@ bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
     for (const QString &fn : scriptPathList) {
         QFile f(fn);
         if (!f.open(QIODevice::ReadOnly)) {
-            cerr_ << T_("Error: can not open %1\n").arg(fn);
+            std::cerr << T_("Error: can not open %1\n").arg(fn);
             return false;
         }
         QTextStream t(&f);
@@ -295,14 +298,14 @@ void QtMonkey::onAgentReadyToRunScript()
 void QtMonkey::onScriptEnd()
 {
     setScriptRunningState(false);
-    cout_ << createPacketFromScriptEnd() << "\n";
-    cout_.flush();
+    std::cout << createPacketFromScriptEnd() << "\n";
+    std::cout.flush();
 }
 
 void QtMonkey::onScriptLog(QString msg)
 {
-    cout_ << createPacketFromUserAppScriptLog(msg) << "\n";
-    cout_.flush();
+    std::cout << createPacketFromUserAppScriptLog(msg) << "\n";
+    std::cout.flush();
 }
 
 void QtMonkey::setScriptRunningState(bool val)

@@ -66,10 +66,6 @@ private:
 
     qt_monkey_agent::Private::CommunicationMonkeyPart channelWithAgent_;
     QProcess userApp_;
-    QFile stdout_;
-    QFile stderr_;
-    QTextStream cout_;
-    QTextStream cerr_;
     std::queue<qt_monkey_agent::Private::Script> toRunList_;
     bool exitOnScriptError_ = false;
 	Private::StdinReader stdinReader_;

@@ -75,7 +75,7 @@ static QString usage()
 
 int main(int argc, char *argv[])
 {
-    //std::ios_base::sync_with_stdio
+    std::ios_base::sync_with_stdio(false);
     ConsoleApplication app(argc, argv);
 
     INSTALL_QT_MSG_HANDLER(msgHandler);
