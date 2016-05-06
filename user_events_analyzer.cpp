@@ -2,6 +2,7 @@
 #include "user_events_analyzer.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 
