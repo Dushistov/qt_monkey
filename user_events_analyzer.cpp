@@ -245,8 +245,8 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
     QWidget *treeWidget
         = searchThroghSuperClassesAndParents(widget.first, "QTreeWidget", 2);
 
-    if (widget.first != treeWidget
-        && qobject_cast<QWidget *>(widget.first->parent()) != treeWidget)
+    if (treeWidget == nullptr || (widget.first != treeWidget
+        && qobject_cast<QWidget *>(widget.first->parent()) != treeWidget))
         return res;
 
     DBGPRINT("%s: yeah, it is tree widget", Q_FUNC_INFO);
