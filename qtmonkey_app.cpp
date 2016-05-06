@@ -52,7 +52,7 @@ static void msgHandler(QtMsgType type, const char *msg)
     case QtFatalMsg:
         clog << "Fatal: " << msg << "\n";
         clog.flush();
-        std::abort();
+        std::exit(EXIT_FAILURE);
     }
     clog.flush();
 }
