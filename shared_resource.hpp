@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-namespace qt_monkey_agent
+namespace qt_monkey_common
 {
 template <typename DataType> class SharedResource final
 {

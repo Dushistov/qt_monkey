@@ -93,7 +93,7 @@ private slots:
 private:
     QTcpSocket sock_;
     QBasicTimer timer_;
-    SharedResource<QByteArray> sendBuf_;
+    qt_monkey_common::SharedResource<QByteArray> sendBuf_;
     QByteArray recvBuf_;
 
     void timerEvent(QTimerEvent *) override;

@@ -25,7 +25,7 @@ signals:
 	void error(const QString &msg);
 	void dataReady();
 public:
-	qt_monkey_agent::SharedResource<QByteArray> data;
+    qt_monkey_common::SharedResource<QByteArray> data;
 
 	void emitError(const QString &msg) { emit error(msg); }
 	void emitDataReady() { emit dataReady(); }
