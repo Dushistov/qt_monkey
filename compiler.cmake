@@ -17,7 +17,7 @@ if (NOT DEFINED QT_MONKEY_COMPILER_IS_GCC_COMPATIBLE)
 endif()
 
 if (MSVC AND (MSVC_VERSION LESS 1900))
-  message(FATAL_ERROR "MSVC version ${MSVC_VERSION} have not full c++11 support")
+  message(FATAL_ERROR "MSVC version ${MSVC_VERSION} have no full c++11 support")
 elseif (NOT MSVC)
   check_cxx_compiler_flag("-std=c++11" CXX_SUPPORTS_CXX11)
   if (CXX_SUPPORTS_CXX11)
