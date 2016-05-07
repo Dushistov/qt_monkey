@@ -120,7 +120,7 @@ private:
 Agent::Agent(const QKeySequence &showObjectShortcut,
              std::list<CustomEventAnalyzer> customEventAnalyzers,
              PopulateScriptContext psc)
-    : eventAnalyzer_(new UserEventsAnalyzer(
+    : eventAnalyzer_(new UserEventsAnalyzer(*this,
           showObjectShortcut, std::move(customEventAnalyzers), this)),
       populateScriptContextCallback_(std::move(psc))
 {

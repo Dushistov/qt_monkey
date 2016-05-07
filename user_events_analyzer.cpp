@@ -22,9 +22,11 @@
 
 using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::GenerateCommand;
+using qt_monkey_agent::EventInfo;
 using qt_monkey_agent::CustomEventAnalyzer;
 using qt_monkey_agent::Private::TreeWidgetWatcher;
 using qt_monkey_agent::Private::TreeViewWatcher;
+using qt_monkey_agent::Private::MacMenuActionWatcher;
 
 #ifdef DEBUG_ANALYZER
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
@@ -171,25 +173,25 @@ static bool isOnlyOneChildWithSuchClass(QObject &w)
     return true;
 }
 
-static QString qmenuActivateClick(QObject *, QEvent *event,
-                                  const std::pair<QWidget *, QString> &widget,
-                                  const GenerateCommand &)
+static QString qmenuActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr
+    QWidget *widget = eventInfo.widget;
+    QEvent *event = eventInfo.event;
+    if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress)
-        || std::strcmp(widget.first->metaObject()->className(), "QMenu") != 0)
+        || std::strcmp(widget->metaObject()->className(), "QMenu") != 0)
         return res;
-    auto qm = qobject_cast<QMenu *>(widget.first);
-    QAction *act = qm->actionAt(widget.first->mapFromGlobal(
+    auto qm = qobject_cast<QMenu *>(widget);
+    QAction *act = qm->actionAt(widget->mapFromGlobal(
         static_cast<QMouseEvent *>(event)->globalPos()));
     if (act != nullptr) {
         DBGPRINT("%s: act->text() %s", Q_FUNC_INFO, qPrintable(act->text()));
-        if (!widget.first->objectName()
+        if (!widget->objectName()
                  .isEmpty() /*widgetName != "<unknown name>"*/)
             res = QString("Test.activateItem('%1', '%2');")
-                      .arg(widget.second)
+                      .arg(eventInfo.widgetName)
                       .arg(act->text());
         else
             res = QString("Test.activateMenuItem('%1');").arg(act->text());
@@ -220,14 +222,14 @@ static QWidget *searchThroghSuperClassesAndParents(QWidget *widget,
 }
 
 static QString
-qtreeWidgetActivateClick(QObject *, QEvent *event,
-                         const std::pair<QWidget *, QString> &widget,
-                         const GenerateCommand &asyncCodeGen)
+qtreeWidgetActivateClick(const EventInfo &eventInfo)
 {
-    static TreeWidgetWatcher treeWidgetWatcher(asyncCodeGen);
+    static TreeWidgetWatcher treeWidgetWatcher(eventInfo.codeGenerator);
 
     QString res;
-    if (widget.first == nullptr || event == nullptr)
+    QEvent *event = eventInfo.event;
+    QWidget *widget = eventInfo.widget;
+    if (widget == nullptr || event == nullptr)
         return res;
 
     if (event->type() == QEvent::MouseButtonRelease) {
@@ -240,13 +242,13 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
         return res;
 
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
 
     QWidget *treeWidget
-        = searchThroghSuperClassesAndParents(widget.first, "QTreeWidget", 2);
+        = searchThroghSuperClassesAndParents(widget, "QTreeWidget", 2);
 
-    if (treeWidget == nullptr || (widget.first != treeWidget
-        && qobject_cast<QWidget *>(widget.first->parent()) != treeWidget))
+    if (treeWidget == nullptr || (widget != treeWidget
+        && qobject_cast<QWidget *>(widget->parent()) != treeWidget))
         return res;
 
     DBGPRINT("%s: yeah, it is tree widget", Q_FUNC_INFO);
@@ -288,27 +290,27 @@ qtreeWidgetActivateClick(QObject *, QEvent *event,
 }
 
 static QString
-qcomboBoxActivateClick(QObject *, QEvent *event,
-                       const std::pair<QWidget *, QString> &widget,
-                       const GenerateCommand &)
+qcomboBoxActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr
+    QEvent *event = eventInfo.event;
+    QWidget *widget = eventInfo.widget;
+    if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress))
         return res;
 
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
 
     if (QWidget *combobox
-        = searchThroghSuperClassesAndParents(widget.first, "QComboBox")) {
+        = searchThroghSuperClassesAndParents(widget, "QComboBox")) {
         DBGPRINT("%s: this is combobox", Q_FUNC_INFO);
-        if (widget.first == combobox)
+        if (widget == combobox)
             return res;
-        auto lv = qobject_cast<QListView *>(widget.first);
-        if (lv == nullptr && widget.first->parent() != nullptr)
-            lv = qobject_cast<QListView *>(widget.first->parent());
+        auto lv = qobject_cast<QListView *>(widget);
+        if (lv == nullptr && widget->parent() != nullptr)
+            lv = qobject_cast<QListView *>(widget->parent());
         if (lv == nullptr)
             return res;
         DBGPRINT("%s catch press on QListView falldown list", Q_FUNC_INFO);
@@ -318,7 +320,7 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
             .arg(qt_monkey_agent::fullQtWidgetId(*combobox))
             .arg(qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
     } else if (QWidget *alistwdg = searchThroghSuperClassesAndParents(
-                   widget.first, "QListWidget")) {
+                   widget, "QListWidget")) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
         auto listwdg = qobject_cast<QListWidget *>(alistwdg);
         if (listwdg == nullptr)
@@ -334,21 +336,21 @@ qcomboBoxActivateClick(QObject *, QEvent *event,
 }
 
 static QString
-qlistWidgetActivateClick(QObject *, QEvent *event,
-                         const std::pair<QWidget *, QString> &widget,
-                         const GenerateCommand &)
+qlistWidgetActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr
+    QWidget *widget = eventInfo.widget;
+    QEvent *event = eventInfo.event;
+    if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress))
         return res;
 
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
 
     if (QWidget *alistwdg
-        = searchThroghSuperClassesAndParents(widget.first, "QListWidget")) {
+        = searchThroghSuperClassesAndParents(widget, "QListWidget")) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
         QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
         if (listwdg == nullptr)
@@ -363,19 +365,19 @@ qlistWidgetActivateClick(QObject *, QEvent *event,
     return res;
 }
 
-static QString qtabBarActivateClick(QObject *, QEvent *event,
-                                    const std::pair<QWidget *, QString> &widget,
-                                    const GenerateCommand &)
+static QString qtabBarActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr
+    QEvent *event = eventInfo.event;
+    QWidget *widget = eventInfo.widget;
+    if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress))
         return res;
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
 
-    auto tabBar = qobject_cast<QTabBar *>(widget.first);
+    auto tabBar = qobject_cast<QTabBar *>(widget);
     if (tabBar == nullptr)
         return res;
     const int tab = tabBar->tabAt(pos);
@@ -408,15 +410,15 @@ static QString modelIndexToPos(const QModelIndex &mi)
 }
 
 static QString
-qtreeViewActivateClick(QObject *, QEvent *event,
-                       const std::pair<QWidget *, QString> &widget,
-                       const GenerateCommand &asyncCodeGen)
+qtreeViewActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr)
+    QWidget *widget = eventInfo.widget;
+    QEvent *event = eventInfo.event;
+    if (widget == nullptr || event == nullptr)
         return res;
 
-    static TreeViewWatcher watcher(asyncCodeGen);
+    static TreeViewWatcher watcher(eventInfo.codeGenerator);
 
     if (event->type() == QEvent::MouseButtonRelease) {
         watcher.disconnectAll();
@@ -428,15 +430,15 @@ qtreeViewActivateClick(QObject *, QEvent *event,
         return res;
 
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
 
     QWidget *tree_view
-        = searchThroghSuperClassesAndParents(widget.first, "QTreeView", 2);
+        = searchThroghSuperClassesAndParents(widget, "QTreeView", 2);
     if (tree_view == nullptr)
         return res;
 
-    if (widget.first == tree_view
-        || qobject_cast<QWidget *>(widget.first->parent()) == tree_view) {
+    if (widget == tree_view
+        || qobject_cast<QWidget *>(widget->parent()) == tree_view) {
         DBGPRINT("%s: yeah, it is tree view", Q_FUNC_INFO);
         QTreeView *tv = qobject_cast<QTreeView *>(tree_view);
         if (tv == nullptr)
@@ -463,24 +465,24 @@ qtreeViewActivateClick(QObject *, QEvent *event,
 }
 
 static QString
-qlistViewActivateClick(QObject *, QEvent *event,
-                       const std::pair<QWidget *, QString> &widget,
-                       const GenerateCommand &)
+qlistViewActivateClick(const EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event == nullptr
+    QEvent *event = eventInfo.event;
+    QWidget *widget = eventInfo.widget;
+    if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress))
         return res;
     auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget.first->mapFromGlobal(mouseEvent->globalPos());
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
     QWidget *listView
-        = searchThroghSuperClassesAndParents(widget.first, "QListView", 2);
+        = searchThroghSuperClassesAndParents(widget, "QListView", 2);
     if (listView == nullptr)
         return res;
 
-    if (widget.first == listView
-        || qobject_cast<QWidget *>(widget.first->parent()) == listView) {
+    if (widget == listView
+        || qobject_cast<QWidget *>(widget->parent()) == listView) {
         DBGPRINT("%s: yeah, it is list view", Q_FUNC_INFO);
         QListView *lv = qobject_cast<QListView *>(listView);
         if (lv == nullptr)
@@ -504,11 +506,10 @@ qlistViewActivateClick(QObject *, QEvent *event,
     return res;
 }
 
-static QString workspaceTitleBarPressed(QObject *, QEvent *event,
-                                        const std::pair<QWidget *, QString> &,
-                                        const GenerateCommand &)
+static QString workspaceTitleBarPressed(const EventInfo &eventInfo)
 {
     QString res;
+    QEvent *event = eventInfo.event;
     if (event->type() != QEvent::MouseButtonPress)
         return res;
     auto mouseEvent = static_cast<QMouseEvent *>(event);
@@ -541,11 +542,10 @@ static void makeTextReadyForScript(QString &text)
     text.replace(QChar('\n'), "\\n");
 }
 
-static QString clickOnUnnamedButton(QObject *, QEvent *event,
-                                    const std::pair<QWidget *, QString> &,
-                                    const GenerateCommand &)
+static QString clickOnUnnamedButton(const EventInfo &eventInfo)
 {
     QString res;
+    QEvent *event = eventInfo.event;
     if (event->type() != QEvent::MouseButtonPress)
         return res;
     auto mouseEvent = static_cast<QMouseEvent *>(event);
@@ -567,6 +567,39 @@ static QString clickOnUnnamedButton(QObject *, QEvent *event,
         .arg(qt_monkey_agent::fullQtWidgetId(*parent))
         .arg(text);
 }
+
+#ifdef Q_OS_MAC
+static QString qmenuOnMacTriggered(const EventInfo &eventInfo)
+{
+    static MacMenuActionWatcher watcher(eventInfo.codeGenerator);
+    QEvent *event = eventInfo.event;
+    QObject *obj = eventInfo.obj;
+    QString res;
+    if (!(event->type() == QEvent::ActionAdded || event->type() == QEvent::ActionChanged ||
+          event->type() == QEvent::ActionRemoved) || obj == nullptr)
+        return res;
+    auto actEvent = static_cast<QActionEvent *>(event);
+    QAction *action = actEvent->action();
+    auto menuOwnerWidget = qobject_cast<QWidget *>(obj);
+    if (action == nullptr || (event->type() == QEvent::ActionAdded && menuOwnerWidget == nullptr))
+        return res;
+    DBGPRINT("%s: !!!MAC!!! %s[%s], text %s, type %s", Q_FUNC_INFO, qPrintable(obj->objectName()), obj->metaObject()->className(),
+            qPrintable(actEvent->action()->text()), event->type() == QEvent::ActionAdded ? "add" :
+                                                    event->type() == QEvent::ActionChanged ? "change" : "remove");
+    if (event->type() == QEvent::ActionAdded) {
+        QString menuOwnerName = qt_monkey_agent::fullQtWidgetId(*menuOwnerWidget);
+        watcher.startWatch(*action, std::move(menuOwnerName));
+    } else if (event->type() == QEvent::ActionRemoved) {
+        watcher.stopWatch(*action);
+    }
+    return res;
+}
+#else
+static QString qmenuOnMacTriggered(const EventInfo &)
+{
+    return QString();
+}
+#endif
 
 static const std::pair<Qt::MouseButton, QLatin1String> mouseBtnNames[] = {
     {Qt::LeftButton, QLatin1String("Qt.LeftButton")},
@@ -660,10 +693,10 @@ QString qt_monkey_agent::fullQtWidgetId(const QWidget &w)
     return res;
 }
 
-UserEventsAnalyzer::UserEventsAnalyzer(
+UserEventsAnalyzer::UserEventsAnalyzer(qt_monkey_agent::Agent &agent,
     const QKeySequence &showObjectShortCut,
     std::list<CustomEventAnalyzer> customEventAnalyzers, QObject *parent)
-    : QObject(parent), customEventAnalyzers_(std::move(customEventAnalyzers)),
+    : QObject(parent), agent_(agent), customEventAnalyzers_(std::move(customEventAnalyzers)),
       generateScriptCmd_(
           [this](QString code) { emit userEventInScriptForm(code); }),
       showObjectShortCut_(showObjectShortCut)
@@ -672,17 +705,17 @@ UserEventsAnalyzer::UserEventsAnalyzer(
          {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick,
           qlistWidgetActivateClick, qtabBarActivateClick,
           qtreeViewActivateClick, qlistViewActivateClick,
-          workspaceTitleBarPressed, clickOnUnnamedButton})
+          workspaceTitleBarPressed, clickOnUnnamedButton,
+          qmenuOnMacTriggered})
         customEventAnalyzers_.emplace_back(fun);
 }
 
-QString UserEventsAnalyzer::callCustomEventAnalyzers(
-    QObject *obj, QEvent *event,
-    const std::pair<QWidget *, QString> &widget) const
+QString UserEventsAnalyzer::callCustomEventAnalyzers(QObject *obj, QEvent *event,
+    QWidget *widget, const QString &widgetName) const
 {
     QString code;
     for (auto &&userCustomAnalyzer : customEventAnalyzers_) {
-        code = userCustomAnalyzer(obj, event, widget, generateScriptCmd_);
+        code = userCustomAnalyzer({agent_, obj, event, widget, widgetName, generateScriptCmd_});
         if (!code.isEmpty())
             return code;
     }
@@ -788,7 +821,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
         }
         const QString widgetName = qt_monkey_agent::fullQtWidgetId(*w);
         QString scriptLine
-            = callCustomEventAnalyzers(obj, event, {w, widgetName});
+            = callCustomEventAnalyzers(obj, event, w, widgetName);
         if (scriptLine.isEmpty())
             scriptLine = keyReleaseEventToScript(widgetName, keyEvent);
         DBGPRINT("%s: we emit '%s'", Q_FUNC_INFO, qPrintable(scriptLine));
@@ -821,7 +854,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
         if (alreadySawSuchMouseEvent(widgetName, mouseEvent))
             break;
         QString scriptLine
-            = callCustomEventAnalyzers(obj, event, {w, widgetName});
+            = callCustomEventAnalyzers(obj, event, w, widgetName);
         QPoint pos = w->mapFromGlobal(clickPos);
         if (scriptLine.isEmpty())
             scriptLine = mouseEventToJavaScript(widgetName, mouseEvent, pos);
@@ -836,7 +869,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                 if (alreadySawSuchMouseEvent(widgetName, mouseEvent))
                     return QObject::eventFilter(obj, event);
                 QString anotherScript
-                    = callCustomEventAnalyzers(obj, event, {w, widgetName});
+                    = callCustomEventAnalyzers(obj, event, w, widgetName);
                 if (anotherScript.isEmpty())
                     anotherScript
                         = mouseEventToJavaScript(widgetName, mouseEvent, pos);
@@ -852,7 +885,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
     } // event by mouse
     default: {
         const QString code
-            = callCustomEventAnalyzers(obj, event, {nullptr, QString()});
+            = callCustomEventAnalyzers(obj, event, nullptr, QString());
         if (!code.isEmpty())
             emit userEventInScriptForm(code);
         break;
@@ -960,3 +993,37 @@ void TreeViewWatcher::disconnectAll()
     treeViewSet_.clear();
     modelToView_.clear();
 }
+
+#ifdef Q_OS_MAC
+void MacMenuActionWatcher::startWatch(QAction &act, QString menuName)
+{
+    auto insertRes = actions_.emplace(&act, std::move(menuName));
+    if (insertRes.second)//we really insert
+        connect(&act, SIGNAL(triggered(bool)), this, SLOT(onTriggered()));
+}
+
+void MacMenuActionWatcher::stopWatch(QAction &act)
+{
+    auto it = actions_.find(&act);
+    if (it != actions_.end())
+        actions_.erase(it);
+}
+
+void MacMenuActionWatcher::onTriggered()
+{
+    auto obj = sender();
+    if (obj == nullptr)
+        return;
+    DBGPRINT("%s: you press something: %s", Q_FUNC_INFO, qPrintable(obj->objectName()));
+    auto act = qobject_cast<QAction *>(obj);
+    if (act == nullptr)
+        return;
+    auto it = actions_.find(act);
+    if (it != actions_.end())
+        generateScriptCmd_(QStringLiteral("Test.activateItem('%1', '%2');").arg(it->second).arg(act->text()));
+}
+#else
+void MacMenuActionWatcher::onTriggered()
+{
+}
+#endif

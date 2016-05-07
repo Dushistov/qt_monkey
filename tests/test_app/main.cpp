@@ -7,14 +7,12 @@
 #include "my_custom_button.hpp"
 #include "script_ext.hpp"
 
-static QString myCustomButtonAnalyzer(
-    QObject *, QEvent *event, const std::pair<QWidget *, QString> &widget,
-    const qt_monkey_agent::GenerateCommand &)
+static QString myCustomButtonAnalyzer(const qt_monkey_agent::EventInfo &eventInfo)
 {
     QString res;
-    if (widget.first == nullptr || event->type() != QEvent::MouseButtonPress)
+    if (eventInfo.widget == nullptr || eventInfo.event->type() != QEvent::MouseButtonPress)
         return res;
-    auto btn = qobject_cast<MyCustomButton *>(widget.first);
+    auto btn = qobject_cast<MyCustomButton *>(eventInfo.widget);
     if (btn == nullptr)
         return res;
     qDebug("%s: it is our custom button", Q_FUNC_INFO);
