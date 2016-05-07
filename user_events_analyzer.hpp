@@ -152,8 +152,8 @@ public:
              : QObject(parent), generateScriptCmd_(generateScriptCmd)
     {
     }
-    void startWatch(QAction &act, QString menuName);
-    void stopWatch(QAction &act);
+    void startWatch(Agent &agent, QAction &act, QString menuName);
+    void stopWatch(Agent &agent, QAction &act);
 private slots:
     void onTriggered();
 private:

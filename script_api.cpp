@@ -614,6 +614,25 @@ void ScriptAPI::mouseDClick(const QString &widgetName, const QString &button,
 void ScriptAPI::activateItem(const QString &widget, const QString &actionName)
 {
     Step step(agent_);
+#ifdef Q_OS_MAC
+    {
+        auto ptr = agent_.menuItemsOnMac_.get();
+        auto range = ptr->equal_range(widget);
+        for (auto it = range.first; it != range.second; ++it)
+            if (it->second != nullptr && it->second->text() == actionName) {
+                auto action = it->second;
+                QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+                    [action] {
+                        action->trigger();
+                        return QString();
+                    },
+                    newEventLoopWaitTimeoutSecs_);
+                if (!errMsg.isEmpty())
+                    agent_.throwScriptError(std::move(errMsg));
+                return;
+            }
+    }
+#endif
     doClickItem(widget, actionName, false);
 }
 

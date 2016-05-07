@@ -19,6 +19,7 @@
 #include <QtGui/QMouseEvent>
 
 #include "common.hpp"
+#include "agent.hpp"
 
 using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::GenerateCommand;
@@ -588,9 +589,9 @@ static QString qmenuOnMacTriggered(const EventInfo &eventInfo)
                                                     event->type() == QEvent::ActionChanged ? "change" : "remove");
     if (event->type() == QEvent::ActionAdded) {
         QString menuOwnerName = qt_monkey_agent::fullQtWidgetId(*menuOwnerWidget);
-        watcher.startWatch(*action, std::move(menuOwnerName));
+        watcher.startWatch(eventInfo.agent, *action, std::move(menuOwnerName));
     } else if (event->type() == QEvent::ActionRemoved) {
-        watcher.stopWatch(*action);
+        watcher.stopWatch(eventInfo.agent, *action);
     }
     return res;
 }
@@ -995,18 +996,29 @@ void TreeViewWatcher::disconnectAll()
 }
 
 #ifdef Q_OS_MAC
-void MacMenuActionWatcher::startWatch(QAction &act, QString menuName)
+void MacMenuActionWatcher::startWatch(qt_monkey_agent::Agent &agent, QAction &act, QString menuName)
 {
-    auto insertRes = actions_.emplace(&act, std::move(menuName));
-    if (insertRes.second)//we really insert
+    auto insertRes = actions_.emplace(&act, menuName);
+    if (insertRes.second) {//we really insert
         connect(&act, SIGNAL(triggered(bool)), this, SLOT(onTriggered()));
+        auto ptr = agent.menuItemsOnMac_.get();
+        ptr->emplace(std::move(menuName), &act);
+    }
 }
 
-void MacMenuActionWatcher::stopWatch(QAction &act)
+void MacMenuActionWatcher::stopWatch(qt_monkey_agent::Agent &agent, QAction &act)
 {
     auto it = actions_.find(&act);
     if (it != actions_.end())
         actions_.erase(it);
+    {
+        auto ptr = agent.menuItemsOnMac_.get();
+        for (auto it = ptr->begin(), endi = ptr->end(); it != endi; ++it)
+            if (it->second == &act) {
+                ptr->erase(it);
+                return;
+            }
+    }
 }
 
 void MacMenuActionWatcher::onTriggered()

@@ -10,21 +10,21 @@
 
 #include "custom_event_analyzer.hpp"
 #include "custom_script_extension.hpp"
+#include "shared_resource.hpp"
 
+class QAction;
 class QThread;
 
 namespace qt_monkey_agent
 {
-class UserEventsAnalyzer;
-}
 
-namespace qt_monkey_agent
-{
+class UserEventsAnalyzer;
 
 namespace Private
 {
 class Script;
 class ScriptRunner;
+class MacMenuActionWatcher;
 }
 /**
  * This class is used as agent inside user's program
@@ -78,6 +78,9 @@ private slots:
     void onAppAboutToQuit();
     void onScriptLog(const QString &);
 private:
+    friend class Private::MacMenuActionWatcher;
+    friend class ScriptAPI;
+
     struct CurrentScriptContext final {
         CurrentScriptContext(Private::ScriptRunner *cur,
                              Private::ScriptRunner *&global)
@@ -99,6 +102,7 @@ private:
     PopulateScriptContext populateScriptContextCallback_;
     static Agent *gAgent_;
     std::atomic<bool> demonstrationMode_{false};
+    qt_monkey_common::SharedResource<std::multimap<QString, QAction *>> menuItemsOnMac_;
 
     void customEvent(QEvent *event) override;
 };
