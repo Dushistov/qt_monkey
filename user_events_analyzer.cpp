@@ -84,7 +84,7 @@ static QString keyReleaseEventToScript(const QString &widgetName,
              qPrintable(widgetName), keyEvent->key(),
              keyEvent->key() != Qt::Key_unknown ? "known key" : "unknown key");
 
-    int modifiers[4] = {0, 0, 0};
+    int modifiers[4] = {0, 0, 0, 0};
     int curMod = 0;
 
     if (keyEvent->modifiers() & Qt::ShiftModifier)
