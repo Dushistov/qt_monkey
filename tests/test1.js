@@ -2,6 +2,7 @@ Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.t
 Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Qt.LeftButton', 135, 20);
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'item2');
 //expect: Test.keyClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Enter');
+//expect: Test.keyClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox.<class_name=QComboBoxPrivateContainer>.<class_name=QComboBoxListView>', 'Enter');
 ExtAPI.pressButton("Custom Button");
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_tabbar', 'Tab 2');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_2.treeWidget', '1');

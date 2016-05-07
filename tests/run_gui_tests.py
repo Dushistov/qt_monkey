@@ -66,8 +66,9 @@ def compare_two_func_calls(f1_call, f2_call):
     (pref2, params2) = extract_func_name_and_params(f2_call)
     if pref1 != pref2 or len(params1) != len(params2):
         return False
-
+    i = -1
     for p1, p2 in zip(params1, params2):
+        i += 1
         if type(p1) is int and type(p2) is int:
             continue
         if p1 != p2:
@@ -101,18 +102,30 @@ for line in input_stream:
 
 with open(script_path, "r") as fin:
     i = 0
-    for line in fin.readlines():
+    j = 0
+    expect_lines = fin.readlines()
+    while j < len(expect_lines):
         if i >= len(code_listing):
             sys.stderr.write("Unexpected end of actual result\n")
             sys.exit(1)
-        line = line.strip()
+        line = expect_lines[j].strip()
+        expect_seq = False
         if line.startswith(EXPECT_LINE):
             line = line[len(EXPECT_LINE):]
+            expect_seq = True
         if not compare_two_func_calls(line, code_listing[i]):
-            if (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
+            if sys.platform == "darwin" and line.startswith("Test.mouseClick('MainWindow.menubar',"):
+                #just ignore bad result, because of mainwin menubar not part of our window on mac
+                pass
+            elif (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
                 i += 1
+            elif (j + 1) < len(expect_lines) and expect_lines[j + 1].startswith(EXPECT_LINE) and compare_two_func_calls(expect_lines[j + 1][len(EXPECT_LINE):], code_listing[i]):
+                j += 1
             else:
                 sys.stderr.write(("Line %d, expected\n`%s'\n, actual\n`%s'\n"
                                   "Full log:\n%s\n") % (i + 1, line, code_listing[i], "\n".join(code_listing)))
                 sys.exit(1)
         i += 1
+        j += 1
+        while expect_seq and j < len(expect_lines) and expect_lines[j].startswith(EXPECT_LINE):
+            j += 1
