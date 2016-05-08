@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <atomic>
+#include <map>
 
 #include <QKeySequence>
 #include <QtCore/QEvent>
