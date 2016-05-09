@@ -77,9 +77,8 @@ void parseOutputFromMonkeyApp(
     stopPos = 0;
     std::string::size_type parserStopPos;
     std::string err;
-    // TODO: remove unnecessary allocation
     auto jsonArr = Json::parse_multi(
-        std::string{data.data(), static_cast<size_t>(data.size())},
+        {data.data(), static_cast<size_t>(data.size())},
         parserStopPos, err);
     stopPos = parserStopPos;
     for (const Json &elm : jsonArr) {
@@ -127,9 +126,8 @@ void parseOutputFromGui(
     const std::function<void(QString)> &onParseError)
 {
     std::string err;
-    // TODO: remove unnecessary allocation
     auto jsonArr = Json::parse_multi(
-        std::string{data.data(), static_cast<size_t>(data.size())},
+        {data.data(), static_cast<size_t>(data.size())},
         parserStopPos, err);
     for (const Json &elm : jsonArr) {
         if (elm.is_null())
