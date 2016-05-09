@@ -1,9 +1,11 @@
-#include <QtCore/QCoreApplication>
-#include <QtCore/QProcess>
-#include <QtCore/QTextStream>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+
+#include <QtCore/QCoreApplication>
+#include <QtCore/QProcess>
+#include <QtCore/QTextStream>
 
 #include "common.hpp"
 #include "qtmonkey.hpp"
@@ -41,28 +43,29 @@ static void msgHandler(QtMsgType type, const QMessageLogContext &,
 static void msgHandler(QtMsgType type, const char *msg)
 #endif
 {
+    static auto startTime = std::chrono::steady_clock::now();
     using std::clog;
+    const double timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     std::chrono::steady_clock::now() - startTime).count() / 1000.;
     switch (type) {
     case QtDebugMsg:
-        clog << "Debug: " << msg << "\n";
+        clog << "Debug(" << timeDiff << "): " << msg << std::endl;
         break;
     case QtWarningMsg:
-        clog << "Warning: " << msg << "\n";
+        clog << "Warning("<< timeDiff << "): " << msg << std::endl;
         break;
     case QtCriticalMsg:
-        clog << "Critical: " << msg << "\n";
+        clog << "Critical(" << timeDiff << "): " << msg << std::endl;
         break;
 #if QT_VERSION >= 0x050000
     case QtInfoMsg:
-        clog << "Info: " << msg << "\n";
+        clog << "Info(" << timeDiff <<"): " << msg << std::endl;
         break;
 #endif
     case QtFatalMsg:
-        clog << "Fatal: " << msg << "\n";
-        clog.flush();
+        clog << "Fatal(" << timeDiff << "): " << msg << std::endl;
         std::exit(EXIT_FAILURE);
     }
-    clog.flush();
 }
 
 static QString usage()

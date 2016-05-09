@@ -300,7 +300,7 @@ void QtMonkeyWindow::on_pbBrowse__pressed()
 
 void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
 {
-    qDebug("%s: scriptLine %s", Q_FUNC_INFO, qPrintable(scriptLine));
+    qDebug("%s: scriptLine %s, state %d", Q_FUNC_INFO, qPrintable(scriptLine), static_cast<int>(state_));
     if (state_ == State::RecordEvents) {
         if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
             teScriptEdit_->insertPlainText(scriptLine + "\n");
