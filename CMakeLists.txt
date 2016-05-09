@@ -7,7 +7,7 @@ project(qt_monkey)
 include(compiler.cmake)
 
 set(USE_TESTS False CACHE BOOL "enable testing")
-set(QT_VARIANT "qt4" CACHE STRING "variant of qt: qt4 or qt5")
+set(QT_VARIANT "qt5" CACHE STRING "variant of qt: qt4 or qt5")
 
 if ((NOT ("${QT_VARIANT}" STREQUAL "qt4")) AND
     (NOT ("${QT_VARIANT}" STREQUAL "qt5")))
