@@ -182,8 +182,7 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    std::cout << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << "\n";
-    std::cout.flush();
+    std::cout << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << std::endl;
 }
 
 void QtMonkey::userAppError(QProcess::ProcessError err)
@@ -217,8 +216,7 @@ void QtMonkey::userAppNewErrOutput()
 {
     const QString errOut
         = QString::fromLocal8Bit(userApp_.readAllStandardError());
-    std::cout << createPacketFromUserAppErrors(errOut) << "\n";
-    std::cout.flush();
+    std::cout << createPacketFromUserAppErrors(errOut) << std::endl;
 }
 
 void QtMonkey::stdinDataReady()
@@ -243,8 +241,7 @@ void QtMonkey::onScriptError(QString errMsg)
 {
     qDebug("%s: begin %s", Q_FUNC_INFO, qPrintable(errMsg));
     setScriptRunningState(false);
-    std::cout << createPacketFromUserAppErrors(errMsg) << "\n";
-    std::cout.flush();
+    std::cout << createPacketFromUserAppErrors(errMsg) << std::endl;
     if (exitOnScriptError_) {
         qt_monkey_common::processEventsFor(waitBeforeExitMs);
         throw std::runtime_error(
@@ -298,14 +295,12 @@ void QtMonkey::onAgentReadyToRunScript()
 void QtMonkey::onScriptEnd()
 {
     setScriptRunningState(false);
-    std::cout << createPacketFromScriptEnd() << "\n";
-    std::cout.flush();
+    std::cout << createPacketFromScriptEnd() << std::endl;
 }
 
 void QtMonkey::onScriptLog(QString msg)
 {
-    std::cout << createPacketFromUserAppScriptLog(msg) << "\n";
-    std::cout.flush();
+    std::cout << createPacketFromUserAppScriptLog(msg) << std::endl;
 }
 
 void QtMonkey::setScriptRunningState(bool val)
