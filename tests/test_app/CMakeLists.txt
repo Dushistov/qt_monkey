@@ -19,7 +19,7 @@ elseif ("${QT_VARIANT}" STREQUAL "qt5")
   qt5_wrap_cpp(test_app_MOC_SRCS ${test_app_MOC_HDRS})
 endif ()
 
-add_executable(test_app
+set(test_app_SRCS
   ${test_app_UIS_H}
   ${test_app_MOC_SRCS}
   ${test_app_MOC_HDRS}
@@ -28,4 +28,9 @@ add_executable(test_app
   script_ext.cpp
   main.cpp
   )
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    add_executable(test_app MACOSX_BUNDLE ${test_app_SRCS})
+else ()
+    add_executable(test_app ${test_app_SRCS})
+endif ()
 target_link_libraries(test_app qtmonkey_agent ${QT_LIBRARIES})
