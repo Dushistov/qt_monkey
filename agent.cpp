@@ -18,8 +18,10 @@
 #include "script_runner.hpp"
 #include "user_events_analyzer.hpp"
 
-using namespace qt_monkey_agent;
-using namespace qt_monkey_agent::Private;
+using qt_monkey_agent::Agent;
+using qt_monkey_agent::Private::PacketTypeForMonkey;
+using qt_monkey_agent::Private::CommunicationAgentPart;
+using qt_monkey_agent::Private::ScriptRunner;
 
 Agent *Agent::gAgent_ = nullptr;
 
