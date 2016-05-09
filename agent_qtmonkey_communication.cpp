@@ -334,16 +334,19 @@ void CommunicationAgentPart::timerEvent(QTimerEvent *event)
 
 void CommunicationAgentPart::sendData()
 {
+  {
     auto sendBuf = sendBuf_.get();
     if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf->isEmpty())
-        return;
+      return;
     qint64 nBytes = sock_.write(*sendBuf);
     if (nBytes == -1) {
-        qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
-                 qPrintable(sock_.errorString()));
-        return;
+      qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
+	       qPrintable(sock_.errorString()));
+      return;
     }
     sendBuf->remove(0, nBytes);
+  }
+  sock_.flush();
 }
 
 void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,
