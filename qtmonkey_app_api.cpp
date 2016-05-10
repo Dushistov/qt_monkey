@@ -20,53 +20,44 @@ private:
 };
 }
 
-QByteArray createPacketFromUserAppEvent(const QString &scriptLines)
+std::string createPacketFromUserAppEvent(const QString &scriptLines)
 {
     auto json = Json::object{
         {"event", Json::object{{"script", QStringJsonTrait{scriptLines}}}}};
-    // TODO: remove unnecessary allocation
-    const std::string res = Json{json}.dump();
-    return QByteArray{res.c_str()};
+
+    return Json{json}.dump();
 }
 
-QByteArray createPacketFromUserAppErrors(const QString &errMsg)
+std::string createPacketFromUserAppErrors(const QString &errMsg)
 {
     auto json = Json::object{{"app errors", QStringJsonTrait{errMsg}}};
-    // TODO: remove unnecessary allocation
-    const std::string res = Json{json}.dump();
-    return QByteArray{res.c_str()};
+    return Json{json}.dump();
 }
 
-QByteArray createPacketFromScriptEnd()
+std::string createPacketFromScriptEnd()
 {
     auto json = Json{"script end"};
-    // TODO: remove unnecessary allocation
-    const std::string res = Json{json}.dump();
-    return QByteArray{res.c_str()};
+    return Json{json}.dump();
 }
 
-QByteArray createPacketFromUserAppScriptLog(const QString &logMsg)
+std::string createPacketFromUserAppScriptLog(const QString &logMsg)
 {
     auto json = Json::object{{"script logs", QStringJsonTrait{logMsg}}};
-    // TODO: remove unnecessary allocation
-    const std::string res = Json{json}.dump();
-    return QByteArray{res.c_str()};
+    return Json{json}.dump();
 }
 
-QByteArray createPacketFromRunScript(const QString &script,
+std::string createPacketFromRunScript(const QString &script,
                                      const QString &scriptFileName)
 {
     auto json = Json::object{
         {"run script",
          Json::object{{"script", QStringJsonTrait{script}},
                       {"file", QStringJsonTrait{scriptFileName}}}}};
-    // TODO: remove unnecessary allocation
-    const std::string res = Json{json}.dump();
-    return QByteArray{res.c_str()};
+    return Json{json}.dump();
 }
 
 void parseOutputFromMonkeyApp(
-    const QByteArray &data, size_t &stopPos,
+    const json11::string_view &data, size_t &stopPos,
     const std::function<void(QString)> &onNewUserAppEvent,
     const std::function<void(QString)> &onUserAppError,
     const std::function<void()> &onScriptEnd,
@@ -77,8 +68,7 @@ void parseOutputFromMonkeyApp(
     stopPos = 0;
     std::string::size_type parserStopPos;
     std::string err;
-    auto jsonArr = Json::parse_multi(
-        {data.data(), static_cast<size_t>(data.size())},
+    auto jsonArr = Json::parse_multi(data,
         parserStopPos, err);
     stopPos = parserStopPos;
     for (const Json &elm : jsonArr) {
@@ -121,13 +111,12 @@ void parseOutputFromMonkeyApp(
 }
 
 void parseOutputFromGui(
-    const QByteArray &data, size_t &parserStopPos,
+    const json11::string_view &data, size_t &parserStopPos,
     const std::function<void(QString, QString)> &onRunScript,
     const std::function<void(QString)> &onParseError)
 {
     std::string err;
-    auto jsonArr = Json::parse_multi(
-        {data.data(), static_cast<size_t>(data.size())},
+    auto jsonArr = Json::parse_multi(data,
         parserStopPos, err);
     for (const Json &elm : jsonArr) {
         if (elm.is_null())

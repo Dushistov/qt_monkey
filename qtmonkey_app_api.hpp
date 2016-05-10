@@ -1,24 +1,31 @@
 #pragma once
 
-#include <QtCore/QString>
 #include <functional>
+#include <string>
+
+#include <QtCore/QString>
+
+namespace json11
+{
+class string_view;
+}
 
 namespace qt_monkey_app
 {
-QByteArray createPacketFromUserAppEvent(const QString &scriptLines);
-QByteArray createPacketFromUserAppErrors(const QString &errOut);
-QByteArray createPacketFromScriptEnd();
-QByteArray createPacketFromUserAppScriptLog(const QString &logMsg);
-QByteArray createPacketFromRunScript(const QString &script,
-                                     const QString &scriptFileName);
+std::string createPacketFromUserAppEvent(const QString &scriptLines);
+std::string createPacketFromUserAppErrors(const QString &errOut);
+std::string createPacketFromScriptEnd();
+std::string createPacketFromUserAppScriptLog(const QString &logMsg);
+std::string createPacketFromRunScript(const QString &script,
+                                      const QString &scriptFileName);
 
 void parseOutputFromGui(
-    const QByteArray &data, size_t &parserStopPos,
+    const json11::string_view &data, size_t &parserStopPos,
     const std::function<void(QString, QString)> &onRunScript,
     const std::function<void(QString)> &onParseError);
 
 void parseOutputFromMonkeyApp(
-    const QByteArray &data, size_t &stopPos,
+    const json11::string_view &data, size_t &stopPos,
     const std::function<void(QString)> &onNewUserAppEvent,
     const std::function<void(QString)> &onUserAppError,
     const std::function<void()> &onScriptEnd,

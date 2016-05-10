@@ -11,6 +11,7 @@
 
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
+#include "json11.hpp"
 
 #define SETUP_WIN_CTRL(__name__)                                               \
     auto __name__ = getMonkeyCtrl();                                           \
@@ -80,7 +81,7 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
 
     std::string::size_type parserStopPos;
     qt_monkey_app::parseOutputFromMonkeyApp(
-        jsonFromMonkey_, parserStopPos,
+        {jsonFromMonkey_.constData(), jsonFromMonkey_.size()}, parserStopPos,
         [this](QString eventScriptLines) {
             emit monkeyAppNewEvent(std::move(eventScriptLines));
         },
@@ -112,10 +113,10 @@ void QtMonkeyAppCtrl::monkeyAppNewErrOutput()
 void QtMonkeyAppCtrl::runScript(const QString &script,
                                 const QString &scriptFileName)
 {
-    QByteArray data
+    std::string data
         = qt_monkey_app::createPacketFromRunScript(script, scriptFileName);
     data.append("\n");
-    qint64 sentBytes = 0;
+    quint64 sentBytes = 0;
     do {
         qint64 nbytes = qtmonkeyApp_.write(data.data() + sentBytes,
                                            data.size() - sentBytes);

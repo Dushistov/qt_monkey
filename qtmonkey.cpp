@@ -17,6 +17,7 @@
 
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
+#include "json11.hpp"
 
 using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
@@ -224,7 +225,7 @@ void QtMonkey::stdinDataReady()
     auto dataPtr = stdinReader_.data.get();
     size_t parserStopPos;
     parseOutputFromGui(
-        *dataPtr, parserStopPos,
+        {dataPtr->constData(), dataPtr->size()}, parserStopPos,
         [this](QString script, QString scriptFileName) {
             toRunList_.push(Script{std::move(script)});
             onAgentReadyToRunScript();

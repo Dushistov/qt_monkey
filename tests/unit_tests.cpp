@@ -11,6 +11,7 @@
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
 #include "qtmonkey_app_api.hpp"
+#include "json11.hpp"
 
 namespace
 {
@@ -84,7 +85,7 @@ TEST(QtMonkey, app_api)
 {
     using namespace qt_monkey_app;
     QString script = "Test.log(\"something\");\nTest.log(\"other\");";
-    QByteArray data = createPacketFromUserAppEvent(script);
+    std::string data = createPacketFromUserAppEvent(script);
     QString errOut = "Bad things happen";
     data.append(createPacketFromUserAppErrors(errOut));
     data.append(createPacketFromScriptEnd());
