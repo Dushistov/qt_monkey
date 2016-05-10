@@ -164,48 +164,25 @@ TEST(Script, basic)
 {
     using qt_monkey_agent::Private::Script;
 
-    auto res = Script::splitToExecutableParts("test1.js", R"(
-Test1();
-Test2();
-
-<<<RESTART FROM HERE>>>
-Test3();
-Test4();
-
-Test5();
-
-)");
+    auto res = Script::splitToExecutableParts(
+        "test1.js", "Test1();\nTest2();\n\n<<<RESTART FROM "
+                    "HERE>>>\nTest3();\nTest4();\n\nTest5();\n\n");
     ASSERT_EQ(2u, res.size());
     auto it = res.begin();
     ASSERT_TRUE(it != res.end());
-    EXPECT_EQ(QString(R"(
-Test1();
-Test2();
-
-)"),
-              it->code());
+    EXPECT_EQ(QString("Test1();\nTest2();\n\n"), it->code());
     EXPECT_EQ("test1.js", it->fileName());
     EXPECT_EQ(1, it->beginLineNum());
 
     ++it;
     ASSERT_TRUE(it != res.end());
 
-    EXPECT_EQ(QString(R"(
-Test3();
-Test4();
-
-Test5();
-
-)"),
-              it->code());
+    EXPECT_EQ(QString("\nTest3();\nTest4();\n\nTest5();\n\n"), it->code());
     EXPECT_EQ("test1.js", it->fileName());
-    EXPECT_EQ(5, it->beginLineNum());
+    EXPECT_EQ(4, it->beginLineNum());
 
-    QString code = R"(
-Test1();
-Test2();
+    QString code = "Test1();\nTest2();\n";
 
-)";
     res = Script::splitToExecutableParts("test1.js", code);
     ASSERT_EQ(1u, res.size());
     EXPECT_EQ(code, res.begin()->code());
