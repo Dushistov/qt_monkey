@@ -538,11 +538,6 @@ static QString workspaceTitleBarPressed(const EventInfo &eventInfo)
         .arg(w->windowTitle());
 }
 
-static void makeTextReadyForScript(QString &text)
-{
-    text.replace(QChar('\n'), "\\n");
-}
-
 static QString clickOnUnnamedButton(const EventInfo &eventInfo)
 {
     QString res;
@@ -560,7 +555,7 @@ static QString clickOnUnnamedButton(const EventInfo &eventInfo)
         || bt->parent() == nullptr)
         return res;
     QString text = bt->text();
-    makeTextReadyForScript(text);
+    qt_monkey_agent::escapeTextForScript(text);
     auto parent = qobject_cast<QWidget *>(bt->parent());
     if (parent == nullptr)
         return res;
@@ -658,6 +653,11 @@ static QString widgetUnderCursorInfo()
 }
 
 } // namespace {
+
+void qt_monkey_agent::escapeTextForScript(QString &text)
+{
+    text.replace(QChar('\n'), "\\n");
+}
 
 bool qt_monkey_agent::stringToMouseButton(const QString &str,
                                           Qt::MouseButton &bt)

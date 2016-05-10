@@ -31,6 +31,7 @@ elseif ("${QT_VARIANT}" STREQUAL "qt5")
   set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test Qt5::Script)
 endif ()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(qtmonkey_agent_MOC_HDRS
@@ -115,7 +116,6 @@ if (USE_TESTS)
   enable_testing()
   add_subdirectory(contrib/gtest/googletest)
   include_directories(contrib/gtest/googletest/include)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR})
   add_executable(run_unit_tests tests/unit_tests.cpp)
   target_include_directories(run_unit_tests PRIVATE contrib/json11)
   target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES} common_app_lib)

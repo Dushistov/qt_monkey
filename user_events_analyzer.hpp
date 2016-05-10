@@ -34,6 +34,7 @@ QString fullQtWidgetId(const QWidget &w);
 //! convert mouse button constant <-> string
 QString mouseButtonEnumToString(Qt::MouseButton b);
 bool stringToMouseButton(const QString &str, Qt::MouseButton &bt);
+void escapeTextForScript(QString &text);
 //@}
 
 /**
