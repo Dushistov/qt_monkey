@@ -47,7 +47,7 @@ std::string createPacketFromUserAppScriptLog(const QString &logMsg)
 }
 
 std::string createPacketFromRunScript(const QString &script,
-                                     const QString &scriptFileName)
+                                      const QString &scriptFileName)
 {
     auto json = Json::object{
         {"run script",
@@ -68,8 +68,7 @@ void parseOutputFromMonkeyApp(
     stopPos = 0;
     std::string::size_type parserStopPos;
     std::string err;
-    auto jsonArr = Json::parse_multi(data,
-        parserStopPos, err);
+    auto jsonArr = Json::parse_multi(data, parserStopPos, err);
     stopPos = parserStopPos;
     for (const Json &elm : jsonArr) {
         if (elm.is_null())
@@ -116,8 +115,7 @@ void parseOutputFromGui(
     const std::function<void(QString)> &onParseError)
 {
     std::string err;
-    auto jsonArr = Json::parse_multi(data,
-        parserStopPos, err);
+    auto jsonArr = Json::parse_multi(data, parserStopPos, err);
     for (const Json &elm : jsonArr) {
         if (elm.is_null())
             continue;

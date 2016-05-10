@@ -16,20 +16,20 @@
 #include <QtCore/QThread>
 
 #include "common.hpp"
-#include "qtmonkey_app_api.hpp"
 #include "json11.hpp"
+#include "qtmonkey_app_api.hpp"
 
 using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
 using qt_monkey_app::Private::StdinReader;
-using qt_monkey_common::operator <<;
+using qt_monkey_common::operator<<;
 
 namespace
 {
 static constexpr int waitBeforeExitMs = 300;
 
-static inline std::ostream &operator <<(std::ostream &os, const QString &str)
+static inline std::ostream &operator<<(std::ostream &os, const QString &str)
 {
     os << str.toUtf8();
     return os;
@@ -102,6 +102,26 @@ void ReadStdinThread::run()
 {
     while (!timeToExit_) {
         char ch;
+        fd_set readfds, exceptfds;
+        FD_ZERO(&readfds);
+        FD_ZERO(&exceptfds);
+        FD_SET(STDIN_FILENO, &readfds);
+        FD_SET(STDIN_FILENO, &exceptfds);
+        timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 1000 * 100;
+        const int selRes
+            = select(STDIN_FILENO + 1, &readfds, nullptr, &exceptfds, &timeout);
+        if (selRes == 0) { // timeout
+            continue;
+        } else if (selRes < 0) {
+            reader_.emitError(T_("select stdin return error: %1").arg(errno));
+            return;
+        }
+        if (FD_ISSET(STDIN_FILENO, &exceptfds)
+            || !FD_ISSET(STDIN_FILENO, &readfds))
+            continue;
+
         const ssize_t nBytes = ::read(STDIN_FILENO, &ch, sizeof(ch));
         if (nBytes < 0) {
             reader_.emitError(T_("reading from stdin error: %1").arg(errno));
@@ -127,7 +147,7 @@ void ReadStdinThread::stop()
     throw std::runtime_error("close(stdin) failure: " + std::to_string(errno));
 }
 #endif
-} //namespace {
+} // namespace {
 
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)
@@ -164,8 +184,10 @@ QtMonkey::~QtMonkey()
     assert(readStdinThread_ != nullptr);
     auto thread = static_cast<ReadStdinThread *>(readStdinThread_);
     thread->stop();
-    thread->wait(100 /*ms*/);
-    thread->terminate();
+    if (!thread->wait(1000 /*ms*/)) {
+        qWarning("%s: thread still running", Q_FUNC_INFO);
+        thread->terminate();
+    }
     if (userApp_.state() != QProcess::NotRunning) {
         userApp_.terminate();
         QCoreApplication::processEvents(QEventLoop::AllEvents, 3000 /*ms*/);
@@ -183,7 +205,8 @@ void QtMonkey::communicationWithAgentError(const QString &errStr)
 
 void QtMonkey::onNewUserAppEvent(QString scriptLines)
 {
-    std::cout << qt_monkey_app::createPacketFromUserAppEvent(scriptLines) << std::endl;
+    std::cout << qt_monkey_app::createPacketFromUserAppEvent(scriptLines)
+              << std::endl;
 }
 
 void QtMonkey::userAppError(QProcess::ProcessError err)
@@ -204,7 +227,14 @@ void QtMonkey::userAppFinished(int exitCode, QProcess::ExitStatus exitStatus)
                                      .arg(exitCode)
                                      .toUtf8()
                                      .data());
-    QCoreApplication::exit(EXIT_SUCCESS);
+    setScriptRunningState(false);
+    if (toRunList_.empty()) {
+        QCoreApplication::exit(EXIT_SUCCESS);
+    } else {
+        assert(!userAppPath_.isEmpty());
+        restartDone_ = true;
+        userApp_.start(userAppPath_, userAppArgs_);
+    }
 }
 
 void QtMonkey::userAppNewOutput()
@@ -225,9 +255,13 @@ void QtMonkey::stdinDataReady()
     auto dataPtr = stdinReader_.data.get();
     size_t parserStopPos;
     parseOutputFromGui(
-        {dataPtr->constData(), dataPtr->size()}, parserStopPos,
+        {dataPtr->constData(), static_cast<size_t>(dataPtr->size())},
+        parserStopPos,
         [this](QString script, QString scriptFileName) {
-            toRunList_.push(Script{std::move(script)});
+            auto scripts
+                = Script::splitToExecutableParts(scriptFileName, script);
+            for (auto &&script : scripts)
+                toRunList_.push(std::move(script));
             onAgentReadyToRunScript();
         },
         [this](QString errMsg) {
@@ -256,8 +290,6 @@ bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
     if (encoding == nullptr)
         encoding = "UTF-8";
 
-    QString script;
-
     for (const QString &fn : scriptPathList) {
         QFile f(fn);
         if (!f.open(QIODevice::ReadOnly)) {
@@ -266,23 +298,29 @@ bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
         }
         QTextStream t(&f);
         t.setCodec(QTextCodec::codecForName(encoding));
-        if (!script.isEmpty())
-            script += "\n<<<RESTART FROM HERE>>>\n";
-        script += t.readAll();
+        const QString script = t.readAll();
+        auto scripts = Script::splitToExecutableParts(fn, script);
+        for (auto &&script : scripts) {
+            script.setRunAfterAppStart(!toRunList_.empty());
+            toRunList_.push(std::move(script));
+        }
     }
-
-    toRunList_.push(Script{std::move(script)});
 
     return true;
 }
 
 void QtMonkey::onAgentReadyToRunScript()
 {
-    qDebug("%s: begin", Q_FUNC_INFO);
-
     if (!channelWithAgent_.isConnectedState() || toRunList_.empty()
         || scriptRunning_)
         return;
+
+    if (toRunList_.front().runAfterAppStart()) {
+        if (restartDone_)
+            restartDone_ = false;
+        else
+            return;
+    }
 
     Script script = std::move(toRunList_.front());
     toRunList_.pop();

@@ -44,7 +44,9 @@ public:
     ~QtMonkey();
     void runApp(QString userAppPath, QStringList userAppArgs)
     {
-        userApp_.start(userAppPath, userAppArgs);
+        userAppPath_ = std::move(userAppPath);
+        userAppArgs_ = std::move(userAppArgs);
+        userApp_.start(userAppPath_, userAppArgs_);
     }
     bool runScriptFromFile(QStringList scriptPathList,
                            const char *encoding = "UTF-8");
@@ -70,6 +72,9 @@ private:
     bool exitOnScriptError_ = false;
 	Private::StdinReader stdinReader_;
 	QThread *readStdinThread_ = nullptr;
+    QString userAppPath_;
+    QStringList userAppArgs_;
+    bool restartDone_ = false;
 
     void setScriptRunningState(bool val);
 };

@@ -1,17 +1,22 @@
+#include <chrono>
+#include <functional>
+#include <iostream>
+#include <thread>
+
 #include <QApplication>
 #include <QtCore/QEventLoop>
 #include <QtCore/QThread>
 #include <QtTest/QSignalSpy>
-#include <chrono>
-#include <functional>
+
 #include <gtest/gtest.h>
-#include <iostream>
-#include <thread>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
-#include "qtmonkey_app_api.hpp"
 #include "json11.hpp"
+#include "qtmonkey_app_api.hpp"
+#include "script.hpp"
+
+using qt_monkey_common::operator<<;
 
 namespace
 {
@@ -28,6 +33,18 @@ processEventsForSomeTime(Func processEvents,
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }
+#if QT_VERSION >= 0x050000
+static std::ostream &operator<<(std::ostream &os, const QString &str)
+{
+    os << str.toLocal8Bit();
+    return os;
+}
+#endif
+}
+
+static inline void PrintTo(const QString &str, ::std::ostream *os)
+{
+    *os << str.toLocal8Bit();
 }
 
 TEST(QtMonkey, CommunicationBasic)
@@ -59,8 +76,7 @@ TEST(QtMonkey, CommunicationBasic)
                                "Test.log(\"hi\");");
             client.sendCommand(PacketTypeForMonkey::NewUserAppEvent,
                                "Test.log(\"hi2\");");
-            client.sendCommand(PacketTypeForMonkey::ScriptError,
-                               "my bad");
+            client.sendCommand(PacketTypeForMonkey::ScriptError, "my bad");
             client.sendCommand(PacketTypeForMonkey::ScriptEnd, QString());
             processEventsForSomeTime(procFunc, std::chrono::milliseconds(200));
             ASSERT_EQ(0, clientErr.count());
@@ -144,6 +160,61 @@ TEST(QtMonkey, app_api)
     EXPECT_EQ(static_cast<size_t>(data.size()), pos);
 }
 
+TEST(Script, basic)
+{
+    using qt_monkey_agent::Private::Script;
+
+    auto res = Script::splitToExecutableParts("test1.js", R"(
+Test1();
+Test2();
+
+<<<RESTART FROM HERE>>>
+Test3();
+Test4();
+
+Test5();
+
+)");
+    ASSERT_EQ(2u, res.size());
+    auto it = res.begin();
+    ASSERT_TRUE(it != res.end());
+    EXPECT_EQ(QString(R"(
+Test1();
+Test2();
+
+)"),
+              it->code());
+    EXPECT_EQ("test1.js", it->fileName());
+    EXPECT_EQ(1, it->beginLineNum());
+
+    ++it;
+    ASSERT_TRUE(it != res.end());
+
+    EXPECT_EQ(QString(R"(
+Test3();
+Test4();
+
+Test5();
+
+)"),
+              it->code());
+    EXPECT_EQ("test1.js", it->fileName());
+    EXPECT_EQ(5, it->beginLineNum());
+
+    QString code = R"(
+Test1();
+Test2();
+
+)";
+    res = Script::splitToExecutableParts("test1.js", code);
+    ASSERT_EQ(1u, res.size());
+    EXPECT_EQ(code, res.begin()->code());
+    EXPECT_EQ("test1.js", res.begin()->fileName());
+    EXPECT_EQ(1, res.begin()->beginLineNum());
+    res = Script::splitToExecutableParts("test1.js", QString());
+    ASSERT_EQ(0u, res.size());
+}
+
 #if QT_VERSION >= 0x050000
 static void msgHandler(QtMsgType type, const QMessageLogContext &,
                        const QString &msg)
@@ -151,27 +222,26 @@ static void msgHandler(QtMsgType type, const QMessageLogContext &,
 static void msgHandler(QtMsgType type, const char *msg)
 #endif
 {
-    QTextStream clog(stdout);
+    using std::clog;
     switch (type) {
     case QtDebugMsg:
-        clog << "Debug: " << msg << "\n";
+        clog << "Debug: " << msg << std::endl;
         break;
     case QtWarningMsg:
-        clog << "Warning: " << msg << "\n";
+        clog << "Warning: " << msg << std::endl;
         break;
     case QtCriticalMsg:
-        clog << "Critical: " << msg << "\n";
+        clog << "Critical: " << msg << std::endl;
         break;
 #if QT_VERSION >= 0x050000
     case QtInfoMsg:
-        clog << "Info: " << msg << "\n";
+        clog << "Info: " << msg << std::endl;
         break;
 #endif
     case QtFatalMsg:
-        clog << "Fatal: " << msg << "\n";
+        clog << "Fatal: " << msg << std::endl;
         std::abort();
     }
-    clog.flush();
 }
 
 int main(int argc, char *argv[])

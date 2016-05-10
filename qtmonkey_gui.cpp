@@ -5,13 +5,13 @@
 #include <QMessageBox>
 #include <QtCore/QDir>
 #include <QtCore/QSettings>
-#include <QtCore/QTextStream>
 #include <QtCore/QTextCodec>
+#include <QtCore/QTextStream>
 #include <cassert>
 
 #include "common.hpp"
-#include "qtmonkey_app_api.hpp"
 #include "json11.hpp"
+#include "qtmonkey_app_api.hpp"
 
 #define SETUP_WIN_CTRL(__name__)                                               \
     auto __name__ = getMonkeyCtrl();                                           \
@@ -81,7 +81,7 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
 
     std::string::size_type parserStopPos;
     qt_monkey_app::parseOutputFromMonkeyApp(
-        {jsonFromMonkey_.constData(), jsonFromMonkey_.size()}, parserStopPos,
+        {jsonFromMonkey_.constData(), static_cast<size_t>(jsonFromMonkey_.size())}, parserStopPos,
         [this](QString eventScriptLines) {
             emit monkeyAppNewEvent(std::move(eventScriptLines));
         },
@@ -113,9 +113,9 @@ void QtMonkeyAppCtrl::monkeyAppNewErrOutput()
 void QtMonkeyAppCtrl::runScript(const QString &script,
                                 const QString &scriptFileName)
 {
-    std::string data
-        = qt_monkey_app::createPacketFromRunScript(script, scriptFileName);
-    data.append("\n");
+    const std::string data
+        = qt_monkey_app::createPacketFromRunScript(script, scriptFileName)
+          + '\n';
     quint64 sentBytes = 0;
     do {
         qint64 nbytes = qtmonkeyApp_.write(data.data() + sentBytes,
@@ -276,7 +276,8 @@ void QtMonkeyWindow::loadPrefs()
     leTestAppArgs_->setText(testAppArgs);
     const bool protocolMode = cfg.value(protocolModePrefName, false).toBool();
     cbProtocolRunning_->setChecked(protocolMode);
-    scriptDir_ = cfg.value(pathToScriptDirPrefName, QDir::homePath()).toString();
+    scriptDir_
+        = cfg.value(pathToScriptDirPrefName, QDir::homePath()).toString();
 }
 
 void QtMonkeyWindow::scheduleSave()
@@ -301,7 +302,8 @@ void QtMonkeyWindow::on_pbBrowse__pressed()
 
 void QtMonkeyWindow::onMonkeyAppNewEvent(const QString &scriptLine)
 {
-    qDebug("%s: scriptLine %s, state %d", Q_FUNC_INFO, qPrintable(scriptLine), static_cast<int>(state_));
+    qDebug("%s: scriptLine %s, state %d", Q_FUNC_INFO, qPrintable(scriptLine),
+           static_cast<int>(state_));
     if (state_ == State::RecordEvents) {
         if (cbInsertEventsAtCursor_->checkState() == Qt::Checked)
             teScriptEdit_->insertPlainText(scriptLine + "\n");
@@ -358,8 +360,9 @@ void QtMonkeyWindow::onMonkeScriptLog(const QString &msg)
 void QtMonkeyWindow::on_pbRunScript__pressed()
 {
     SETUP_WIN_CTRL(ctrl)
-    const QString demoModeStr = QStringLiteral("Test.setDemonstrationMode(%1);")
-        .arg(cbDemonstrationMode_->isChecked() ? "true" : "false");
+    const QString demoModeStr
+        = QStringLiteral("Test.setDemonstrationMode(%1);")
+              .arg(cbDemonstrationMode_->isChecked() ? "true" : "false");
     ctrl->runScript(demoModeStr + teScriptEdit_->toPlainText());
     changeState(State::PlayingEvents);
 }
@@ -397,19 +400,16 @@ void QtMonkeyWindow::on_cbProtocolRunning__toggled(bool checked)
     scheduleSave();
 }
 
-QtMonkeyWindow::~QtMonkeyWindow()
-{
-    savePrefs();
-}
+QtMonkeyWindow::~QtMonkeyWindow() { savePrefs(); }
 
 void QtMonkeyWindow::on_pbSaveScriptToFile__pressed()
 {
-	const QString fn =
-		QFileDialog::getSaveFileName(this, T_("Save script to"),
-                                     scriptDir_, T_("Qt java script (*.qs *.js)"));
-	if (fn.isEmpty())
-		return;
-	const QFileInfo fi(fn);
+    const QString fn
+        = QFileDialog::getSaveFileName(this, T_("Save script to"), scriptDir_,
+                                       T_("Qt java script (*.qs *.js)"));
+    if (fn.isEmpty())
+        return;
+    const QFileInfo fi(fn);
 
     scriptDir_ = fi.dir().absolutePath();
     scheduleSave();
@@ -420,40 +420,40 @@ void QtMonkeyWindow::on_pbSaveScriptToFile__pressed()
 
 void QtMonkeyWindow::saveScriptToFile(const QString &fileName)
 {
-	QFile f(fileName);
-	if (!f.open(QIODevice::WriteOnly)) {
-		QMessageBox::critical(this, T_("Error"),
-				      T_("Can not open for writing: %1").arg(fileName));
-		return;
-	}
+    QFile f(fileName);
+    if (!f.open(QIODevice::WriteOnly)) {
+        QMessageBox::critical(this, T_("Error"),
+                              T_("Can not open for writing: %1").arg(fileName));
+        return;
+    }
 
-	QTextStream t(&f);
-	t.setCodec(QTextCodec::codecForName(encoding_));
-	t << teScriptEdit_->toPlainText();
+    QTextStream t(&f);
+    t.setCodec(QTextCodec::codecForName(encoding_));
+    t << teScriptEdit_->toPlainText();
 }
 
 void QtMonkeyWindow::on_pbLoadScriptFromFile__pressed()
 {
-	const QString fn =
-		QFileDialog::getOpenFileName(this, T_("Load script from"),
-                                     scriptDir_, T_("Qt java script (*.qs *.js)"));
-	if (fn.isEmpty())
-		return;
-	QFileInfo fi(fn);
-	scriptDir_ = fi.dir().absolutePath();
-	QFile f(fn);
-	if (!f.open(QIODevice::ReadOnly)) {
-		QMessageBox::critical(this, T_("Error"),
-				      T_("Can not open for reading: %1").arg(fn));
-		return;
-	}
+    const QString fn
+        = QFileDialog::getOpenFileName(this, T_("Load script from"), scriptDir_,
+                                       T_("Qt java script (*.qs *.js)"));
+    if (fn.isEmpty())
+        return;
+    QFileInfo fi(fn);
+    scriptDir_ = fi.dir().absolutePath();
+    QFile f(fn);
+    if (!f.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, T_("Error"),
+                              T_("Can not open for reading: %1").arg(fn));
+        return;
+    }
 
-	QString text;
-	QTextStream t(&f);
-	t.setCodec(QTextCodec::codecForName(encoding_));
-	text = t.readAll();
-	f.close();
-	teScriptEdit_->setPlainText(text);
+    QString text;
+    QTextStream t(&f);
+    t.setCodec(QTextCodec::codecForName(encoding_));
+    text = t.readAll();
+    f.close();
+    teScriptEdit_->setPlainText(text);
     scriptFileName_ = fn;
     pbSaveScript_->setEnabled(!scriptFileName_.isEmpty());
 }

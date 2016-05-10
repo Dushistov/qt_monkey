@@ -97,6 +97,8 @@ add_executable(qtmonkey_app
   agent_qtmonkey_communication.cpp
   qtmonkey.cpp
   qtmonkey_app.cpp
+  script.hpp
+  script.cpp
   )
 target_include_directories(qtmonkey_app PRIVATE contrib/json11)
 target_link_libraries(qtmonkey_app ${QT_LIBRARIES} common_app_lib)
@@ -125,5 +127,10 @@ if (USE_TESTS)
   target_link_libraries(json11_test common_app_lib)
   add_test(json11_test json11_test)
   add_subdirectory(tests/test_app)
-  add_test(NAME gui_tests COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_gui_tests.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test1.js")
+  if (PYTHONINTERP_FOUND)
+    message(FATAL_ERROR "we need python for tests")
+  endif ()
+  find_package(PythonInterp)
+  add_test(NAME gui_test_general COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_gui_tests.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test1.js")
+  add_test(NAME gui_test_restart COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/gui_restart_test.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_restart.js")
 endif ()
