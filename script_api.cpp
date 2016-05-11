@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QComboBox>
 #include <QLineEdit>
@@ -13,7 +14,6 @@
 #include <QStyleOption>
 #include <QTreeWidget>
 #include <QWidget>
-#include <QAbstractButton>
 #if QT_VERSION < 0x050000
 #include <QWorkspace>
 #else
@@ -90,25 +90,17 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
     }
 
     QWidget *win = qApp->activeModalWidget();
-    if (win)
-        DBGPRINT("(%s, %d): Modal Window %s", Q_FUNC_INFO, __LINE__,
-                 qPrintable(win->objectName()));
-    else
-        DBGPRINT("(%s, %d): Modal Window nullptr", Q_FUNC_INFO, __LINE__);
+
+    DBGPRINT("(%s, %d): Modal Window %s", Q_FUNC_INFO, __LINE__,
+             win != nullptr ? qPrintable(win->objectName()) : "nullptr");
 
     win = qApp->activePopupWidget();
-    if (win)
-        DBGPRINT("(%s, %d): popup Window %s", Q_FUNC_INFO, __LINE__,
-                 qPrintable(win->objectName()));
-    else
-        DBGPRINT("(%s, %d): popup Window nullptr", Q_FUNC_INFO, __LINE__);
+    DBGPRINT("(%s, %d): popup Window %s", Q_FUNC_INFO, __LINE__,
+             win != nullptr ? qPrintable(win->objectName()) : "nullptr");
 
     win = qApp->activeWindow();
-    if (win)
-        DBGPRINT("(%s, %d): active Window %s", Q_FUNC_INFO, __LINE__,
-                 qPrintable(win->objectName()));
-    else
-        DBGPRINT("(%s, %d): active Window nullptr", Q_FUNC_INFO, __LINE__);
+    DBGPRINT("(%s, %d): active Window %s", Q_FUNC_INFO, __LINE__,
+             win != nullptr ? qPrintable(win->objectName()) : "nullptr");
 
     const QString &mainWidgetName = names.first();
     DBGPRINT("(%s, %d): search widget with such name %s", Q_FUNC_INFO, __LINE__,
@@ -243,58 +235,34 @@ static bool canNotFind(QWidget &w)
     // but they are actually not visible on real screen
     // so check that widget visible on screen
     const QPoint pos = w.mapToGlobal(w.rect().center());
+    {
+        // check that such check really works
+        QWidget *window = QApplication::topLevelAt(pos);
+        if (window == nullptr) {
+            DBGPRINT("%s: no window at such point %d %d", Q_FUNC_INFO, pos.x(),
+                     pos.y());
+            return false;
+        }
+        if (!window->testAttribute(Qt::WA_TransparentForMouseEvents)) {
+            QWidget *child = window->childAt(window->mapFromGlobal(pos));
+            if (child == nullptr) {
+                QObject *child = &w;
+                while (child->parent() != nullptr)
+                    child = child->parent();
+                const auto topLevelWidgets = QApplication::topLevelWidgets();
+                auto it = std::find(topLevelWidgets.begin(),
+                                    topLevelWidgets.end(), child);
+                if (it == topLevelWidgets.end()) {
+                    DBGPRINT("%s: top parent not window", Q_FUNC_INFO);
+                    return false;
+                }
+            }
+        }
+    }
     QWidget *wdgAtPos = QApplication::widgetAt(pos);
+    DBGPRINT("%s: g pos %d %d, w at pos %p", Q_FUNC_INFO, pos.x(), pos.y(),
+             wdgAtPos);
     return wdgAtPos == nullptr;
-}
-
-static void clickInGuiThread(qt_monkey_agent::Agent &agent, const QPoint &posA,
-                             QWidget &wA, Qt::MouseButton btn, bool dblClick)
-{
-    DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
-             dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
-
-    QWidget *chw = wA.childAt(posA);
-    QWidget *w = &wA;
-    QPoint pos = posA;
-    if (chw != nullptr) {
-        DBGPRINT("%s: there is child at pos", Q_FUNC_INFO);
-        pos = chw->mapFrom(w, pos);
-        w = chw;
-    }
-    DBGPRINT("%s: width %d, height %d", Q_FUNC_INFO, w->width(), w->height());
-    if (pos.x() >= w->width())
-        pos.rx() = w->width() / 2 - 1;
-    if (pos.y() >= w->height())
-        pos.ry() = w->height() / 2 - 1;
-
-    DBGPRINT("%s: class name is %s", Q_FUNC_INFO, w->metaObject()->className());
-    QMenuBar *mb = qobject_cast<QMenuBar *>(w);
-    if (mb != nullptr) {
-        // we click on menu, to fix different size of font issue, lets
-        // click on the middle
-        DBGPRINT("%s: this widget is QMenuBar", Q_FUNC_INFO);
-        pos.ry() = w->height() / 2 - 1;
-    }
-
-    QLineEdit *le = qobject_cast<QLineEdit *>(w);
-    if (le != nullptr) {
-        DBGPRINT("%s: this is line edit", Q_FUNC_INFO);
-// some times click on line edit do not give
-// focus to it, because of different size on different OSes
-#ifdef DEBUG_SCRIPT_API
-        QRect cr =
-#endif
-            MyLineEdit::adjustedContentsRect(*le);
-        DBGPRINT("%s: begin of content of QLineEdit  x %d, y %d, w %d, h %d",
-                 Q_FUNC_INFO, cr.x(), cr.y(), cr.width(), cr.height());
-    }
-
-    moveMouseTo(agent, w->mapToGlobal(pos));
-
-    if (dblClick)
-        QTest::mouseDClick(w, btn, 0, pos, -1);
-    else
-        QTest::mouseClick(w, btn, 0, pos, -1);
 }
 
 static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent,
@@ -404,7 +372,7 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
 
         QList<int> pos = {0, idx};
         clickOnItemInGuiThread(agent, pos, qcb->view(), false);
-        //hack to fix drop down list hiding
+        // hack to fix drop down list hiding
         QTest::keyClick(qcb->view(), Qt::Key_Enter);
         return QString();
     } else if (auto tb = qobject_cast<QTabBar *>(w)) {
@@ -486,10 +454,60 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
 
 } // namespace {
 
-QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
-                               const QString &objectName,
-                               const int maxTimeToFindWidgetSec,
-                               bool shouldBeEnabled)
+void qt_monkey_agent::clickInGuiThread(qt_monkey_agent::Agent &agent,
+                                       const QPoint &posA, QWidget &wA,
+                                       Qt::MouseButton btn, bool dblClick)
+{
+    DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
+             dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
+
+    QWidget *chw = wA.childAt(posA);
+    QWidget *w = &wA;
+    QPoint pos = posA;
+    if (chw != nullptr) {
+        DBGPRINT("%s: there is child at pos", Q_FUNC_INFO);
+        pos = chw->mapFrom(w, pos);
+        w = chw;
+    }
+    DBGPRINT("%s: width %d, height %d", Q_FUNC_INFO, w->width(), w->height());
+    if (pos.x() >= w->width())
+        pos.rx() = w->width() / 2 - 1;
+    if (pos.y() >= w->height())
+        pos.ry() = w->height() / 2 - 1;
+
+    DBGPRINT("%s: class name is %s", Q_FUNC_INFO, w->metaObject()->className());
+    QMenuBar *mb = qobject_cast<QMenuBar *>(w);
+    if (mb != nullptr) {
+        // we click on menu, to fix different size of font issue, lets
+        // click on the middle
+        DBGPRINT("%s: this widget is QMenuBar", Q_FUNC_INFO);
+        pos.ry() = w->height() / 2 - 1;
+    }
+
+    QLineEdit *le = qobject_cast<QLineEdit *>(w);
+    if (le != nullptr) {
+        DBGPRINT("%s: this is line edit", Q_FUNC_INFO);
+// some times click on line edit do not give
+// focus to it, because of different size on different OSes
+#ifdef DEBUG_SCRIPT_API
+        QRect cr =
+#endif
+            MyLineEdit::adjustedContentsRect(*le);
+        DBGPRINT("%s: begin of content of QLineEdit  x %d, y %d, w %d, h %d",
+                 Q_FUNC_INFO, cr.x(), cr.y(), cr.width(), cr.height());
+    }
+
+    moveMouseTo(agent, w->mapToGlobal(pos));
+
+    if (dblClick)
+        QTest::mouseDClick(w, btn, 0, pos, -1);
+    else
+        QTest::mouseClick(w, btn, 0, pos, -1);
+}
+
+QWidget *qt_monkey_agent::getWidgetWithSuchName(
+    qt_monkey_agent::Agent &agent, const QString &objectName,
+    const int maxTimeToFindWidgetSec, bool shouldBeEnabled)
 {
     DBGPRINT("%s begin, search %s", Q_FUNC_INFO, qPrintable(objectName));
     QWidget *w = nullptr;
@@ -499,6 +517,8 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
     for (int i = 0; i < maxAttempts; ++i) {
         agent.runCodeInGuiThreadSync([&w, &objectName] {
             w = doGetWidgetWithSuchName(objectName);
+            DBGPRINT("%s, %d: w '%s'", Q_FUNC_INFO, __LINE__,
+                     w != nullptr ? qPrintable(w->objectName()) : "nullptr");
             if (w != nullptr && canNotFind(*w))
                 w = nullptr;
             return QString();
@@ -506,6 +526,9 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
 
         if (w == nullptr
             || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
+            DBGPRINT("%s, %d: w '%s'", Q_FUNC_INFO, __LINE__,
+                     w != nullptr ? qPrintable(w->objectName()) : "nullptr");
+            w = nullptr;
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(sleepTimeForWaitWidgetMs));
         } else {
@@ -806,11 +829,12 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
              qPrintable(keyseqStr));
 
     QWidget *w = getWidgetWithSuchName(agent_, widgetName,
-                                       waitWidgetAppearTimeoutSec_, false);
+                                       waitWidgetAppearTimeoutSec_, true);
 
     if (w == nullptr) {
         agent_.throwScriptError(
-            QString("Can not find widget with such name %1").arg(widgetName));
+            QStringLiteral("Can not find widget with such name %1")
+                .arg(widgetName));
         return;
     }
 
@@ -828,8 +852,12 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
         [w, keySeq, modifiers] {
             if (!w->hasFocus())
                 w->setFocus(Qt::ShortcutFocusReason);
+            DBGPRINT("%s: key(%s) click for widget", Q_FUNC_INFO,
+                     qPrintable(keySeq.toString()));
             QTest::keyClick(w, static_cast<Qt::Key>(keySeq[keySeq.count() - 1]),
                             modifiers, -1);
+            DBGPRINT("%s: key(%s) click for widget DONE", Q_FUNC_INFO,
+                     qPrintable(keySeq.toString()));
             return QString();
         },
         newEventLoopWaitTimeoutSecs_);
@@ -926,7 +954,8 @@ void ScriptAPI::setDemonstrationMode(bool val)
     agent_.setDemonstrationMode(val);
 }
 
-void ScriptAPI::pressButtonWithText(const QString &parentNameWidget, const QString &btnText)
+void ScriptAPI::pressButtonWithText(const QString &parentNameWidget,
+                                    const QString &btnText)
 {
     Step step(agent_);
 
@@ -941,18 +970,21 @@ void ScriptAPI::pressButtonWithText(const QString &parentNameWidget, const QStri
         = (waitWidgetAppearTimeoutSec_ * 1000) / sleepTimeForWaitWidgetMs + 1;
     for (int i = 0; i < maxAttempts; ++i) {
         auto agent = &agent_;
-        const QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout([agent, btnText, w] {
-                const QObjectList& clist = w->children();
+        const QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+            [agent, btnText, w] {
+                const QObjectList &clist = w->children();
                 for (QObject *qobj : clist)
                     if (auto bt = qobject_cast<QAbstractButton *>(qobj)) {
                         if (bt->text() == btnText) {
                             DBGPRINT("%s: button was found", Q_FUNC_INFO);
-                            clickInGuiThread(*agent, bt->rect().center(), *bt, Qt::LeftButton, false);
+                            clickInGuiThread(*agent, bt->rect().center(), *bt,
+                                             Qt::LeftButton, false);
                             return QString();
                         }
                     }
                 return QStringLiteral("not found");
-            }, newEventLoopWaitTimeoutSecs_);
+            },
+            newEventLoopWaitTimeoutSecs_);
 
         if (errMsg.isEmpty()) {
             DBGPRINT("%s: button found", Q_FUNC_INFO);
@@ -963,5 +995,34 @@ void ScriptAPI::pressButtonWithText(const QString &parentNameWidget, const QStri
     }
     agent_.throwScriptError(
         QStringLiteral("There is no such button, parent %1, text %2")
-        .arg(parentNameWidget).arg(btnText));
+            .arg(parentNameWidget)
+            .arg(btnText));
+}
+
+void ScriptAPI::Assert(bool condition)
+{
+    Step step(agent_);
+    if (!condition)
+        agent_.throwScriptError(QStringLiteral("Assertion failed"));
+}
+
+void ScriptAPI::AssertEqual(const QString &s1, const QString &s2)
+{
+    Step step(agent_);
+    if (s1 != s2)
+        agent_.throwScriptError(
+            QStringLiteral("Assertion failed: Expect \"%1\", Actual \"%2\"")
+                .arg(s1)
+                .arg(s2));
+}
+
+QObject *ScriptAPI::getObjectById(const QString &id)
+{
+    Step step(agent_);
+    QWidget *w
+        = getWidgetWithSuchName(agent_, id, waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr)
+        agent_.throwScriptError(
+            QStringLiteral("There is no such widget %1").arg(id));
+    return w;
 }

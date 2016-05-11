@@ -12,6 +12,11 @@ namespace qt_monkey_agent
 class Agent;
 
 void moveMouseTo(Agent &, const QPoint &point);
+void clickInGuiThread(Agent &agent, const QPoint &posA, QWidget &wA,
+                      Qt::MouseButton btn, bool dblClick);
+QWidget *getWidgetWithSuchName(Agent &agent, const QString &objectName,
+                               const int maxTimeToFindWidgetSec,
+                               bool shouldBeEnabled);
 /**
  * public slots of this class are functions
  * that exposed to qt monkey script
@@ -128,7 +133,22 @@ public slots:
      * @param parentNameWidget name of parent widget
      * @param text             caption on button
      */
-    void pressButtonWithText(const QString &parentNameWidget, const QString &text);
+    void pressButtonWithText(const QString &parentNameWidget,
+                             const QString &text);
+
+    //@{
+    /**
+     * Check condition and throw exception if is false
+     */
+    void Assert(bool condition);
+    void AssertEqual(const QString &s1, const QString &s2);
+    //@}
+    /**
+     * Get QObject by id (you can get id with shortcut which you give to Agent)
+     * @param id identificator of object
+     */
+    QObject *getObjectById(const QString &id);
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;
