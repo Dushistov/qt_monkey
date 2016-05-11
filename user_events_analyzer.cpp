@@ -884,6 +884,9 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
         emit userEventInScriptForm(scriptLine);
         break;
     } // event by mouse
+    case QEvent::Shortcut:
+        DBGPRINT("%s: shortcut event", Q_FUNC_INFO);
+        //fall through
     default: {
         const QString code
             = callCustomEventAnalyzers(obj, event, nullptr, QString());
