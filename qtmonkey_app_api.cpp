@@ -64,7 +64,7 @@ void parseOutputFromMonkeyApp(
     const std::function<void(QString)> &onScriptLog,
     const std::function<void(QString)> &onParseError)
 {
-    assert(data.size() >= 0);
+    assert(data.size() > 0);
     stopPos = 0;
     std::string::size_type parserStopPos;
     std::string err;

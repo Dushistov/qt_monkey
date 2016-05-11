@@ -13,6 +13,7 @@
 #include <QStyleOption>
 #include <QTreeWidget>
 #include <QWidget>
+#include <QAbstractButton>
 #if QT_VERSION < 0x050000
 #include <QWorkspace>
 #else
@@ -42,6 +43,8 @@ using qt_monkey_agent::Agent;
 
 namespace
 {
+static const int sleepTimeForWaitWidgetMs = 70;
+
 class MyLineEdit final : public QLineEdit
 {
 public:
@@ -490,7 +493,6 @@ QWidget *getWidgetWithSuchName(qt_monkey_agent::Agent &agent,
 {
     DBGPRINT("%s begin, search %s", Q_FUNC_INFO, qPrintable(objectName));
     QWidget *w = nullptr;
-    static const int sleepTimeForWaitWidgetMs = 70;
 
     const int maxAttempts
         = (maxTimeToFindWidgetSec * 1000) / sleepTimeForWaitWidgetMs + 1;
@@ -804,7 +806,7 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
              qPrintable(keyseqStr));
 
     QWidget *w = getWidgetWithSuchName(agent_, widgetName,
-                                       waitWidgetAppearTimeoutSec_, true);
+                                       waitWidgetAppearTimeoutSec_, false);
 
     if (w == nullptr) {
         agent_.throwScriptError(
@@ -922,4 +924,44 @@ void ScriptAPI::setDemonstrationMode(bool val)
 {
     Step step(agent_);
     agent_.setDemonstrationMode(val);
+}
+
+void ScriptAPI::pressButtonWithText(const QString &parentNameWidget, const QString &btnText)
+{
+    Step step(agent_);
+
+    QWidget *w = getWidgetWithSuchName(agent_, parentNameWidget,
+                                       waitWidgetAppearTimeoutSec_, true);
+    if (w == nullptr) {
+        agent_.throwScriptError(
+            QStringLiteral("There is no such widget %1").arg(parentNameWidget));
+        return;
+    }
+    const int maxAttempts
+        = (waitWidgetAppearTimeoutSec_ * 1000) / sleepTimeForWaitWidgetMs + 1;
+    for (int i = 0; i < maxAttempts; ++i) {
+        auto agent = &agent_;
+        const QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout([agent, btnText, w] {
+                const QObjectList& clist = w->children();
+                for (QObject *qobj : clist)
+                    if (auto bt = qobject_cast<QAbstractButton *>(qobj)) {
+                        if (bt->text() == btnText) {
+                            DBGPRINT("%s: button was found", Q_FUNC_INFO);
+                            clickInGuiThread(*agent, bt->rect().center(), *bt, Qt::LeftButton, false);
+                            return QString();
+                        }
+                    }
+                return QStringLiteral("not found");
+            }, newEventLoopWaitTimeoutSecs_);
+
+        if (errMsg.isEmpty()) {
+            DBGPRINT("%s: button found", Q_FUNC_INFO);
+            return;
+        }
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(sleepTimeForWaitWidgetMs));
+    }
+    agent_.throwScriptError(
+        QStringLiteral("There is no such button, parent %1, text %2")
+        .arg(parentNameWidget).arg(btnText));
 }

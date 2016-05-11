@@ -122,6 +122,13 @@ public slots:
 
     //! switch on/off demo mode (when emulated user actions done on slow speed)
     void setDemonstrationMode(bool val);
+
+    /**
+     * press button with text
+     * @param parentNameWidget name of parent widget
+     * @param text             caption on button
+     */
+    void pressButtonWithText(const QString &parentNameWidget, const QString &text);
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

@@ -4,6 +4,7 @@ Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget
 //expect: Test.keyClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Enter');
 //expect: Test.keyClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox.<class_name=QComboBoxPrivateContainer>.<class_name=QComboBoxListView>', 'Enter');
 ExtAPI.pressButton("Custom Button");
+Test.pressButtonWithText('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab', 'dynamic widget');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_tabbar', 'Tab 2');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_2.treeWidget', '1');
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab_2.treeWidget', '1');

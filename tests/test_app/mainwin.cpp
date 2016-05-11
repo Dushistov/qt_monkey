@@ -29,6 +29,9 @@ MainWin::MainWin()
 
 
     listView->setModel(standardModel);
+
+    auto btn = new QPushButton("dynamic widget", this);
+    verticalLayout_2->addWidget(btn);
 }
 
 void MainWin::on_actionQuit_triggered() { qApp->quit(); }
