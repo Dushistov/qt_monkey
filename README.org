@@ -3,11 +3,11 @@
 [[https://github.com/Dushistov/qt_monkey/blob/master/LICENSE][https://img.shields.io/badge/license-BSD-green.svg]]
 
 * Introduction
-Qt Monkey is a tool to automate testing of Qt-based applications( widgets only).
+Qt Monkey is a tool to automate testing of Qt-based applications (widgets only).
 It automates creation/modification and running of the tests.
-Tests are written in Javascript( Qt supported dialect).
+Tests are written in Javascript (Qt supported dialect).
 
-To write your tests, simply run your application( instrumented by Qt Monkey) and click
+To write your tests, simply run your application (instrumented by Qt Monkey) and click
 on widget, input text, etc. As a result, a script in Javascript will be generated
 (see https://github.com/Dushistov/qt_monkey/blob/master/tests/test1.js for example).
 
@@ -47,7 +47,7 @@ for the more complex usage example.
 * Internals
 
 Qt Monkey consists of three parts: Qt Monkey's agent library (qtmonkey_agent),
-qtmonkey_app(tool that run test application and cooperates with agent) and qtmonkey_gui.
+qtmonkey_app (tool that run test application and cooperates with agent) and qtmonkey_gui.
 qtmonkey_app and qtmonkey_gui use json as their preferred data marshalling language
 and communicate via stdin/stdout streams. Therefore you can easily replace qtmonkey_gui
 with a plugin for your favorite IDE.
