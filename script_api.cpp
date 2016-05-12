@@ -58,7 +58,8 @@ QRect MyLineEdit::adjustedContentsRect(const QLineEdit &le)
     return le.style()->subElementRect(QStyle::SE_LineEditContents, &opt, &le);
 }
 static QWidget *bruteForceWidgetSearch(const QString &objectName,
-                                       const QString &className)
+                                       const QString &className,
+                                       bool shouldBeEnabled)
 {
     for (QWidget *widget : QApplication::allWidgets()) {
         if (!className.isEmpty()
@@ -66,11 +67,17 @@ static QWidget *bruteForceWidgetSearch(const QString &objectName,
             DBGPRINT("%s: found widget with class %s, w %s", Q_FUNC_INFO,
                      qPrintable(className),
                      widget == nullptr ? "null" : "not null");
+            if (shouldBeEnabled
+                && !(widget->isEnabled() && widget->isVisible()))
+                continue;
             return widget;
         }
         if (widget->objectName() == objectName) {
             DBGPRINT("%s: found widget %s", Q_FUNC_INFO,
                      qPrintable(objectName));
+            if (shouldBeEnabled
+                && !(widget->isEnabled() && widget->isVisible()))
+                continue;
             return widget;
         }
     }
@@ -80,7 +87,8 @@ static QWidget *bruteForceWidgetSearch(const QString &objectName,
     return nullptr;
 }
 
-static QWidget *doGetWidgetWithSuchName(const QString &objectName)
+static QWidget *doGetWidgetWithSuchName(const QString &objectName,
+                                        bool shouldBeEnabled)
 {
     QStringList names = objectName.split('.');
 
@@ -116,7 +124,7 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
                 lst = widget->findChildren<QObject *>(mainWidgetName);
             }
 
-            if (lst.count())
+            if (!lst.isEmpty())
                 break;
         }
     }
@@ -128,7 +136,8 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
         QString className;
         if (class_name_rx.indexIn(mainWidgetName) != -1)
             className = class_name_rx.cap(1);
-        QWidget *w = bruteForceWidgetSearch(mainWidgetName, className);
+        QWidget *w = bruteForceWidgetSearch(mainWidgetName, className,
+                                            shouldBeEnabled);
         if (w == nullptr)
             return nullptr;
         lst << w;
@@ -170,9 +179,12 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
                 || (*it)->objectName() == el) {
                 DBGPRINT("%s: found widget %s, order %d", Q_FUNC_INFO,
                          qPrintable(el), order);
+                w = qobject_cast<QWidget *>(*it);
+                if (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))
+                    continue;
                 if (order++ != class_order)
                     continue;
-                w = qobject_cast<QWidget *>(*it);
+
                 names.removeFirst();
                 break;
             }
@@ -182,7 +194,7 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName)
             DBGPRINT("(%s, %d): Can not find object with such name %s, try "
                      "brute search",
                      Q_FUNC_INFO, __LINE__, qPrintable(el));
-            w = bruteForceWidgetSearch(el, class_name);
+            w = bruteForceWidgetSearch(el, class_name, shouldBeEnabled);
             if (w == nullptr) {
                 DBGPRINT("(%s, %d) brute force failed", Q_FUNC_INFO, __LINE__);
                 return nullptr;
@@ -515,19 +527,24 @@ QWidget *qt_monkey_agent::getWidgetWithSuchName(
     const int maxAttempts
         = (maxTimeToFindWidgetSec * 1000) / sleepTimeForWaitWidgetMs + 1;
     for (int i = 0; i < maxAttempts; ++i) {
-        agent.runCodeInGuiThreadSync([&w, &objectName] {
-            w = doGetWidgetWithSuchName(objectName);
-            DBGPRINT("%s, %d: w '%s'", Q_FUNC_INFO, __LINE__,
+        agent.runCodeInGuiThreadSync([&w, &objectName, shouldBeEnabled] {
+            w = doGetWidgetWithSuchName(objectName, shouldBeEnabled);
+            DBGPRINT("%s, %d: doGetWidgetWithSuchName return w '%s'",
+                     Q_FUNC_INFO, __LINE__,
                      w != nullptr ? qPrintable(w->objectName()) : "nullptr");
-            if (w != nullptr && canNotFind(*w))
+            if (w != nullptr && canNotFind(*w)) {
+                DBGPRINT("%s: canNotFind return true", Q_FUNC_INFO);
                 w = nullptr;
+            }
             return QString();
         });
 
         if (w == nullptr
             || (shouldBeEnabled && !(w->isVisible() && w->isEnabled()))) {
-            DBGPRINT("%s, %d: w '%s'", Q_FUNC_INFO, __LINE__,
-                     w != nullptr ? qPrintable(w->objectName()) : "nullptr");
+            DBGPRINT("%s, %d: w '%s', v %d e %d", Q_FUNC_INFO, __LINE__,
+                     w != nullptr ? qPrintable(w->objectName()) : "nullptr",
+                     static_cast<int>(w ? w->isVisible() : 0),
+                     static_cast<int>(w ? w->isEnabled() : 0));
             w = nullptr;
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(sleepTimeForWaitWidgetMs));
@@ -1020,7 +1037,7 @@ QObject *ScriptAPI::getObjectById(const QString &id)
 {
     Step step(agent_);
     QWidget *w
-        = getWidgetWithSuchName(agent_, id, waitWidgetAppearTimeoutSec_, true);
+        = getWidgetWithSuchName(agent_, id, waitWidgetAppearTimeoutSec_, false);
     if (w == nullptr)
         agent_.throwScriptError(
             QStringLiteral("There is no such widget %1").arg(id));
