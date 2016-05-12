@@ -29,7 +29,7 @@ class Agent;
 //! helper functions to implement custom event analyzers
 
 //! Get full widget id, in form parent of parent id.parent id.widget id
-QString fullQtWidgetId(const QWidget &w);
+QString fullQtWidgetId(const QObject &w);
 
 //! convert mouse button constant <-> string
 QString mouseButtonEnumToString(Qt::MouseButton b);
