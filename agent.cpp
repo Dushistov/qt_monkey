@@ -3,12 +3,13 @@
 
 #include <atomic>
 #include <cassert>
-#include <cstdlib>
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <thread>
 
-#include <QtCore/QCoreApplication>
+#include <QApplication>
+#include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QThread>
 
 #include "agent_qtmonkey_communication.hpp"
@@ -122,8 +123,8 @@ private:
 Agent::Agent(const QKeySequence &showObjectShortcut,
              std::list<CustomEventAnalyzer> customEventAnalyzers,
              PopulateScriptContext psc)
-    : eventAnalyzer_(new UserEventsAnalyzer(*this,
-          showObjectShortcut, std::move(customEventAnalyzers), this)),
+    : eventAnalyzer_(new UserEventsAnalyzer(
+          *this, showObjectShortcut, std::move(customEventAnalyzers), this)),
       populateScriptContextCallback_(std::move(psc))
 {
     // make sure that type is referenced, fix bug with qt4 and static lib
@@ -249,6 +250,11 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                                  int timeoutSecs)
 {
     assert(QThread::currentThread() == thread_);
+    QWidget *wasDialog = nullptr;
+    runCodeInGuiThreadSync([&wasDialog] {
+        wasDialog = qApp->activeModalWidget();
+        return QString();
+    });
 
     std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
     std::shared_ptr<QString> res{new QString};
@@ -257,14 +263,41 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                     *res = func();
                                     waitSem->release();
                                 }));
-    const int timeoutMsec = timeoutSecs * 1000;
-    const int waitIntervalMsec = 100;
-    const int N = timeoutMsec / waitIntervalMsec + 1;
-    for (int attempt = 0; attempt < N; ++attempt) {
-        if (waitSem->tryAcquire(1, waitIntervalMsec))
-            return *res;
+
+    QWidget *nowDialog = nullptr;
+    runCodeInGuiThreadSync(
+        [&nowDialog] { /*this code send event internally, so
+                         if new QEventLoop was created, it will
+                         be executed after handling of event posted above
+                        */
+                       auto dispatcher = QAbstractEventDispatcher::instance(
+                           QThread::currentThread());
+                       if (dispatcher == nullptr)
+                           return QStringLiteral("no event dispatcher");
+                       // if @func cause dialog close, then process all events,
+                       // to prevent post of next event to QDialog's QEventLoop
+                       dispatcher->processEvents(
+                           QEventLoop::ExcludeUserInputEvents);
+                       nowDialog = qApp->activeModalWidget();
+                       return QString();
+        });
+    if (nowDialog != wasDialog) {
+        DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
+        // it may not return, if @func cause new QEventLoop creation, so
+        const int timeoutMsec = timeoutSecs * 1000;
+        const int waitIntervalMsec = 100;
+        const int N = timeoutMsec / waitIntervalMsec + 1;
+        for (int attempt = 0; attempt < N; ++attempt) {
+            if (waitSem->tryAcquire(1, waitIntervalMsec))
+                return *res;
+        }
+        DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
+    } else {
+        DBGPRINT("%s: wait of finished event handling", Q_FUNC_INFO);
+        waitSem->acquire();
+        DBGPRINT("%s: wait of finished event handling DONE", Q_FUNC_INFO);
     }
-    DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
+
     return QString();
 }
 
