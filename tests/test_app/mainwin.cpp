@@ -1,5 +1,6 @@
 #include "mainwin.hpp"
 
+#include <QMessageBox>
 #include <QStandardItem>
 
 static QList<QStandardItem *>
@@ -27,7 +28,6 @@ MainWin::MainWin()
 
     treeView->setModel(standardModel);
 
-
     listView->setModel(standardModel);
 
     auto btn = new QPushButton("dynamic widget", this);
@@ -35,3 +35,8 @@ MainWin::MainWin()
 }
 
 void MainWin::on_actionQuit_triggered() { qApp->quit(); }
+
+void MainWin::on_pushButton_ModalDialog_pressed()
+{
+    QMessageBox::aboutQt(this);
+}

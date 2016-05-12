@@ -10,4 +10,5 @@ public:
     MainWin();
 private slots:
     void on_actionQuit_triggered();
+    void on_pushButton_ModalDialog_pressed();
 };

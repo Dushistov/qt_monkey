@@ -1,4 +1,5 @@
-Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.pushButton', 'Qt.LeftButton', 67, 13);
+Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.pushButton_ModalDialog', 'Qt.LeftButton', 363, 17);
+Test.pressButtonWithText('MainWindow.<class_name=QMessageBox>.qt_msgbox_buttonbox', 'OK');
 Test.mouseClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Qt.LeftButton', 135, 20);
 Test.activateItem('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'item2');
 //expect: Test.keyClick('MainWindow.centralwidget.tabWidget.qt_tabwidget_stackedwidget.tab.comboBox', 'Enter');
