@@ -13,6 +13,7 @@ class string_view;
 namespace qt_monkey_app
 {
 std::string createPacketFromUserAppEvent(const QString &scriptLines);
+std::string createPacketFromUserAppOutput(const QString &stdOutLines);
 std::string createPacketFromUserAppErrors(const QString &errOut);
 std::string createPacketFromScriptEnd();
 std::string createPacketFromUserAppScriptLog(const QString &logMsg);

@@ -14,7 +14,7 @@ namespace
 {
 struct QStringJsonTrait final {
     explicit QStringJsonTrait(const QString &s) : str_(s) {}
-    std::string to_json() const { return str_.toStdString(); }
+    std::string to_json() const { return str_.toUtf8().data(); }
 private:
     const QString &str_;
 };
@@ -25,6 +25,12 @@ std::string createPacketFromUserAppEvent(const QString &scriptLines)
     auto json = Json::object{
         {"event", Json::object{{"script", QStringJsonTrait{scriptLines}}}}};
 
+    return Json{json}.dump();
+}
+
+std::string createPacketFromUserAppOutput(const QString &stdOutLines)
+{
+    auto json = Json::object{{"app output", QStringJsonTrait{stdOutLines}}};
     return Json{json}.dump();
 }
 

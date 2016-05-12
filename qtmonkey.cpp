@@ -239,8 +239,9 @@ void QtMonkey::userAppFinished(int exitCode, QProcess::ExitStatus exitStatus)
 
 void QtMonkey::userAppNewOutput()
 {
-    // just ignore for now
-    userApp_.readAllStandardOutput();
+    const QString stdoutStr
+        = QString::fromLocal8Bit(userApp_.readAllStandardOutput());
+    std::cout << createPacketFromUserAppOutput(stdoutStr) << std::endl;
 }
 
 void QtMonkey::userAppNewErrOutput()
