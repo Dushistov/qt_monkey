@@ -265,7 +265,7 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                 }));
 
     QWidget *nowDialog = nullptr;
-    runCodeInGuiThreadSync(
+    const QString errMsg = runCodeInGuiThreadSync(
         [&nowDialog] { /*this code send event internally, so
                          if new QEventLoop was created, it will
                          be executed after handling of event posted above
@@ -281,6 +281,10 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                        nowDialog = qApp->activeModalWidget();
                        return QString();
         });
+    if (!errMsg.isEmpty()) {
+        qWarning("%s: get errMsg %s", Q_FUNC_INFO, qPrintable(errMsg));
+        return errMsg;
+    }
     if (nowDialog != wasDialog) {
         DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
         // it may not return, if @func cause new QEventLoop creation, so
