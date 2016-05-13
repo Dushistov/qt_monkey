@@ -11,6 +11,7 @@
 #include <QApplication>
 #include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QThread>
+#include <QWidget>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
@@ -216,6 +217,8 @@ void Agent::scriptCheckPoint()
     assert(curScriptRunner_ != nullptr);
     const int lineno = curScriptRunner_->currentLineNum();
     DBGPRINT("%s: lineno %d", Q_FUNC_INFO, lineno);
+    if (scriptTracingMode_)
+        sendToLog(QStringLiteral("reached %1 line").arg(lineno));
 }
 
 QString Agent::runCodeInGuiThreadSync(std::function<QString()> func)
@@ -256,6 +259,11 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         return QString();
     });
 
+    if (scriptTracingMode_)
+        sendToLog(QStringLiteral("current model widget %1")
+                      .arg(wasDialog ? wasDialog->objectName()
+                                     : QStringLiteral("null")));
+
     std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
     std::shared_ptr<QString> res{new QString};
     QCoreApplication::postEvent(this,
@@ -285,6 +293,12 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         qWarning("%s: get errMsg %s", Q_FUNC_INFO, qPrintable(errMsg));
         return errMsg;
     }
+    if (scriptTracingMode_)
+        sendToLog(QStringLiteral("current model widget %1, wait %2")
+                      .arg(nowDialog ? nowDialog->objectName()
+                                     : QStringLiteral("null"))
+                  .arg(nowDialog != wasDialog ? "with timeout" : "endless"));
+
     if (nowDialog != wasDialog) {
         DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
         // it may not return, if @func cause new QEventLoop creation, so
@@ -301,6 +315,8 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         waitSem->acquire();
         DBGPRINT("%s: wait of finished event handling DONE", Q_FUNC_INFO);
     }
+    if (scriptTracingMode_)
+        sendToLog(QStringLiteral("run in gui thread done"));
 
     return QString();
 }

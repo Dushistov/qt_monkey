@@ -17,18 +17,20 @@ namespace Private
 {
 class StdinReader
 #ifndef Q_MOC_RUN
-	final
+    final
 #endif
-	: public QObject {
-	Q_OBJECT
+    : public QObject
+{
+    Q_OBJECT
 signals:
-	void error(const QString &msg);
-	void dataReady();
+    void error(const QString &msg);
+    void dataReady();
+
 public:
     qt_monkey_common::SharedResource<QByteArray> data;
 
-	void emitError(const QString &msg) { emit error(msg); }
-	void emitDataReady() { emit dataReady(); }
+    void emitError(const QString &msg) { emit error(msg); }
+    void emitDataReady() { emit dataReady(); }
 };
 }
 //! main class to control agent
@@ -48,7 +50,8 @@ public:
         userAppArgs_ = std::move(userAppArgs);
         userApp_.start(userAppPath_, userAppArgs_);
     }
-    bool runScriptFromFile(QStringList scriptPathList,
+    bool runScriptFromFile(QString codeToRunBeforeAll,
+                           QStringList scriptPathList,
                            const char *encoding = "UTF-8");
 private slots:
     void userAppError(QProcess::ProcessError);
@@ -70,8 +73,8 @@ private:
     QProcess userApp_;
     std::queue<qt_monkey_agent::Private::Script> toRunList_;
     bool exitOnScriptError_ = false;
-	Private::StdinReader stdinReader_;
-	QThread *readStdinThread_ = nullptr;
+    Private::StdinReader stdinReader_;
+    QThread *readStdinThread_ = nullptr;
     QString userAppPath_;
     QStringList userAppArgs_;
     bool restartDone_ = false;

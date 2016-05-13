@@ -1049,3 +1049,9 @@ QObject *ScriptAPI::getObjectById(const QString &id)
             QStringLiteral("There is no such widget %1").arg(id));
     return w;
 }
+
+void ScriptAPI::setTraceEnabled(bool val)
+{
+    Step step(agent_);
+    agent_.setTraceEnabled(val);
+}

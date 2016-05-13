@@ -74,6 +74,7 @@ static void msgHandler(QtMsgType type, const char *msg)
 static QString usage()
 {
     return T_("Usage: %1 [--exit-on-script-error] [--encoding file_encoding] "
+              "[--trace-script-exec] "
               "[--script path/to/script] "
               "--user-app "
               "path/to/application [application's command line args]\n")
@@ -90,6 +91,8 @@ int main(int argc, char *argv[])
     int userAppOffset = -1;
     QStringList scripts;
     const char *encoding = "UTF-8";
+    QString codeToRunBeforeAll;
+
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--user-app") == 0) {
             if ((i + 1) >= argc) {
@@ -115,6 +118,8 @@ int main(int argc, char *argv[])
             }
             ++i;
             encoding = argv[i];
+        } else if (std::strcmp(argv[i], "--trace-script-exec") == 0) {
+            codeToRunBeforeAll = QStringLiteral("Test.setTraceEnabled(true);");
         } else if (std::strcmp(argv[i], "--help") == 0
                    || std::strcmp(argv[i], "-h") == 0) {
             std::cout << qPrintable(usage());
@@ -135,7 +140,7 @@ int main(int argc, char *argv[])
     qt_monkey_app::QtMonkey monkey(exitOnScriptError);
 
     if (!scripts.empty()
-        && !monkey.runScriptFromFile(std::move(scripts), encoding))
+        && !monkey.runScriptFromFile(std::move(codeToRunBeforeAll), std::move(scripts), encoding))
         return EXIT_FAILURE;
 
     monkey.runApp(QString::fromLocal8Bit(argv[userAppOffset]),

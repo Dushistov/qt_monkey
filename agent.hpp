@@ -71,6 +71,7 @@ public:
     void throwScriptError(QString msg);
     void setDemonstrationMode(bool val) { demonstrationMode_ = val; }
     bool demonstrationMode() const { return demonstrationMode_; }
+    void setTraceEnabled(bool val) { scriptTracingMode_ = val; }
     static Agent *instance() { return gAgent_; }
 private slots:
     void onUserEventInScriptForm(const QString &);
@@ -103,6 +104,7 @@ private:
     PopulateScriptContext populateScriptContextCallback_;
     static Agent *gAgent_;
     std::atomic<bool> demonstrationMode_{false};
+    std::atomic<bool> scriptTracingMode_{false};
     qt_monkey_common::SharedResource<std::multimap<QString, QAction *>> menuItemsOnMac_;
 
     void customEvent(QEvent *event) override;

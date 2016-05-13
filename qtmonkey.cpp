@@ -285,7 +285,8 @@ void QtMonkey::onScriptError(QString errMsg)
     }
 }
 
-bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
+bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
+                                 QStringList scriptPathList,
                                  const char *encoding)
 {
     if (encoding == nullptr)
@@ -303,6 +304,9 @@ bool QtMonkey::runScriptFromFile(QStringList scriptPathList,
         auto scripts = Script::splitToExecutableParts(fn, script);
         for (auto &&script : scripts) {
             script.setRunAfterAppStart(!toRunList_.empty());
+            if (!codeToRunBeforeAll.isEmpty())
+                toRunList_.emplace(QStringLiteral("<tmp>"), 1,
+                                   std::move(codeToRunBeforeAll));
             toRunList_.push(std::move(script));
         }
     }

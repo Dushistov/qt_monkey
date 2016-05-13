@@ -128,6 +128,9 @@ public slots:
     //! switch on/off demo mode (when emulated user actions done on slow speed)
     void setDemonstrationMode(bool val);
 
+    //! enable/disable script tracing
+    void setTraceEnabled(bool val);
+
     /**
      * press button with text
      * @param parentNameWidget name of parent widget
