@@ -259,11 +259,6 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         return QString();
     });
 
-    if (scriptTracingMode_)
-        sendToLog(QStringLiteral("current model widget %1")
-                      .arg(wasDialog ? wasDialog->objectName()
-                                     : QStringLiteral("null")));
-
     std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
     std::shared_ptr<QString> res{new QString};
     QCoreApplication::postEvent(this,
@@ -272,32 +267,21 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                     waitSem->release();
                                 }));
 
+    QCoreApplication::postEvent(this,
+                                new FuncEvent(eventType_, [this] {
+                                        qApp->sendPostedEvents(this, eventType_);
+                                    }));
+
     QWidget *nowDialog = nullptr;
     const QString errMsg = runCodeInGuiThreadSync(
-        [&nowDialog] { /*this code send event internally, so
-                         if new QEventLoop was created, it will
-                         be executed after handling of event posted above
-                        */
-                       auto dispatcher = QAbstractEventDispatcher::instance(
-                           QThread::currentThread());
-                       if (dispatcher == nullptr)
-                           return QStringLiteral("no event dispatcher");
-                       // if @func cause dialog close, then process all events,
-                       // to prevent post of next event to QDialog's QEventLoop
-                       dispatcher->processEvents(
-                           QEventLoop::ExcludeUserInputEvents);
-                       nowDialog = qApp->activeModalWidget();
-                       return QString();
+        [&nowDialog] {
+            nowDialog = qApp->activeModalWidget();
+            return QString();
         });
     if (!errMsg.isEmpty()) {
         qWarning("%s: get errMsg %s", Q_FUNC_INFO, qPrintable(errMsg));
         return errMsg;
     }
-    if (scriptTracingMode_)
-        sendToLog(QStringLiteral("current model widget %1, wait %2")
-                      .arg(nowDialog ? nowDialog->objectName()
-                                     : QStringLiteral("null"))
-                  .arg(nowDialog != wasDialog ? "with timeout" : "endless"));
 
     if (nowDialog != wasDialog) {
         DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
@@ -315,8 +299,6 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         waitSem->acquire();
         DBGPRINT("%s: wait of finished event handling DONE", Q_FUNC_INFO);
     }
-    if (scriptTracingMode_)
-        sendToLog(QStringLiteral("run in gui thread done"));
 
     return QString();
 }
