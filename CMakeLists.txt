@@ -30,7 +30,7 @@ elseif ("${QT_VARIANT}" STREQUAL "qt5")
   include_directories(${Qt5Widgets_INCLUDE_DIRS})
   set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::Test Qt5::Script)
 endif ()
-
+message(STATUS "Build with ${QT_VARIANT} support")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
