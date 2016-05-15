@@ -9,9 +9,9 @@
 #include <thread>
 
 #include <QApplication>
+#include <QWidget>
 #include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QThread>
-#include <QWidget>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
@@ -268,37 +268,47 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
                                     waitSem->release();
                                 }));
 
+    // make sure that prev event was handled
+    std::shared_ptr<Semaphore> syncSem{new Semaphore{0}};
     QCoreApplication::postEvent(this,
-                                new FuncEvent(eventType_, [this] {
-                                        qApp->sendPostedEvents(this, eventType_);
-                                    }));
+                                new FuncEvent(eventType_, [this, syncSem] {
+                                    syncSem->release();
+                                    qApp->sendPostedEvents(this, eventType_);
+                                    syncSem->release();
+                                }));
+    syncSem->acquire();
+    const int timeoutMsec = timeoutSecs * 1000;
+    const int waitIntervalMsec = 100;
+    const int N = timeoutMsec / waitIntervalMsec + 1;
+    int attempt;
+    for (attempt = 0; attempt < N / 2; ++attempt) {
+        if (syncSem->tryAcquire(1, std::chrono::milliseconds(waitIntervalMsec)))
+            break;
+        qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
 
     QWidget *nowDialog = nullptr;
-    const QString errMsg = runCodeInGuiThreadSync(
-        [&nowDialog] {
-            nowDialog = qApp->activeModalWidget();
-            return QString();
-        });
-    if (!errMsg.isEmpty()) {
-        qWarning("%s: get errMsg %s", Q_FUNC_INFO, qPrintable(errMsg));
-        return errMsg;
-    }
+    runCodeInGuiThreadSync([&nowDialog] {
+        nowDialog = qApp->activeModalWidget();
+        return QString();
+    });
 
     if (nowDialog != wasDialog) {
         DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
         // it may not return, if @func cause new QEventLoop creation, so
-        const int timeoutMsec = timeoutSecs * 1000;
-        const int waitIntervalMsec = 100;
-        const int N = timeoutMsec / waitIntervalMsec + 1;
-        for (int attempt = 0; attempt < N; ++attempt) {
-            if (waitSem->tryAcquire(1, std::chrono::milliseconds(waitIntervalMsec)))
+
+        for (; attempt < N; ++attempt) {
+            if (waitSem->tryAcquire(
+                    1, std::chrono::milliseconds(waitIntervalMsec)))
                 return *res;
+            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
         }
         DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
     } else {
         DBGPRINT("%s: wait of finished event handling", Q_FUNC_INFO);
         waitSem->acquire();
         DBGPRINT("%s: wait of finished event handling DONE", Q_FUNC_INFO);
+        return *res;
     }
 
     return QString();
