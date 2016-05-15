@@ -53,6 +53,8 @@ TEST(QtMonkey, CommunicationBasic)
     using namespace std::placeholders;
 
     CommunicationMonkeyPart server;
+    const auto env = server.requiredProcessEnvironment();
+    ASSERT_TRUE(qputenv(env.first.toUtf8().data(), env.second.toUtf8()));
     QSignalSpy serverSpy(&server, SIGNAL(newUserAppEvent(QString)));
     ASSERT_TRUE(serverSpy.isValid());
     QSignalSpy serverErr(&server, SIGNAL(error(const QString &)));

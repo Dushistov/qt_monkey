@@ -152,6 +152,11 @@ void ReadStdinThread::stop()
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)
 {
+    QProcessEnvironment curEnv = QProcessEnvironment::systemEnvironment();
+    curEnv.insert(channelWithAgent_.requiredProcessEnvironment().first,
+                  channelWithAgent_.requiredProcessEnvironment().second);
+    userApp_.setProcessEnvironment(curEnv);
+
     connect(&userApp_, SIGNAL(error(QProcess::ProcessError)), this,
             SLOT(userAppError(QProcess::ProcessError)));
     connect(&userApp_, SIGNAL(finished(int, QProcess::ExitStatus)), this,

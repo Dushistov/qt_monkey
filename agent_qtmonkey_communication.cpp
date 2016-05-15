@@ -1,12 +1,13 @@
 //#define DEBUG_AGENT_QTMONKEY_COMMUNICATION
 #include "agent_qtmonkey_communication.hpp"
 
-#include <QtCore/QDataStream>
-#include <QtCore/QThread>
-#include <QtCore/QTimerEvent>
 #include <cassert>
 #include <cstring>
 #include <type_traits>
+
+#include <QtCore/QThread>
+#include <QtCore/QTimerEvent>
+#include <QtCore/QString>
 
 #include "common.hpp"
 #include "script.hpp"
@@ -101,13 +102,10 @@ CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
     if (!controlSock_->listen(QHostAddress::LocalHost))
         throw std::runtime_error(
             qPrintable(T_("start listen of tcp socket failed")));
-    QByteArray portNum;
-    QDataStream stream(&portNum, QIODevice::WriteOnly);
-    stream << controlSock_->serverPort();
+    envPrefs_ = {QLatin1String(QTMONKEY_PORT_ENV_NAME),
+                 QString::number(controlSock_->serverPort())};
     DBGPRINT("%s: we listen %d\n", Q_FUNC_INFO,
-           static_cast<int>(controlSock_->serverPort()));
-    if (!qputenv(QTMONKEY_PORT_ENV_NAME, portNum))
-        throw std::runtime_error(qPrintable(T_("can not set env variable")));
+             static_cast<int>(controlSock_->serverPort()));
 }
 
 void CommunicationMonkeyPart::handleNewConnection()
@@ -248,6 +246,7 @@ bool CommunicationAgentPart::connectToMonkey()
     if (sock_.state() != QAbstractSocket::UnconnectedState) {
         qWarning("%s: you try connect socket in not inital state\n",
                  Q_FUNC_INFO);
+        return false;
     }
 
     connect(&sock_, SIGNAL(bytesWritten(qint64)), this, SLOT(sendData()));
@@ -257,16 +256,17 @@ bool CommunicationAgentPart::connectToMonkey()
             SLOT(connectionError(QAbstractSocket::SocketError)));
 
     QByteArray portnoStr = qgetenv(QTMONKEY_PORT_ENV_NAME);
-    quint16 portno;
-    QDataStream stream(&portnoStr, QIODevice::ReadOnly);
-    stream >> portno;
-    if (stream.status() == QDataStream::Ok) {
+    bool ok = false;
+    const unsigned portno = portnoStr.toUInt(&ok);
+
+    if (ok && portno <= 0xFFFFu) {
         DBGPRINT("%s: portno %d", Q_FUNC_INFO, static_cast<int>(portno));
         sock_.connectToHost(QHostAddress::LocalHost, portno);
         timer_.start(200, this);
         return true;
     } else {
-        qWarning("%s: QTMONKEY_PORT %s", Q_FUNC_INFO,
+        qWarning("%s: QTMONKEY_PORT(%s) %s", Q_FUNC_INFO,
+                 portnoStr.data(),
                  (portnoStr.length() == 0) ? "not defined"
                                            : "not contain suitable number");
         return false;

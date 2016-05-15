@@ -53,6 +53,10 @@ public:
     void sendCommand(PacketTypeForAgent pt, const QString &);
     bool isConnectedState() const;
     void close();
+    const std::pair<QString, QString> &requiredProcessEnvironment() const
+    {
+        return envPrefs_;
+    }
 private slots:
     void handleNewConnection();
     void readDataFromClientSocket();
@@ -65,6 +69,7 @@ private:
     QTcpSocket *curClient_ = nullptr;
     QByteArray sendBuf_;
     QByteArray recvBuf_;
+    std::pair<QString, QString> envPrefs_;
 };
 
 class CommunicationAgentPart
