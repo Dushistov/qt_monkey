@@ -7,11 +7,11 @@
 #include <QKeySequence>
 #include <QtCore/QEvent>
 #include <QtCore/QObject>
-#include <QtCore/QSemaphore>
 
 #include "custom_event_analyzer.hpp"
 #include "custom_script_extension.hpp"
 #include "shared_resource.hpp"
+#include "semaphore.hpp"
 
 class QAction;
 class QThread;
@@ -100,7 +100,7 @@ private:
     QThread *thread_ = nullptr;
     Private::ScriptRunner *curScriptRunner_ = nullptr;
     QEvent::Type eventType_;
-    QSemaphore guiRunSem_{0};
+    qt_monkey_common::Semaphore guiRunSem_{0};
     PopulateScriptContext populateScriptContextCallback_;
     static Agent *gAgent_;
     std::atomic<bool> demonstrationMode_{false};

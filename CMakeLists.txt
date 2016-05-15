@@ -87,6 +87,7 @@ add_library(common_app_lib STATIC
   qtmonkey_app_api.hpp
   qtmonkey_app_api.cpp
   shared_resource.hpp
+  semaphore.hpp
   )
 target_include_directories(common_app_lib PRIVATE contrib/json11)
 target_link_libraries(common_app_lib ${QT_LIBRARIES})

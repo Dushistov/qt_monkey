@@ -24,6 +24,7 @@ using qt_monkey_agent::Agent;
 using qt_monkey_agent::Private::PacketTypeForMonkey;
 using qt_monkey_agent::Private::CommunicationAgentPart;
 using qt_monkey_agent::Private::ScriptRunner;
+using qt_monkey_common::Semaphore;
 
 Agent *Agent::gAgent_ = nullptr;
 
@@ -259,7 +260,7 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         return QString();
     });
 
-    std::shared_ptr<QSemaphore> waitSem{new QSemaphore};
+    std::shared_ptr<Semaphore> waitSem{new Semaphore{0}};
     std::shared_ptr<QString> res{new QString};
     QCoreApplication::postEvent(this,
                                 new FuncEvent(eventType_, [func, waitSem, res] {
@@ -290,7 +291,7 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         const int waitIntervalMsec = 100;
         const int N = timeoutMsec / waitIntervalMsec + 1;
         for (int attempt = 0; attempt < N; ++attempt) {
-            if (waitSem->tryAcquire(1, waitIntervalMsec))
+            if (waitSem->tryAcquire(1, std::chrono::milliseconds(waitIntervalMsec)))
                 return *res;
         }
         DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
