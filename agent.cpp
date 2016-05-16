@@ -24,7 +24,11 @@ using qt_monkey_agent::Agent;
 using qt_monkey_agent::Private::PacketTypeForMonkey;
 using qt_monkey_agent::Private::CommunicationAgentPart;
 using qt_monkey_agent::Private::ScriptRunner;
+using qt_monkey_agent::Private::Script;
 using qt_monkey_common::Semaphore;
+using qt_monkey_agent::CustomEventAnalyzer;
+using qt_monkey_agent::UserEventsAnalyzer;
+using qt_monkey_agent::PopulateScriptContext;
 
 Agent *Agent::gAgent_ = nullptr;
 
@@ -173,7 +177,7 @@ void Agent::onUserEventInScriptForm(const QString &script)
         PacketTypeForMonkey::NewUserAppEvent, script);
 }
 
-void Agent::onRunScriptCommand(const Private::Script &script)
+void Agent::onRunScriptCommand(const Script &script)
 {
     GET_THREAD(thread)
     assert(QThread::currentThread() == thread_);
