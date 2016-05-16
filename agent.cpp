@@ -262,20 +262,18 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
 
     std::shared_ptr<Semaphore> waitSem{new Semaphore{0}};
     std::shared_ptr<QString> res{new QString};
-    QCoreApplication::postEvent(this,
-                                new FuncEvent(eventType_, [func, waitSem, res] {
-                                    *res = func();
-                                    waitSem->release();
-                                }));
+    qApp->postEvent(this, new FuncEvent(eventType_, [func, waitSem, res] {
+                        *res = func();
+                        waitSem->release();
+                    }));
 
     // make sure that prev event was handled
     std::shared_ptr<Semaphore> syncSem{new Semaphore{0}};
-    QCoreApplication::postEvent(this,
-                                new FuncEvent(eventType_, [this, syncSem] {
-                                    syncSem->release();
-                                    qApp->sendPostedEvents(this, eventType_);
-                                    syncSem->release();
-                                }));
+    qApp->postEvent(this, new FuncEvent(eventType_, [this, syncSem] {
+                        syncSem->release();
+                        qApp->sendPostedEvents(this, eventType_);
+                        syncSem->release();
+                    }));
     syncSem->acquire();
     const int timeoutMsec = timeoutSecs * 1000;
     const int waitIntervalMsec = 100;

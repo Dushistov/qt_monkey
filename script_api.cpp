@@ -14,7 +14,6 @@
 #include <QStyleOption>
 #include <QTreeWidget>
 #include <QWidget>
-#include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QThread>
 #if QT_VERSION < 0x050000
 #include <QWorkspace>
@@ -733,10 +732,7 @@ void ScriptAPI::Wait(int ms)
 ScriptAPI::Step::Step(Agent &agent)
 {
     agent.scriptCheckPoint();
-    auto dispatcher
-        = QAbstractEventDispatcher::instance(QThread::currentThread());
-    if (dispatcher != nullptr) // handle network events
-        dispatcher->processEvents(QEventLoop::ExcludeUserInputEvents);
+    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     if (agent.demonstrationMode()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
