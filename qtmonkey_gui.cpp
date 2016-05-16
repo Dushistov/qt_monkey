@@ -81,7 +81,9 @@ void QtMonkeyAppCtrl::monkeyAppNewOutput()
 
     std::string::size_type parserStopPos;
     qt_monkey_app::parseOutputFromMonkeyApp(
-        {jsonFromMonkey_.constData(), static_cast<size_t>(jsonFromMonkey_.size())}, parserStopPos,
+        {jsonFromMonkey_.constData(),
+         static_cast<size_t>(jsonFromMonkey_.size())},
+        parserStopPos,
         [this](QString eventScriptLines) {
             emit monkeyAppNewEvent(std::move(eventScriptLines));
         },

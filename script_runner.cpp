@@ -11,19 +11,20 @@ using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::ScriptAPI;
 using qt_monkey_agent::PopulateScriptContext;
 
-static int extractLineNumFromBacktraceLine(const QString& line)
+static int extractLineNumFromBacktraceLine(const QString &line)
 {
     const int ln = line.indexOf(':');
     assert(ln != -1);
-    return line.right(line.size() - ln - 1).toUInt();	
+    return line.right(line.size() - ln - 1).toUInt();
 }
 
-ScriptRunner::ScriptRunner(ScriptAPI &api, const PopulateScriptContext &onInitCb)
+ScriptRunner::ScriptRunner(ScriptAPI &api,
+                           const PopulateScriptContext &onInitCb)
 {
-	QScriptValue testCtrl = scriptEngine_.newQObject(&api);
-	QScriptValue global = scriptEngine_.globalObject();
+    QScriptValue testCtrl = scriptEngine_.newQObject(&api);
+    QScriptValue global = scriptEngine_.globalObject();
 
-	global.setProperty(QLatin1String("Test"), testCtrl);
+    global.setProperty(QLatin1String("Test"), testCtrl);
 
     if (onInitCb != nullptr)
         onInitCb(scriptEngine_);
@@ -33,30 +34,32 @@ void ScriptRunner::runScript(const Script &script, QString &errMsg)
 {
     scriptEngine_.evaluate(script.code(), "script", 1);
 
-	if (scriptEngine_.hasUncaughtException()) {
-		QString expd;
+    if (scriptEngine_.hasUncaughtException()) {
+        QString expd;
 
-		expd += QStringLiteral("Backtrace:\n");
-		const QStringList backtrace = scriptEngine_.uncaughtExceptionBacktrace();
-		expd += backtrace.join("\n") + '\n';
+        expd += QStringLiteral("Backtrace:\n");
+        const QStringList backtrace
+            = scriptEngine_.uncaughtExceptionBacktrace();
+        expd += backtrace.join("\n") + '\n';
 
-		int elino = 0;
-		if (!backtrace.empty()) {
-			elino = extractLineNumFromBacktraceLine(backtrace.back());
-		} else {
-			elino = scriptEngine_.uncaughtExceptionLineNumber();
-		}
+        int elino = 0;
+        if (!backtrace.empty()) {
+            elino = extractLineNumFromBacktraceLine(backtrace.back());
+        } else {
+            elino = scriptEngine_.uncaughtExceptionLineNumber();
+        }
 
-		const QStringList slines = script.code().split('\n');
+        const QStringList slines = script.code().split('\n');
 
-		if (elino <= slines.size())
-			expd += QString("Line which throw exception: %1\n").arg(slines[elino - 1]);
+        if (elino <= slines.size())
+            expd += QString("Line which throw exception: %1\n")
+                        .arg(slines[elino - 1]);
 
-		expd += QString("Exception: %1")
-			.arg(scriptEngine_.uncaughtException().toString());
+        expd += QString("Exception: %1")
+                    .arg(scriptEngine_.uncaughtException().toString());
 
         errMsg = expd;
-	}
+    }
 }
 
 int ScriptRunner::currentLineNum() const

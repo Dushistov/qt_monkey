@@ -77,8 +77,9 @@ private:
     const QKeySequence showObjectShortCut_;
 
     bool eventFilter(QObject *obj, QEvent *event) override;
-    QString
-    callCustomEventAnalyzers(QObject *obj, QEvent *event, QWidget *widget, const QString &widgetName) const;
+    QString callCustomEventAnalyzers(QObject *obj, QEvent *event,
+                                     QWidget *widget,
+                                     const QString &widgetName) const;
     bool alreadySawSuchKeyEvent(QKeyEvent *keyEvent);
     bool alreadySawSuchMouseEvent(const QString &widgetName,
                                   QMouseEvent *mouseEvent);
@@ -150,17 +151,18 @@ class MacMenuActionWatcher
 public:
     MacMenuActionWatcher(const GenerateCommand &generateScriptCmd,
                          QObject *parent = nullptr)
-             : QObject(parent), generateScriptCmd_(generateScriptCmd)
+        : QObject(parent), generateScriptCmd_(generateScriptCmd)
     {
     }
     void startWatch(Agent &agent, QAction &act, QString menuName);
     void stopWatch(Agent &agent, QAction &act);
 private slots:
     void onTriggered();
+
 private:
     const GenerateCommand &generateScriptCmd_;
     std::map<QAction *, QString> actions_;
 };
 //@}
-}//namespace Private
+} // namespace Private
 }

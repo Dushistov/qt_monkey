@@ -11,7 +11,7 @@ namespace qt_monkey_common
 class Semaphore final
 {
 public:
-    explicit Semaphore(int n): count_(n) {}
+    explicit Semaphore(int n) : count_(n) {}
     Semaphore(const Semaphore &) = delete;
     Semaphore &operator=(const Semaphore &) = delete;
     void acquire(int n = 1)

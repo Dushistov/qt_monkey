@@ -140,7 +140,8 @@ int main(int argc, char *argv[])
     qt_monkey_app::QtMonkey monkey(exitOnScriptError);
 
     if (!scripts.empty()
-        && !monkey.runScriptFromFile(std::move(codeToRunBeforeAll), std::move(scripts), encoding))
+        && !monkey.runScriptFromFile(std::move(codeToRunBeforeAll),
+                                     std::move(scripts), encoding))
         return EXIT_FAILURE;
 
     monkey.runApp(QString::fromLocal8Bit(argv[userAppOffset]),

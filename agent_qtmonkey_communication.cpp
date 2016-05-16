@@ -5,9 +5,9 @@
 #include <cstring>
 #include <type_traits>
 
+#include <QtCore/QString>
 #include <QtCore/QThread>
 #include <QtCore/QTimerEvent>
-#include <QtCore/QString>
 
 #include "common.hpp"
 #include "script.hpp"
@@ -265,8 +265,7 @@ bool CommunicationAgentPart::connectToMonkey()
         timer_.start(200, this);
         return true;
     } else {
-        qWarning("%s: QTMONKEY_PORT(%s) %s", Q_FUNC_INFO,
-                 portnoStr.data(),
+        qWarning("%s: QTMONKEY_PORT(%s) %s", Q_FUNC_INFO, portnoStr.data(),
                  (portnoStr.length() == 0) ? "not defined"
                                            : "not contain suitable number");
         return false;
@@ -305,7 +304,7 @@ void CommunicationAgentPart::readCommands()
         switch (static_cast<PacketTypeForAgent>(packet.first)) {
         case PacketTypeForAgent::RunScript:
             DBGPRINT("%s: get script: '%s'", Q_FUNC_INFO,
-                   qPrintable(packet.second));
+                     qPrintable(packet.second));
             emit runScript(Script{std::move(packet.second)});
             break;
         default:
@@ -334,19 +333,20 @@ void CommunicationAgentPart::timerEvent(QTimerEvent *event)
 
 void CommunicationAgentPart::sendData()
 {
-  {
-    auto sendBuf = sendBuf_.get();
-    if (sock_.state() != QAbstractSocket::ConnectedState || sendBuf->isEmpty())
-      return;
-    qint64 nBytes = sock_.write(*sendBuf);
-    if (nBytes == -1) {
-      qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
-	       qPrintable(sock_.errorString()));
-      return;
+    {
+        auto sendBuf = sendBuf_.get();
+        if (sock_.state() != QAbstractSocket::ConnectedState
+            || sendBuf->isEmpty())
+            return;
+        qint64 nBytes = sock_.write(*sendBuf);
+        if (nBytes == -1) {
+            qWarning("%s: write to socket failed %s", Q_FUNC_INFO,
+                     qPrintable(sock_.errorString()));
+            return;
+        }
+        sendBuf->remove(0, nBytes);
     }
-    sendBuf->remove(0, nBytes);
-  }
-  sock_.flush();
+    sock_.flush();
 }
 
 void CommunicationAgentPart::sendCommand(PacketTypeForMonkey pt,

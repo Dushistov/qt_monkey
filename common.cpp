@@ -1,6 +1,7 @@
 #include "common.hpp"
 
 #include <chrono>
+
 #include <QtCore/QCoreApplication>
 
 QString qt_monkey_common::processErrorToString(QProcess::ProcessError err)

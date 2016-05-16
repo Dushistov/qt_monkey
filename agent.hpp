@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cassert>
 #include <atomic>
+#include <cassert>
 #include <map>
 
 #include <QKeySequence>
@@ -10,8 +10,8 @@
 
 #include "custom_event_analyzer.hpp"
 #include "custom_script_extension.hpp"
-#include "shared_resource.hpp"
 #include "semaphore.hpp"
+#include "shared_resource.hpp"
 
 class QAction;
 class QThread;
@@ -42,13 +42,17 @@ public:
     /**
      * using QApplication::installEventFilter, so it should be after all
      * other calls to QApplication::installEventFilter in user app
-     * @param showObjectShortcut shorutcut key to show object info under mouse cursor
+     * @param showObjectShortcut shorutcut key to show object info under mouse
+     * cursor
      * @param customEventAnalyzers custom event analyzers, it is possible
-     * @param apiExtension this object will be registered by it's objectName() as script context
+     * @param apiExtension this object will be registered by it's objectName()
+     * as script context
      * to use them as event analyzer extension point
      */
-    explicit Agent(const QKeySequence &showObjectShortcut = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
-                   std::list<CustomEventAnalyzer> customEventAnalyzers = {}, PopulateScriptContext = {});
+    explicit Agent(const QKeySequence &showObjectShortcut
+                   = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
+                   std::list<CustomEventAnalyzer> customEventAnalyzers = {},
+                   PopulateScriptContext = {});
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
@@ -79,6 +83,7 @@ private slots:
     void onRunScriptCommand(const qt_monkey_agent::Private::Script &);
     void onAppAboutToQuit();
     void onScriptLog(const QString &);
+
 private:
     friend class Private::MacMenuActionWatcher;
     friend class ScriptAPI;
@@ -105,7 +110,8 @@ private:
     static Agent *gAgent_;
     std::atomic<bool> demonstrationMode_{false};
     std::atomic<bool> scriptTracingMode_{false};
-    qt_monkey_common::SharedResource<std::multimap<QString, QAction *>> menuItemsOnMac_;
+    qt_monkey_common::SharedResource<std::multimap<QString, QAction *>>
+        menuItemsOnMac_;
 
     void customEvent(QEvent *event) override;
 };

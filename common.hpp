@@ -23,8 +23,9 @@ namespace qt_monkey_common
 QString processErrorToString(QProcess::ProcessError err);
 void processEventsFor(int timeoutMs);
 
-//not implement for QString because of we may need different QString->QByteArray
-//conversation, for example in some cases toLocal8Bit, in some cases toUtf8
+// not implement for QString because of we may need different
+// QString->QByteArray
+// conversation, for example in some cases toLocal8Bit, in some cases toUtf8
 inline std::ostream &operator<<(std::ostream &os, const QByteArray &str)
 {
     std::copy(str.begin(), str.end(), std::ostreambuf_iterator<char>(os));

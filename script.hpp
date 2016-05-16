@@ -24,7 +24,7 @@ public:
     void releaseCode(QString &code) { code = std::move(code_); }
     static std::list<Script> splitToExecutableParts(const QString &fileName,
                                                     const QString &scriptCode);
-    //start from 1
+    // start from 1
     int beginLineNum() const { return lineno_; }
     const QString &fileName() const { return fileName_; }
     bool runAfterAppStart() const { return runAfterStart_; }

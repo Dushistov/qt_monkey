@@ -151,6 +151,7 @@ public slots:
      * @param id identificator of object
      */
     QObject *getObjectById(const QString &id);
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;

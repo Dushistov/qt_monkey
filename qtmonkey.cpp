@@ -71,18 +71,23 @@ void ReadStdinThread::run()
         char ch;
 
         switch (::GetFileType(stdinHandle_)) {
-        case FILE_TYPE_CHAR: {//console
+        case FILE_TYPE_CHAR: { // console
             DWORD numberOfEvents = 0;
-            if (!::GetNumberOfConsoleInputEvents(stdinHandle_, &numberOfEvents)) {
-                reader_.emitError(T_("Get number of bytes in stdin(console) failed: %1").arg(::GetLastError()));
+            if (!::GetNumberOfConsoleInputEvents(stdinHandle_,
+                                                 &numberOfEvents)) {
+                reader_.emitError(
+                    T_("Get number of bytes in stdin(console) failed: %1")
+                        .arg(::GetLastError()));
                 return;
             }
             if (numberOfEvents == 0)
                 continue;
             INPUT_RECORD event;
             DWORD numberOfEventsRead = 0;
-            if (!::ReadConsoleInput(stdinHandle_, &event, 1, &numberOfEventsRead)) {
-                reader_.emitError(T_("Reading from stdin error: %1").arg(::GetLastError()));
+            if (!::ReadConsoleInput(stdinHandle_, &event, 1,
+                                    &numberOfEventsRead)) {
+                reader_.emitError(
+                    T_("Reading from stdin error: %1").arg(::GetLastError()));
                 return;
             }
             if (numberOfEventsRead != 1 || event.EventType != KEY_EVENT
@@ -93,8 +98,11 @@ void ReadStdinThread::run()
         }
         case FILE_TYPE_PIPE: {
             DWORD bytesAvailInPipe;
-            if (!PeekNamedPipe(stdinHandle_, nullptr, 0, nullptr, &bytesAvailInPipe, nullptr)) {
-                reader_.emitError(T_("Get number of bytes in stdin(pipe) failed: %1").arg(::GetLastError()));
+            if (!PeekNamedPipe(stdinHandle_, nullptr, 0, nullptr,
+                               &bytesAvailInPipe, nullptr)) {
+                reader_.emitError(
+                    T_("Get number of bytes in stdin(pipe) failed: %1")
+                        .arg(::GetLastError()));
                 return;
             }
             if (bytesAvailInPipe == 0)
@@ -102,21 +110,21 @@ void ReadStdinThread::run()
             if (timeToExit_)
                 return;
         }
-        //fall through
+        // fall through
         default: {
             DWORD readBytes = 0;
-            if (!::ReadFile(stdinHandle_, &ch, sizeof(ch), &readBytes, nullptr)) {
+            if (!::ReadFile(stdinHandle_, &ch, sizeof(ch), &readBytes,
+                            nullptr)) {
                 reader_.emitError(
                     T_("reading from stdin error: %1").arg(::GetLastError()));
                 return;
             }
             if (readBytes == 0)
                 return;
+            break;
         }
-                 break;
-        }
-        
-        
+        } // switch
+
         {
             auto ptr = reader_.data.get();
             ptr->append(ch);
@@ -125,10 +133,7 @@ void ReadStdinThread::run()
     }
 }
 
-void ReadStdinThread::stop()
-{
-    timeToExit_ = true;
-}
+void ReadStdinThread::stop() { timeToExit_ = true; }
 #else
 ReadStdinThread::ReadStdinThread(QObject *parent, StdinReader &reader)
     : QThread(parent), reader_(reader)
