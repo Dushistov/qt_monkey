@@ -733,9 +733,7 @@ ScriptAPI::Step::Step(Agent &agent)
 {
     agent.scriptCheckPoint();
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
-    if (agent.demonstrationMode()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(agent.demonstrationMode() ? 200 : 120));
 }
 
 ScriptAPI::Step::~Step() {}
