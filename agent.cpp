@@ -129,6 +129,8 @@ Agent::Agent(const QKeySequence &showObjectShortcut,
           *this, showObjectShortcut, std::move(customEventAnalyzers), this)),
       populateScriptContextCallback_(std::move(psc))
 {
+    assert(gAgent_ == nullptr);
+    gAgent_ = this;
     // make sure that type is referenced, fix bug with qt4 and static lib
     qMetaTypeId<qt_monkey_agent::Private::Script>();
     eventType_ = static_cast<QEvent::Type>(QEvent::registerEventType());
@@ -143,8 +145,6 @@ Agent::Agent(const QKeySequence &showObjectShortcut,
     while (!thread_->isFinished()
            && static_cast<AgentThread *>(thread_)->isNotReady())
         ;
-    assert(gAgent_ == nullptr);
-    gAgent_ = this;
 }
 
 void Agent::onCommunicationError(const QString &err)
