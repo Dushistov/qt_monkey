@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import subprocess, sys, io, json, re, codecs
+import subprocess, sys, io, json, re, codecs, tempfile, atexit, os
 
 ANOTHER_VARIANT = "//another variant:"
 EXPECT_LINE = "//expect: "
@@ -76,9 +76,29 @@ def compare_two_func_calls(f1_call, f2_call):
             return False
     return True
 
+def prepare_script_for_os(script_path):
+    if sys.platform == "darwin":
+        tf = tempfile.NamedTemporaryFile(delete=False)
+        with open(script_path, "r") as f:
+            for line in f.readlines():
+                if not line.startswith("Test.mouseClick('MainWindow.menubar"):
+                    tf.write(line)
+
+        def delete_tmp_file():
+            print("delete tmp file")
+            os.unlink(tf.name)
+        atexit.register(delete_tmp_file)
+        tf.close()
+        return tf.name
+    else:
+        return script_path
+
 qt_monkey_app_path = sys.argv[1]
 test_app_path = sys.argv[2]
 script_path = sys.argv[3]
+
+script_path = prepare_script_for_os(script_path)
+print("we run script from %s" % script_path)
 
 monkey_cmd = [qt_monkey_app_path, "--script", script_path,
               "--exit-on-script-error",
@@ -114,10 +134,7 @@ with open(script_path, "r") as fin:
             line = line[len(EXPECT_LINE):]
             expect_seq = True
         if not compare_two_func_calls(line, code_listing[i]):
-            if sys.platform == "darwin" and line.startswith("Test.mouseClick('MainWindow.menubar',"):
-                #just ignore bad result, because of mainwin menubar not part of our window on mac
-                pass
-            elif (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
+            if (i + 1) < len(code_listing) and code_listing[i+1].startswith(ANOTHER_VARIANT) and compare_two_func_calls(line, code_listing[i + 1][len(ANOTHER_VARIANT):]):
                 i += 1
             elif (j + 1) < len(expect_lines) and expect_lines[j + 1].startswith(EXPECT_LINE) and compare_two_func_calls(expect_lines[j + 1][len(EXPECT_LINE):], code_listing[i]):
                 j += 1
