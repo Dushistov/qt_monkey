@@ -75,6 +75,7 @@ static QString usage()
 {
     return T_("Usage: %1 [--exit-on-script-error] [--encoding file_encoding] "
               "[--trace-script-exec] "
+              "[--save-screenshots path/to/dir maxium_number] "
               "[--script path/to/script] "
               "--user-app "
               "path/to/application [application's command line args]\n")
@@ -119,7 +120,16 @@ int main(int argc, char *argv[])
             ++i;
             encoding = argv[i];
         } else if (std::strcmp(argv[i], "--trace-script-exec") == 0) {
-            codeToRunBeforeAll = QStringLiteral("Test.setTraceEnabled(true);");
+            codeToRunBeforeAll += QStringLiteral("Test.setTraceEnabled(true);\n");
+        } else if (std::strcmp(argv[i], "--save-screenshots") == 0) {
+            int nSteps = -1 ;
+            if ((i + 2) >= argc || sscanf(argv[i + 2], "%d", &nSteps) != 1) {
+                std::cerr << qPrintable(usage());
+                return EXIT_FAILURE;
+            }
+            const QString path = argv[i + 1];
+            i += 2;
+            codeToRunBeforeAll += QStringLiteral("Test.saveScreenshots(\"%1\", %2);\n").arg(path).arg(nSteps);
         } else if (std::strcmp(argv[i], "--help") == 0
                    || std::strcmp(argv[i], "-h") == 0) {
             std::cout << qPrintable(usage());

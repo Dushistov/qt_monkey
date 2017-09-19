@@ -131,6 +131,9 @@ public slots:
     //! enable/disable script tracing
     void setTraceEnabled(bool val);
 
+    //! enable saving screenshots of application last N steps
+    void saveScreenshots(const QString &path, int nSteps);
+
     /**
      * press button with text
      * @param parentNameWidget name of parent widget

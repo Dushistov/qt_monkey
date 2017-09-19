@@ -76,6 +76,7 @@ public:
     void setDemonstrationMode(bool val) { demonstrationMode_ = val; }
     bool demonstrationMode() const { return demonstrationMode_; }
     void setTraceEnabled(bool val) { scriptTracingMode_ = val; }
+    void saveScreenshots(const QString &path, int nSteps);
     static Agent *instance() { return gAgent_; }
 private slots:
     void onUserEventInScriptForm(const QString &);
@@ -112,7 +113,7 @@ private:
     std::atomic<bool> scriptTracingMode_{false};
     qt_monkey_common::SharedResource<std::multimap<QString, QAction *>>
         menuItemsOnMac_;
-
+    qt_monkey_common::SharedResource<std::pair<QString, int>> screenshots_;
     void customEvent(QEvent *event) override;
 };
 }

@@ -1049,3 +1049,9 @@ void ScriptAPI::setTraceEnabled(bool val)
     Step step(agent_);
     agent_.setTraceEnabled(val);
 }
+
+void ScriptAPI::saveScreenshots(const QString &path, int nSteps)
+{
+    Step step(agent_);
+    agent_.saveScreenshots(path, nSteps);
+}

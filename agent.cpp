@@ -12,6 +12,7 @@
 #include <QWidget>
 #include <QtCore/QAbstractEventDispatcher>
 #include <QtCore/QThread>
+#include <QtCore/QDir>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
@@ -21,14 +22,14 @@
 #include "user_events_analyzer.hpp"
 
 using qt_monkey_agent::Agent;
-using qt_monkey_agent::Private::PacketTypeForMonkey;
-using qt_monkey_agent::Private::CommunicationAgentPart;
-using qt_monkey_agent::Private::ScriptRunner;
-using qt_monkey_agent::Private::Script;
-using qt_monkey_common::Semaphore;
 using qt_monkey_agent::CustomEventAnalyzer;
-using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::PopulateScriptContext;
+using qt_monkey_agent::Private::CommunicationAgentPart;
+using qt_monkey_agent::Private::PacketTypeForMonkey;
+using qt_monkey_agent::Private::Script;
+using qt_monkey_agent::Private::ScriptRunner;
+using qt_monkey_agent::UserEventsAnalyzer;
+using qt_monkey_common::Semaphore;
 
 Agent *Agent::gAgent_ = nullptr;
 
@@ -97,11 +98,12 @@ public:
         connect(&client, SIGNAL(error(const QString &)), parent(),
                 SLOT(onCommunicationError(const QString &)),
                 Qt::DirectConnection);
-        connect(&client,
-                SIGNAL(runScript(const qt_monkey_agent::Private::Script &)),
-                parent(), SLOT(onRunScriptCommand(
-                              const qt_monkey_agent::Private::Script &)),
-                Qt::DirectConnection);
+        connect(
+            &client,
+            SIGNAL(runScript(const qt_monkey_agent::Private::Script &)),
+            parent(),
+            SLOT(onRunScriptCommand(const qt_monkey_agent::Private::Script &)),
+            Qt::DirectConnection);
         EventsReciever eventReciever;
         objInThread_ = &eventReciever;
         channelWithMonkey_ = &client;
@@ -124,6 +126,36 @@ private:
     EventsReciever *objInThread_{nullptr};
     CommunicationAgentPart *channelWithMonkey_{nullptr};
 };
+
+void saveScreenShot(const QString &path)
+{
+    QWidget *w = QApplication::activeWindow();
+    if (w) {
+        QPixmap p = QPixmap::grabWidget(w);
+        p.save(path);
+    }
+}
+
+void removeObsolete(const QString &path, unsigned nSteps)
+{
+    QDir dir(path);
+    unsigned i = 0;
+    for (const QString &entry : dir.entryList(QDir::NoFilter, QDir::Time)) {
+        const QString entryPath
+            = QString("%1%2%3").arg(path).arg(QDir::separator()).arg(entry);
+        const QFileInfo fi(entryPath);
+        if (!fi.exists() || !fi.isFile()) {
+            continue;
+        }
+        if (i > nSteps) {
+            if (!QFile::remove(entryPath)) {
+                qWarning("%s: can not remove '%s'\n", Q_FUNC_INFO, qPrintable(entryPath));
+            }
+        } else {
+            ++i;
+        }
+    }
+}
 }
 
 Agent::Agent(const QKeySequence &showObjectShortcut,
@@ -131,7 +163,8 @@ Agent::Agent(const QKeySequence &showObjectShortcut,
              PopulateScriptContext psc)
     : eventAnalyzer_(new UserEventsAnalyzer(
           *this, showObjectShortcut, std::move(customEventAnalyzers), this)),
-      populateScriptContextCallback_(std::move(psc))
+      populateScriptContextCallback_(std::move(psc)),
+      screenshots_(std::make_pair(QString(), -1))
 {
     assert(gAgent_ == nullptr);
     gAgent_ = this;
@@ -224,6 +257,23 @@ void Agent::scriptCheckPoint()
     DBGPRINT("%s: lineno %d", Q_FUNC_INFO, lineno);
     if (scriptTracingMode_)
         sendToLog(QStringLiteral("reached %1 line").arg(lineno));
+
+    int nSteps;
+    QString savePath;
+    {
+        auto lock = screenshots_.get();
+        nSteps = lock->second;
+        savePath = lock->first;
+    }
+
+    if (nSteps > 0) {
+        removeObsolete(savePath, static_cast<unsigned>(nSteps));
+        savePath = QString("%1%2screenshot_%3.png").arg(savePath).arg(QDir::separator()).arg(lineno);
+        runCodeInGuiThreadSync([savePath]() -> QString {
+                saveScreenShot(savePath);
+                return QString();
+            });
+    }
 }
 
 QString Agent::runCodeInGuiThreadSync(std::function<QString()> func)
@@ -328,4 +378,11 @@ void Agent::onScriptLog(const QString &msg)
     GET_THREAD(thread)
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptLog,
                                              msg);
+}
+
+void Agent::saveScreenshots(const QString &path, int nSteps)
+{
+    auto lock = screenshots_.get();
+    lock->first = path;
+    lock->second = nSteps;
 }
