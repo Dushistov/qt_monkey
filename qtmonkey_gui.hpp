@@ -49,6 +49,7 @@ class QtMonkeyWindow
 public:
     QtMonkeyWindow(QWidget *parent = nullptr);
     ~QtMonkeyWindow();
+    void setEncoding(QByteArray enc) { encoding_ = std::move(enc); }
 private slots:
     // auto connection
     void on_pbStartRecording__pressed();

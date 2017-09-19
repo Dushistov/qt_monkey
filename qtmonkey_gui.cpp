@@ -8,6 +8,8 @@
 #include <QtCore/QTextCodec>
 #include <QtCore/QTextStream>
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 #include "common.hpp"
 #include "json11.hpp"
@@ -467,9 +469,23 @@ void QtMonkeyWindow::on_pbSaveScript__pressed()
 
 int main(int argc, char *argv[])
 {
+    const char *enc = nullptr;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--encoding") == 0) {
+            if ((i + 1) >= argc) {
+                qFatal("Usage: %s [--encoding scripts_charset]", argv[0]);
+                return EXIT_FAILURE;
+            }
+            ++i;
+            enc = argv[i];
+        }
+    }
     QApplication app(argc, argv);
 
     QtMonkeyWindow mw;
+    if (enc != nullptr) {
+        mw.setEncoding(enc);
+    }
     mw.show();
     return app.exec();
 }
