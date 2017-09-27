@@ -114,6 +114,8 @@ private:
     qt_monkey_common::SharedResource<std::multimap<QString, QAction *>>
         menuItemsOnMac_;
     qt_monkey_common::SharedResource<std::pair<QString, int>> screenshots_;
+    QString scriptBaseName_;
+
     void customEvent(QEvent *event) override;
 };
 }

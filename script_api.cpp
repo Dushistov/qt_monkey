@@ -1052,6 +1052,7 @@ void ScriptAPI::setTraceEnabled(bool val)
 
 void ScriptAPI::saveScreenshots(const QString &path, int nSteps)
 {
+    DBGPRINT("%s: path '%s'", Q_FUNC_INFO, qPrintable(path));
     Step step(agent_);
     agent_.saveScreenshots(path, nSteps);
 }

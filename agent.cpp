@@ -220,6 +220,9 @@ void Agent::onRunScriptCommand(const Script &script)
     QString errMsg;
     {
         CurrentScriptContext context(&sr, curScriptRunner_);
+        DBGPRINT("%s: scrit file name %s", Q_FUNC_INFO, qPrintable(script.fileName()));
+        QFileInfo fi(script.fileName());
+        scriptBaseName_ = fi.baseName();
         sr.runScript(script, errMsg);
     }
     if (!errMsg.isEmpty()) {
@@ -268,7 +271,9 @@ void Agent::scriptCheckPoint()
 
     if (nSteps > 0) {
         removeObsolete(savePath, static_cast<unsigned>(nSteps));
-        savePath = QString("%1%2screenshot_%3.png").arg(savePath).arg(QDir::separator()).arg(lineno);
+        savePath = QString("%1%2screenshot_%4_%3.png")
+            .arg(savePath).arg(QDir::separator()).arg(lineno)
+            .arg(scriptBaseName_);
         runCodeInGuiThreadSync([savePath]() -> QString {
                 saveScreenShot(savePath);
                 return QString();
@@ -382,6 +387,7 @@ void Agent::onScriptLog(const QString &msg)
 
 void Agent::saveScreenshots(const QString &path, int nSteps)
 {
+    DBGPRINT("%s: path '%s', nsteps %d", Q_FUNC_INFO, qPrintable(path), nSteps);
     auto lock = screenshots_.get();
     lock->first = path;
     lock->second = nSteps;

@@ -305,7 +305,17 @@ void CommunicationAgentPart::readCommands()
         case PacketTypeForAgent::RunScript:
             DBGPRINT("%s: get script: '%s'", Q_FUNC_INFO,
                      qPrintable(packet.second));
-            emit runScript(Script{std::move(packet.second)});
+            if (currentScriptFileName_.isEmpty()) {
+                emit runScript(Script{std::move(packet.second)});
+            } else {
+                emit runScript(Script{currentScriptFileName_, 1, std::move(packet.second)});
+                currentScriptFileName_.clear();
+            }
+            break;
+        case PacketTypeForAgent::SetScriptFileName:
+            DBGPRINT("%s: script file name now '%s'", Q_FUNC_INFO,
+                     qPrintable(packet.second));
+            currentScriptFileName_ = std::move(packet.second);
             break;
         default:
             qWarning("%s: unknown type of packet for qtmonkey's agent: %u",

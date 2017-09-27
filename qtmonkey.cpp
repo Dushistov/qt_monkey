@@ -1,3 +1,4 @@
+//#define DEBUG_MOD_QTMONKEY
 #include "qtmonkey.hpp"
 
 #include <atomic>
@@ -18,6 +19,13 @@
 #include "common.hpp"
 #include "json11.hpp"
 #include "qtmonkey_app_api.hpp"
+
+#ifdef DEBUG_MOD_QTMONKEY
+#define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
+#else
+#define DBGPRINT(fmt, ...) do {} while (false)
+#endif
+
 
 using qt_monkey_app::QtMonkey;
 using qt_monkey_agent::Private::Script;
@@ -350,10 +358,16 @@ bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
         const QString script = t.readAll();
         auto scripts = Script::splitToExecutableParts(fn, script);
         for (auto &&script : scripts) {
-            script.setRunAfterAppStart(!toRunList_.empty());
-            if (!codeToRunBeforeAll.isEmpty())
-                toRunList_.emplace(QStringLiteral("<tmp>"), 1,
-                                   std::move(codeToRunBeforeAll));
+            if (!codeToRunBeforeAll.isEmpty()) {
+                DBGPRINT("%s: we add code to run: '%s' to '%s'",
+                         Q_FUNC_INFO, qPrintable(codeToRunBeforeAll), qPrintable(fn));
+                Script prefs_script{QStringLiteral("<tmp>"), 1,
+                        codeToRunBeforeAll};
+                prefs_script.setRunAfterAppStart(!toRunList_.empty());
+                toRunList_.push(std::move(prefs_script));
+            } else {
+                script.setRunAfterAppStart(!toRunList_.empty());
+            }
             toRunList_.push(std::move(script));
         }
     }
@@ -363,6 +377,7 @@ bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
 
 void QtMonkey::onAgentReadyToRunScript()
 {
+    DBGPRINT("%s: begin", Q_FUNC_INFO);
     if (!channelWithAgent_.isConnectedState() || toRunList_.empty()
         || scriptRunning_)
         return;
@@ -378,6 +393,8 @@ void QtMonkey::onAgentReadyToRunScript()
     toRunList_.pop();
     QString code;
     script.releaseCode(code);
+    channelWithAgent_.sendCommand(PacketTypeForAgent::SetScriptFileName,
+                                  script.fileName());
     channelWithAgent_.sendCommand(PacketTypeForAgent::RunScript,
                                   std::move(code));
     setScriptRunningState(true);

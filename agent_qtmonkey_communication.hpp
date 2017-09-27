@@ -18,6 +18,7 @@ class Script;
 
 enum class PacketTypeForAgent : uint32_t {
     RunScript,
+    SetScriptFileName,
     // TODO: may be we need stuff bellow?
     SetBreakPointInScript,
     ContinueScript,
@@ -100,6 +101,7 @@ private:
     QBasicTimer timer_;
     qt_monkey_common::SharedResource<QByteArray> sendBuf_;
     QByteArray recvBuf_;
+    QString currentScriptFileName_;
 
     void timerEvent(QTimerEvent *) override;
 };
