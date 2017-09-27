@@ -23,14 +23,15 @@
 #ifdef DEBUG_MOD_QTMONKEY
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
 #else
-#define DBGPRINT(fmt, ...) do {} while (false)
+#define DBGPRINT(fmt, ...)                                                     \
+    do {                                                                       \
+    } while (false)
 #endif
 
-
-using qt_monkey_app::QtMonkey;
-using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::PacketTypeForAgent;
+using qt_monkey_agent::Private::Script;
 using qt_monkey_app::Private::StdinReader;
+using qt_monkey_app::QtMonkey;
 using qt_monkey_common::operator<<;
 
 namespace
@@ -359,10 +360,10 @@ bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
         auto scripts = Script::splitToExecutableParts(fn, script);
         for (auto &&script : scripts) {
             if (!codeToRunBeforeAll.isEmpty()) {
-                DBGPRINT("%s: we add code to run: '%s' to '%s'",
-                         Q_FUNC_INFO, qPrintable(codeToRunBeforeAll), qPrintable(fn));
+                DBGPRINT("%s: we add code to run: '%s' to '%s'", Q_FUNC_INFO,
+                         qPrintable(codeToRunBeforeAll), qPrintable(fn));
                 Script prefs_script{QStringLiteral("<tmp>"), 1,
-                        codeToRunBeforeAll};
+                                    codeToRunBeforeAll};
                 prefs_script.setRunAfterAppStart(!toRunList_.empty());
                 toRunList_.push(std::move(prefs_script));
             } else {
@@ -377,16 +378,22 @@ bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
 
 void QtMonkey::onAgentReadyToRunScript()
 {
-    DBGPRINT("%s: begin", Q_FUNC_INFO);
+    DBGPRINT("%s: begin is connected %s, run list empty %s, script running %s",
+             Q_FUNC_INFO,
+             channelWithAgent_.isConnectedState() ? "true" : "false",
+             toRunList_.empty() ? "true" : "false",
+             scriptRunning_ ? "true" : "false");
     if (!channelWithAgent_.isConnectedState() || toRunList_.empty()
         || scriptRunning_)
         return;
 
     if (toRunList_.front().runAfterAppStart()) {
-        if (restartDone_)
+        if (restartDone_) {
             restartDone_ = false;
-        else
+        } else {
+            DBGPRINT("%s: restartDone false, exiting", Q_FUNC_INFO);
             return;
+        }
     }
 
     Script script = std::move(toRunList_.front());

@@ -292,39 +292,45 @@ void CommunicationAgentPart::readCommands()
     }
     if (nBytes != readBytes)
         recvBuf_.resize(wasSize + readBytes);
-    switch (calcPacketState(recvBuf_)) {
-    case PacketState::Damaged:
-        qWarning("%s: packet damaged", Q_FUNC_INFO);
-        emit error(T_("packet for qmonkey's agent damaged"));
-        break;
-    case PacketState::NotReady:
-        /*nothing*/ break;
-    case PacketState::Ready: {
-        auto packet = extractFromPacket(recvBuf_);
-        switch (static_cast<PacketTypeForAgent>(packet.first)) {
-        case PacketTypeForAgent::RunScript:
-            DBGPRINT("%s: get script: '%s'", Q_FUNC_INFO,
-                     qPrintable(packet.second));
-            if (currentScriptFileName_.isEmpty()) {
-                emit runScript(Script{std::move(packet.second)});
-            } else {
-                emit runScript(Script{currentScriptFileName_, 1, std::move(packet.second)});
-                currentScriptFileName_.clear();
+    bool done;
+    do {
+        done = true;
+        switch (calcPacketState(recvBuf_)) {
+        case PacketState::Damaged:
+            qWarning("%s: packet damaged", Q_FUNC_INFO);
+            emit error(T_("packet for qmonkey's agent damaged"));
+            break;
+        case PacketState::NotReady:
+            /*nothing*/ break;
+        case PacketState::Ready: {
+            auto packet = extractFromPacket(recvBuf_);
+            done = recvBuf_.isEmpty();
+            switch (static_cast<PacketTypeForAgent>(packet.first)) {
+            case PacketTypeForAgent::RunScript:
+                DBGPRINT("%s: get script: '%s'", Q_FUNC_INFO,
+                         qPrintable(packet.second));
+                if (currentScriptFileName_.isEmpty()) {
+                    emit runScript(Script{std::move(packet.second)});
+                } else {
+                    emit runScript(Script{currentScriptFileName_, 1,
+                                          std::move(packet.second)});
+                    currentScriptFileName_.clear();
+                }
+                break;
+            case PacketTypeForAgent::SetScriptFileName:
+                DBGPRINT("%s: script file name now '%s'", Q_FUNC_INFO,
+                         qPrintable(packet.second));
+                currentScriptFileName_ = std::move(packet.second);
+                break;
+            default:
+                qWarning("%s: unknown type of packet for qtmonkey's agent: %u",
+                         Q_FUNC_INFO, static_cast<unsigned>(packet.first));
+                emit error(T_("unknown type of packet for qtmonkey's agent"));
+                break;
             }
-            break;
-        case PacketTypeForAgent::SetScriptFileName:
-            DBGPRINT("%s: script file name now '%s'", Q_FUNC_INFO,
-                     qPrintable(packet.second));
-            currentScriptFileName_ = std::move(packet.second);
-            break;
-        default:
-            qWarning("%s: unknown type of packet for qtmonkey's agent: %u",
-                     Q_FUNC_INFO, static_cast<unsigned>(packet.first));
-            emit error(T_("unknown type of packet for qtmonkey's agent"));
-            break;
         }
-    }
-    }
+        }
+    } while (!done);
 }
 
 void CommunicationAgentPart::connectionError(QAbstractSocket::SocketError err)
