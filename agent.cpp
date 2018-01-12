@@ -350,24 +350,28 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
         return QString();
     });
 
-    if (nowDialog != wasDialog) {
-        DBGPRINT("%s: dialog has changed\n", Q_FUNC_INFO);
-        // it may not return, if @func cause new QEventLoop creation, so
-
-        for (; attempt < N; ++attempt) {
-            if (waitSem->tryAcquire(
-                    1, std::chrono::milliseconds(waitIntervalMsec)))
-                return *res;
-            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    for (unsigned int iter = 0; nowDialog == wasDialog; ++iter) {
+        if (waitSem->tryAcquire(
+                1, std::chrono::milliseconds(waitIntervalMsec))) {
+            return *res;
         }
-        DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
-    } else {
-        DBGPRINT("%s: wait of finished event handling", Q_FUNC_INFO);
-        waitSem->acquire();
-        DBGPRINT("%s: wait of finished event handling DONE", Q_FUNC_INFO);
-        return *res;
+        if ((iter % 10) == 0) {
+            nowDialog = nullptr;
+            runCodeInGuiThreadSync([&nowDialog] {
+                    nowDialog = qApp->activeModalWidget();
+                    return QString();
+                });
+            DBGPRINT("%s: wasDialog %p, nowDialog %p, attempt %d", Q_FUNC_INFO, wasDialog, nowDialog, attempt);
+        }
     }
 
+    for (; attempt < N; ++attempt) {
+        if (waitSem->tryAcquire(
+                1, std::chrono::milliseconds(waitIntervalMsec)))
+            return *res;
+        qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
+    DBGPRINT("%s: timeout occuire", Q_FUNC_INFO);
     return QString();
 }
 
