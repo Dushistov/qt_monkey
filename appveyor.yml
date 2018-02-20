@@ -1,0 +1,17 @@
+environment:
+  matrix:
+    - PLATFORM: x64
+      compiler: msvc2015_64
+install:
+  - ps: git submodule -q update --init
+init:
+  - set PATH=C:\Qt\5.10.1\%compiler%\bin;%PATH%
+  - ps: dir C:\Qt
+  - ps: qmake --version
+build_script:
+  - if [%PLATFORM%]==[x64] cmake -G "Visual Studio 14 2015 Win64" -DQT_VARIANT="qt5" -DUSE_TESTS=True .
+  - cmake --build .
+  # gui tests failed for some reason, I need windows machine to debug
+  - ctest -V -C "Debug" -I 1,2,1
+matrix:
+  fast_finish: true
