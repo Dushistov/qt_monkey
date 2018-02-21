@@ -63,15 +63,15 @@ JSHighlighter::JSHighlighter(QTextDocument *parent)
     : QSyntaxHighlighter(parent), m_markCaseSensitivity(Qt::CaseInsensitive)
 {
     // default color scheme
-    m_colors[JSEdit::Normal] = QColor("#000000");
-    m_colors[JSEdit::Comment] = QColor("#808080");
-    m_colors[JSEdit::Number] = QColor("#008000");
-    m_colors[JSEdit::String] = QColor("#800000");
-    m_colors[JSEdit::Operator] = QColor("#808000");
-    m_colors[JSEdit::Identifier] = QColor("#000020");
-    m_colors[JSEdit::Keyword] = QColor("#000080");
-    m_colors[JSEdit::BuiltIn] = QColor("#008080");
-    m_colors[JSEdit::Marker] = QColor("#ffff00");
+    m_colors[JSEdit::Normal] = QColor{QRgb{0}};
+    m_colors[JSEdit::Comment] = QColor(0x808080);
+    m_colors[JSEdit::Number] = QColor(0x008000);
+    m_colors[JSEdit::String] = QColor(0x800000);
+    m_colors[JSEdit::Operator] = QColor(0x808000);
+    m_colors[JSEdit::Identifier] = QColor(0x000020);
+    m_colors[JSEdit::Keyword] = QColor(0x000080);
+    m_colors[JSEdit::BuiltIn] = QColor(0x008080);
+    m_colors[JSEdit::Marker] = QColor(0xffff00);
 
     // https://developer.mozilla.org/en/JavaScript/Reference/Reserved_Words
     m_keywords << "break";

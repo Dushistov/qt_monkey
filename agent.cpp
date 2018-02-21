@@ -140,7 +140,8 @@ void removeObsolete(const QString &path, unsigned nSteps)
 {
     QDir dir(path);
     unsigned i = 0;
-    for (const QString &entry : dir.entryList(QDir::NoFilter, QDir::Time)) {
+    const QStringList dirContent = dir.entryList(QDir::NoFilter, QDir::Time);
+    for (const QString &entry : dirContent) {
         const QString entryPath
             = QString("%1%2%3").arg(path).arg(QDir::separator()).arg(entry);
         const QFileInfo fi(entryPath);
@@ -195,7 +196,7 @@ Agent::~Agent()
     GET_THREAD(thread)
 
     thread->runInThread(
-        [this, thread] { thread->channelWithMonkey()->flushSendData(); });
+        [thread] { thread->channelWithMonkey()->flushSendData(); });
     QCoreApplication::processEvents(QEventLoop::AllEvents, 1000 /*ms*/);
     thread->quit();
     thread->wait();

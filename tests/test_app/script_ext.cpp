@@ -22,14 +22,15 @@ void ScriptExt::pressButton(const QString &caption)
     MyCustomButton *btn = nullptr;
     for (i = 0; i < nAttempts; ++i) {
         const QString errMsg = agent->runCodeInGuiThreadSync([&btn, &caption] {
-                for (QWidget *wdg : QApplication::allWidgets())
+                const QWidgetList allWdg = QApplication::allWidgets();
+                for (QWidget *wdg : allWdg) {
                     if (wdg->isVisible() && wdg->isEnabled()) {
                         btn = qobject_cast<MyCustomButton *>(wdg);
                         if (btn != nullptr && btn->text() == caption) {
                             return QString();
                         }
                     }
-            
+                }
                 return QString("Can not find button with such text %1").arg(caption);
             });
         if (errMsg.isEmpty())
