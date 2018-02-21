@@ -321,7 +321,7 @@ void QtMonkey::stdinDataReady()
                 toRunList_.push(std::move(script));
             onAgentReadyToRunScript();
         },
-        [this](QString errMsg) {
+        [](QString errMsg) {
             std::cerr
                 << T_("Can not parse gui<->monkey protocol: %1\n").arg(errMsg);
         });

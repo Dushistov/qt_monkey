@@ -67,7 +67,8 @@ int ScriptRunner::currentLineNum() const
     auto ctx = scriptEngine_.currentContext();
     assert(ctx != nullptr);
     assert(!ctx->backtrace().isEmpty());
-    return extractLineNumFromBacktraceLine(ctx->backtrace().back());
+    const QStringList backtrace = ctx->backtrace();
+    return extractLineNumFromBacktraceLine(backtrace.back());
 }
 
 void ScriptRunner::throwError(QString errMsg)

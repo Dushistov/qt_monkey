@@ -31,8 +31,8 @@
 #include "script_runner.hpp"
 #include "user_events_analyzer.hpp"
 
-using qt_monkey_agent::ScriptAPI;
 using qt_monkey_agent::Agent;
+using qt_monkey_agent::ScriptAPI;
 
 #ifdef DEBUG_SCRIPT_API
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
@@ -62,7 +62,8 @@ static QWidget *bruteForceWidgetSearch(const QString &objectName,
                                        const QString &className,
                                        bool shouldBeEnabled)
 {
-    for (QWidget *widget : QApplication::allWidgets()) {
+    const QWidgetList allWdg = QApplication::allWidgets();
+    for (QWidget *widget : allWdg) {
         if (!className.isEmpty()
             && className == widget->metaObject()->className()) {
             DBGPRINT("%s: found widget with class %s, w %s", Q_FUNC_INFO,
@@ -117,7 +118,8 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName,
     QList<QObject *> lst
         = QCoreApplication::instance()->findChildren<QObject *>(mainWidgetName);
     if (lst.isEmpty()) {
-        for (QWidget *widget : QApplication::topLevelWidgets()) {
+        const QWidgetList topLvlWdg = QApplication::topLevelWidgets();
+        for (QWidget *widget : topLvlWdg) {
             if (mainWidgetName == widget->objectName()) {
                 lst << widget;
                 break;
@@ -363,15 +365,15 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
                      qPrintable(view_port->objectName()));
             QTest::mouseClick(view_port, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
-                              );
+            );
             QTest::mouseDClick(view_port, Qt::LeftButton, 0,
                                pos // QPoint(65, 55),
-                               );
+            );
             DBGPRINT("%s: double click done", Q_FUNC_INFO);
         } else {
             QTest::mouseClick(view_port, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
-                              );
+            );
         }
 
         return QString();
@@ -430,15 +432,15 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
                      qPrintable(viewPort->objectName()));
             QTest::mouseClick(viewPort, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
-                              );
+            );
             QTest::mouseDClick(viewPort, Qt::LeftButton, 0,
                                pos // QPoint(65, 55),
-                               );
+            );
             DBGPRINT("%s: double click done", Q_FUNC_INFO);
         } else {
             QTest::mouseClick(viewPort, Qt::LeftButton, 0,
                               pos // QPoint(65, 55),
-                              );
+            );
         }
         return QString();
     } else if (auto lv = qobject_cast<QListView *>(w)) {
@@ -733,7 +735,8 @@ ScriptAPI::Step::Step(Agent &agent)
 {
     agent.scriptCheckPoint();
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
-    std::this_thread::sleep_for(std::chrono::milliseconds(agent.demonstrationMode() ? 200 : 120));
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(agent.demonstrationMode() ? 200 : 120));
 }
 
 ScriptAPI::Step::~Step() {}
@@ -1012,8 +1015,7 @@ void ScriptAPI::pressButtonWithText(const QString &parentNameWidget,
     }
     agent_.throwScriptError(
         QStringLiteral("There is no such button, parent %1, text %2")
-            .arg(parentNameWidget)
-            .arg(btnText));
+            .arg(parentNameWidget, btnText));
 }
 
 void ScriptAPI::Assert(bool condition)
@@ -1026,11 +1028,11 @@ void ScriptAPI::Assert(bool condition)
 void ScriptAPI::AssertEqual(const QString &s1, const QString &s2)
 {
     Step step(agent_);
-    if (s1 != s2)
+    if (s1 != s2) {
         agent_.throwScriptError(
             QStringLiteral("Assertion failed: Expect \"%1\", Actual \"%2\"")
-                .arg(s1)
-                .arg(s2));
+            .arg(s1, s2));
+    }
 }
 
 QObject *ScriptAPI::getObjectById(const QString &id)

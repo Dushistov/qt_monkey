@@ -22,13 +22,13 @@
 #include "agent.hpp"
 #include "common.hpp"
 
-using qt_monkey_agent::UserEventsAnalyzer;
-using qt_monkey_agent::GenerateCommand;
-using qt_monkey_agent::EventInfo;
 using qt_monkey_agent::CustomEventAnalyzer;
-using qt_monkey_agent::Private::TreeWidgetWatcher;
-using qt_monkey_agent::Private::TreeViewWatcher;
+using qt_monkey_agent::EventInfo;
+using qt_monkey_agent::GenerateCommand;
 using qt_monkey_agent::Private::MacMenuActionWatcher;
+using qt_monkey_agent::Private::TreeViewWatcher;
+using qt_monkey_agent::Private::TreeWidgetWatcher;
+using qt_monkey_agent::UserEventsAnalyzer;
 
 #ifdef DEBUG_ANALYZER
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
@@ -72,8 +72,8 @@ static QString qtObjectId(const QObject &w)
     const QString name = w.objectName();
     if (name.isEmpty()) {
         return QString("<class_name=%1%2>")
-            .arg(w.metaObject()->className())
-            .arg(numAmongOthersWithTheSameClass(w));
+            .arg(w.metaObject()->className(),
+                 numAmongOthersWithTheSameClass(w));
     }
     return name;
 }
@@ -134,8 +134,7 @@ static QString keyReleaseEventToScript(const QString &widgetName,
     }
 
     return QStringLiteral("Test.keyClick('%1', '%2');")
-        .arg(widgetName)
-        .arg(keySeq.toString());
+        .arg(widgetName, keySeq.toString());
 }
 
 static QString mouseEventToJavaScript(const QString &widgetName,
@@ -147,14 +146,12 @@ static QString mouseEventToJavaScript(const QString &widgetName,
 
     if (mouseEvent->type() == QEvent::MouseButtonDblClick)
         return QStringLiteral("Test.mouseDClick('%1', '%2', %3, %4);")
-            .arg(widgetName)
-            .arg(mouseBtn)
+            .arg(widgetName, mouseBtn)
             .arg(pos.x())
             .arg(pos.y());
     else
         return QStringLiteral("Test.mouseClick('%1', '%2', %3, %4);")
-            .arg(widgetName)
-            .arg(mouseBtn)
+            .arg(widgetName, mouseBtn)
             .arg(pos.x())
             .arg(pos.y());
 }
@@ -190,12 +187,13 @@ static QString qmenuActivateClick(const EventInfo &eventInfo)
         widget->mapFromGlobal(static_cast<QMouseEvent *>(event)->globalPos()));
     if (act != nullptr) {
         DBGPRINT("%s: act->text() %s", Q_FUNC_INFO, qPrintable(act->text()));
-        if (!widget->objectName().isEmpty() /*widgetName != "<unknown name>"*/)
+        if (!widget->objectName()
+                 .isEmpty() /*widgetName != "<unknown name>"*/) {
             res = QString("Test.activateItem('%1', '%2');")
-                      .arg(eventInfo.widgetName)
-                      .arg(act->text());
-        else
+                      .arg(eventInfo.widgetName, act->text());
+        } else {
             res = QString("Test.activateMenuItem('%1');").arg(act->text());
+        }
     }
     return res;
 }
@@ -268,15 +266,13 @@ static QString qtreeWidgetActivateClick(const EventInfo &eventInfo)
         if (!text.isEmpty()) {
             text.replace(QChar('\n'), "\\n");
             DBGPRINT("%s: QtreeWidget text %s", Q_FUNC_INFO, qPrintable(text));
-            if (mouseEvent->type() == QEvent::MouseButtonDblClick)
+            if (mouseEvent->type() == QEvent::MouseButtonDblClick) {
                 res = QStringLiteral("Test.doubleClickItem('%1', '%2');")
-                          .arg(qt_monkey_agent::fullQtWidgetId(*tw))
-                          .arg(text);
-            else
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tw), text);
+            } else {
                 res = QStringLiteral("Test.activateItem('%1', '%2');")
-                          .arg(qt_monkey_agent::fullQtWidgetId(*tw))
-                          .arg(text);
-
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tw), text);
+            }
             if (treeWidgetWatcher.watch(tw)) { // new one
                 QObject::connect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)),
                                  &treeWidgetWatcher,
@@ -317,8 +313,8 @@ static QString qcomboBoxActivateClick(const EventInfo &eventInfo)
         const QModelIndex idx = lv->indexAt(pos);
         DBGPRINT("%s: row %d", Q_FUNC_INFO, idx.row());
         return QStringLiteral("Test.activateItem('%1', '%2');")
-            .arg(qt_monkey_agent::fullQtWidgetId(*combobox))
-            .arg(qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
+            .arg(qt_monkey_agent::fullQtWidgetId(*combobox),
+                 qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
     } else if (QWidget *alistwdg
                = searchThroghSuperClassesAndParents(widget, "QListWidget")) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
@@ -329,8 +325,7 @@ static QString qcomboBoxActivateClick(const EventInfo &eventInfo)
         if (it == nullptr)
             return res;
         return QStringLiteral("Test.activateItem('%1', '%2');")
-            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg))
-            .arg(it->text());
+            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg), it->text());
     }
     return res;
 }
@@ -358,8 +353,7 @@ static QString qlistWidgetActivateClick(const EventInfo &eventInfo)
         if (it == nullptr)
             return res;
         return QStringLiteral("Test.activateItem('%1', '%2');")
-            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg))
-            .arg(it->text());
+            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg), it->text());
     }
     return res;
 }
@@ -385,8 +379,7 @@ static QString qtabBarActivateClick(const EventInfo &eventInfo)
         return res;
     }
     return QStringLiteral("Test.activateItem('%1', '%2');")
-        .arg(qt_monkey_agent::fullQtWidgetId(*tabBar))
-        .arg(tabBar->tabText(tab));
+        .arg(qt_monkey_agent::fullQtWidgetId(*tabBar), tabBar->tabText(tab));
 }
 
 static QString modelIndexToPos(const QModelIndex &mi)
@@ -446,14 +439,15 @@ static QString qtreeViewActivateClick(const EventInfo &eventInfo)
             DBGPRINT("%s: column %d, row %d, have parent %s", Q_FUNC_INFO,
                      mi.column(), mi.row(),
                      mi.parent() == QModelIndex() ? "false" : "true");
-            if (mouseEvent->type() == QEvent::MouseButtonDblClick)
+            if (mouseEvent->type() == QEvent::MouseButtonDblClick) {
                 res = QStringLiteral("Test.doubleClickOnItemInView('%1', %2);")
-                          .arg(qt_monkey_agent::fullQtWidgetId(*tv))
-                          .arg(modelIndexToPos(mi));
-            else
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv),
+                               modelIndexToPos(mi));
+            } else {
                 res = QStringLiteral("Test.activateItemInView('%1', %2);")
-                          .arg(qt_monkey_agent::fullQtWidgetId(*tv))
-                          .arg(modelIndexToPos(mi));
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv),
+                               modelIndexToPos(mi));
+            }
             watcher.watch(*tv);
         } else {
             DBGPRINT("%s: not valid model index for tv", Q_FUNC_INFO);
@@ -493,8 +487,7 @@ static QString qlistViewActivateClick(const EventInfo &eventInfo)
             text.replace(QChar('\n'), "\\n");
             text.replace(QChar('\''), "\\'");
             res = QStringLiteral("Test.activateItem('%1', '%2');")
-                      .arg(qt_monkey_agent::fullQtWidgetId(*lv))
-                      .arg(text);
+                      .arg(qt_monkey_agent::fullQtWidgetId(*lv), text);
 
         } else {
             DBGPRINT("%s: not valid model index for lv", Q_FUNC_INFO);
@@ -530,8 +523,7 @@ static QString workspaceTitleBarPressed(const EventInfo &eventInfo)
     if (w == nullptr || parent == nullptr)
         return res;
     return QStringLiteral("Test.chooseWindowWithTitle('%1', '%2');")
-        .arg(qt_monkey_agent::fullQtWidgetId(*parent))
-        .arg(w->windowTitle());
+        .arg(qt_monkey_agent::fullQtWidgetId(*parent), w->windowTitle());
 }
 
 static QString clickOnUnnamedButton(const EventInfo &eventInfo)
@@ -556,8 +548,7 @@ static QString clickOnUnnamedButton(const EventInfo &eventInfo)
     if (parent == nullptr)
         return res;
     return QStringLiteral("Test.pressButtonWithText('%1', '%2');")
-        .arg(qt_monkey_agent::fullQtWidgetId(*parent))
-        .arg(text);
+        .arg(qt_monkey_agent::fullQtWidgetId(*parent), text);
 }
 
 #ifdef Q_OS_MAC
@@ -634,19 +625,16 @@ static QString widgetUnderCursorInfo()
     const QObjectList &childs = w->children();
 
     res += QStringLiteral("class name %1, object name %2\n")
-               .arg(w->metaObject()->className())
-               .arg(w->objectName());
+               .arg(w->metaObject()->className(), w->objectName());
     QObject *obj = w->parent();
     while (obj != nullptr) {
         res += QStringLiteral("parent class name %1, object name %2\n")
-                   .arg(obj->metaObject()->className())
-                   .arg(obj->objectName());
+                   .arg(obj->metaObject()->className(), obj->objectName());
         obj = obj->parent();
     }
     for (QObject *child : childs) {
         res += QStringLiteral("child class name %1, object name %2\n")
-                   .arg(child->metaObject()->className())
-                   .arg(child->objectName());
+                   .arg(child->metaObject()->className(), child->objectName());
     }
     res += QStringLiteral("Object id: %1\n")
                .arg(qt_monkey_agent::fullQtWidgetId(*w));
@@ -881,8 +869,7 @@ bool UserEventsAnalyzer::eventFilter(QObject *obj, QEvent *event)
                         = mouseEventToJavaScript(widgetName, mouseEvent, pos);
                 if (scriptLine != anotherScript)
                     scriptLine = QString("%1\n//another variant:%2")
-                                     .arg(scriptLine)
-                                     .arg(anotherScript);
+                                     .arg(scriptLine, anotherScript);
             }
         }
         DBGPRINT("%s: emit userEventInScriptForm", Q_FUNC_INFO);
@@ -914,8 +901,7 @@ void TreeWidgetWatcher::itemExpanded(QTreeWidgetItem *twi)
     QTreeWidget *tw = twi->treeWidget();
     assert(tw != nullptr);
     generateScriptCmd_(QStringLiteral("Test.expandItemInTree('%1', '%2');")
-                           .arg(fullQtWidgetId(*tw))
-                           .arg(twi->text(0)));
+                           .arg(fullQtWidgetId(*tw), twi->text(0)));
 
     disconnect(tw, SIGNAL(itemExpanded(QTreeWidgetItem *)), this,
                SLOT(itemExpanded(QTreeWidgetItem *)));
@@ -957,9 +943,9 @@ void TreeViewWatcher::treeViewExpanded(const QModelIndex &index)
     assert(it != modelToView_.end());
     auto tv = qobject_cast<const QTreeView *>(it->second);
     assert(tv != nullptr);
-    generateScriptCmd_(QStringLiteral("Test.expandItemInTreeView('%1', %2);")
-                           .arg(qt_monkey_agent::fullQtWidgetId(*tv))
-                           .arg(modelIndexToPos(index)));
+    generateScriptCmd_(
+        QStringLiteral("Test.expandItemInTreeView('%1', %2);")
+            .arg(qt_monkey_agent::fullQtWidgetId(*tv), modelIndexToPos(index)));
     disconnect(tv, SIGNAL(expanded(const QModelIndex &)), this,
                SLOT(treeViewExpanded(const QModelIndex &)));
     auto jt = treeViewSet_.find(tv);
