@@ -314,11 +314,12 @@ void QtMonkey::stdinDataReady()
     parseOutputFromGui(
         {dataPtr->constData(), static_cast<size_t>(dataPtr->size())},
         parserStopPos,
-        [this](QString script, QString scriptFileName) {
+        [this](QString script_code, QString scriptFileName) {
             auto scripts
-                = Script::splitToExecutableParts(scriptFileName, script);
-            for (auto &&script : scripts)
+                = Script::splitToExecutableParts(scriptFileName, script_code);
+            for (auto &&script : scripts) {
                 toRunList_.push(std::move(script));
+            }
             onAgentReadyToRunScript();
         },
         [](QString errMsg) {
@@ -356,8 +357,8 @@ bool QtMonkey::runScriptFromFile(QString codeToRunBeforeAll,
         }
         QTextStream t(&f);
         t.setCodec(QTextCodec::codecForName(encoding));
-        const QString script = t.readAll();
-        auto scripts = Script::splitToExecutableParts(fn, script);
+        const QString script_code = t.readAll();
+        auto scripts = Script::splitToExecutableParts(fn, script_code);
         for (auto &&script : scripts) {
             if (!codeToRunBeforeAll.isEmpty()) {
                 DBGPRINT("%s: we add code to run: '%s' to '%s'", Q_FUNC_INFO,

@@ -957,15 +957,17 @@ void TreeViewWatcher::treeViewDestroyed(QObject *obj)
 {
     DBGPRINT("begin %s", Q_FUNC_INFO);
     assert(obj != nullptr);
-    auto it = treeViewSet_.find(obj);
-    if (it != treeViewSet_.end())
-        treeViewSet_.erase(it);
-
-    for (auto it = modelToView_.begin(); it != modelToView_.end(); ++it)
+    {
+        auto it = treeViewSet_.find(obj);
+        if (it != treeViewSet_.end())
+            treeViewSet_.erase(it);
+    }
+    for (auto it = modelToView_.begin(); it != modelToView_.end(); ++it) {
         if (it->second == obj) {
             modelToView_.erase(it);
             break;
         }
+    }
 }
 
 void TreeViewWatcher::watch(QTreeView &tv)

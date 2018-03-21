@@ -98,7 +98,7 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName,
         DBGPRINT("%s: list of widget's name empty\n", Q_FUNC_INFO);
         return nullptr;
     }
-
+#ifdef DEBUG_SCRIPT_API
     QWidget *win = qApp->activeModalWidget();
 
     DBGPRINT("(%s, %d): Modal Window %s", Q_FUNC_INFO, __LINE__,
@@ -111,7 +111,7 @@ static QWidget *doGetWidgetWithSuchName(const QString &objectName,
     win = qApp->activeWindow();
     DBGPRINT("(%s, %d): active Window %s", Q_FUNC_INFO, __LINE__,
              win != nullptr ? qPrintable(win->objectName()) : "nullptr");
-
+#endif
     const QString &mainWidgetName = names.first();
     DBGPRINT("(%s, %d): search widget with such name %s", Q_FUNC_INFO, __LINE__,
              qPrintable(mainWidgetName));
@@ -259,8 +259,8 @@ static bool canNotFind(QWidget &w)
             return false;
         }
         if (!window->testAttribute(Qt::WA_TransparentForMouseEvents)) {
-            QWidget *child = window->childAt(window->mapFromGlobal(pos));
-            if (child == nullptr) {
+            QWidget *wchild = window->childAt(window->mapFromGlobal(pos));
+            if (wchild == nullptr) {
                 QObject *child = &w;
                 while (child->parent() != nullptr)
                     child = child->parent();
