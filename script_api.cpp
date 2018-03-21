@@ -841,6 +841,54 @@ void ScriptAPI::expandItemInTreeView(const QString &treeName,
     }
 }
 
+void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr, const QString &real_syms)
+{
+    Step step(agent_);
+
+    DBGPRINT("%s begin name %s, keys %s", Q_FUNC_INFO, qPrintable(widgetName),
+             qPrintable(keyseqStr));
+
+    QWidget *w = getWidgetWithSuchName(agent_, widgetName,
+                                       waitWidgetAppearTimeoutSec_, true);
+
+    if (w == nullptr) {
+        agent_.throwScriptError(
+            QStringLiteral("Can not find widget with such name %1")
+                .arg(widgetName));
+        return;
+    }
+
+    const QKeySequence keySeq = QKeySequence::fromString(keyseqStr);
+    if (keySeq.isEmpty()) {
+        agent_.throwScriptError(
+            QStringLiteral("Invalid key sequnce(%1): empty").arg(keyseqStr));
+        return;
+    }
+    Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+    for (decltype(keySeq.count()) i = 0;
+         keySeq.count() > 0 && i < (keySeq.count() - 1); ++i)
+        modifiers |= static_cast<Qt::KeyboardModifier>(keySeq[i]);
+    QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
+        [w, keySeq, modifiers, real_syms] {
+            if (!w->hasFocus())
+                w->setFocus(Qt::ShortcutFocusReason);
+            DBGPRINT("%s: key(%s) click for widget", Q_FUNC_INFO,
+                     qPrintable(keySeq.toString()));
+            auto ascii_key = static_cast<Qt::Key>(keySeq[keySeq.count() - 1]);
+            QTest::sendKeyEvent(QTest::KeyAction::Click, w, ascii_key, real_syms,
+                                modifiers);
+            DBGPRINT("%s: key(%s) click for widget DONE", Q_FUNC_INFO,
+                     qPrintable(keySeq.toString()));
+            return QString();
+        },
+        newEventLoopWaitTimeoutSecs_);
+
+    if (!errMsg.isEmpty()) {
+        DBGPRINT("%s: error %s", Q_FUNC_INFO, qPrintable(errMsg));
+        agent_.throwScriptError(std::move(errMsg));
+    }
+}
+
 void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr)
 {
     Step step(agent_);
@@ -1057,4 +1105,13 @@ void ScriptAPI::saveScreenshots(const QString &path, int nSteps)
     DBGPRINT("%s: path '%s'", Q_FUNC_INFO, qPrintable(path));
     Step step(agent_);
     agent_.saveScreenshots(path, nSteps);
+}
+
+void ScriptAPI::quitApp()
+{
+    Step step(agent_);
+    agent_.runCodeInGuiThreadSync([] {
+            QCoreApplication::exit(0);
+            return QString();
+        });
 }

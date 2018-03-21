@@ -59,11 +59,11 @@ public slots:
     /**
      * Emulation of key press
      * @param widgetName name of widget
-     * @param keyseq key to press and possible special keys modifiers,
+     * @param ascii_keyseq key to press and possible special keys modifiers,
      * for example Ctrl+P
      */
-    void keyClick(const QString &widgetName, const QString &keyseq);
-
+    void keyClick(const QString &widgetName, const QString &ascii_keyseq);
+    void keyClick(const QString &widgetName, const QString &ascii_keyseq, const QString &real_syms);
     //@{
     /**
      * Group of functions to emulate activate item (menu item, list item etc)
@@ -155,6 +155,8 @@ public slots:
      */
     QObject *getObjectById(const QString &id);
 
+    //! Call QCoreApplication::exit(0)
+    void quitApp();
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;
