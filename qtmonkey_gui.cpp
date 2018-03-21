@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 
 #include "common.hpp"
 #include "json11.hpp"
