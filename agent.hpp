@@ -51,7 +51,7 @@ public:
      */
     explicit Agent(const QKeySequence &showObjectShortcut
                    = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
-                   std::list<CustomEventAnalyzer> customEventAnalyzers = {},
+                   std::list<CustomEventAnalyzer> customEventAnalyzers = std::list<CustomEventAnalyzer>(),
                    PopulateScriptContext = {});
     ~Agent();
     Agent(const Agent &) = delete;
