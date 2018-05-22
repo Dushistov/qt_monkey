@@ -139,10 +139,7 @@ endif ()
 file(GLOB QT_MONKEY_HEADERS ${qt_monkey_SOURCE_DIR}/*.hpp)
 install(FILES ${QT_MONKEY_HEADERS} DESTINATION include/qt_monkey)
 
-install(FILES ${qt_monkey_SOURCE_DIR}/contrib/json11/json11.hpp DESTINATION include/json11)
-
-install(FILES ${qt_monkey_BINARY_DIR}/libcommon_app_lib.a
-              ${qt_monkey_BINARY_DIR}/libqtmonkey_agent.a
+install(FILES ${qt_monkey_BINARY_DIR}/libqtmonkey_agent.a
         DESTINATION lib)
 
 install(FILES ${qt_monkey_BINARY_DIR}/qtmonkey_app
