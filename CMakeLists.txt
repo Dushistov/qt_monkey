@@ -135,3 +135,16 @@ if (USE_TESTS)
   add_test(NAME gui_test_general COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_gui_tests.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test1.js")
   add_test(NAME gui_test_restart COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/gui_restart_test.py" $<TARGET_FILE:qtmonkey_app> $<TARGET_FILE:test_app> "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_restart.js")
 endif ()
+
+file(GLOB QT_MONKEY_HEADERS ${qt_monkey_SOURCE_DIR}/*.hpp)
+install(FILES ${QT_MONKEY_HEADERS} DESTINATION include/qt_monkey)
+
+install(FILES ${qt_monkey_BINARY_DIR}/libqtmonkey_agent.a
+        DESTINATION lib)
+
+install(FILES ${qt_monkey_BINARY_DIR}/qtmonkey_app
+              ${qt_monkey_BINARY_DIR}/qtmonkey_gui
+        DESTINATION bin
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                    GROUP_EXECUTE GROUP_READ
+                    WORLD_READ WORLD_EXECUTE)
