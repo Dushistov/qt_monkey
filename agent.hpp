@@ -26,7 +26,7 @@ namespace Private
 class Script;
 class ScriptRunner;
 class MacMenuActionWatcher;
-}
+} // namespace Private
 /**
  * This class is used as agent inside user's program
  * to catch/apply Qt events
@@ -51,7 +51,8 @@ public:
      */
     explicit Agent(const QKeySequence &showObjectShortcut
                    = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
-                   std::list<CustomEventAnalyzer> customEventAnalyzers = std::list<CustomEventAnalyzer>(),
+                   std::list<CustomEventAnalyzer> customEventAnalyzers
+                   = std::list<CustomEventAnalyzer>(),
                    PopulateScriptContext = {});
     ~Agent();
     Agent(const Agent &) = delete;
@@ -98,6 +99,7 @@ private:
             global_ = cur;
         }
         ~CurrentScriptContext() { global_ = nullptr; }
+
     private:
         Private::ScriptRunner *&global_;
     };
@@ -118,4 +120,4 @@ private:
 
     void customEvent(QEvent *event) override;
 };
-}
+} // namespace qt_monkey_agent

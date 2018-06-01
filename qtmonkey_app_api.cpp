@@ -15,10 +15,11 @@ namespace
 struct QStringJsonTrait final {
     explicit QStringJsonTrait(const QString &s) : str_(s) {}
     std::string to_json() const { return str_.toUtf8().data(); }
+
 private:
     const QString &str_;
 };
-}
+} // namespace
 
 std::string createPacketFromUserAppEvent(const QString &scriptLines)
 {
@@ -149,4 +150,4 @@ void parseOutputFromGui(
         }
     }
 }
-}
+} // namespace qt_monkey_app

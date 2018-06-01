@@ -6,10 +6,10 @@
 #include "script.hpp"
 #include "script_api.hpp"
 
-using qt_monkey_agent::Private::ScriptRunner;
-using qt_monkey_agent::Private::Script;
-using qt_monkey_agent::ScriptAPI;
 using qt_monkey_agent::PopulateScriptContext;
+using qt_monkey_agent::ScriptAPI;
+using qt_monkey_agent::Private::Script;
+using qt_monkey_agent::Private::ScriptRunner;
 
 static int extractLineNumFromBacktraceLine(const QString &line)
 {

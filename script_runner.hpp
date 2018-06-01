@@ -24,5 +24,5 @@ public:
 private:
     QScriptEngine scriptEngine_;
 };
-}
-}
+} // namespace Private
+} // namespace qt_monkey_agent

@@ -32,4 +32,4 @@ void parseOutputFromMonkeyApp(
     const std::function<void()> &onScriptEnd,
     const std::function<void(QString)> &onScriptLog,
     const std::function<void(QString)> &onParseError);
-}
+} // namespace qt_monkey_app

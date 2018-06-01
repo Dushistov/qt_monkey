@@ -25,10 +25,10 @@
 using qt_monkey_agent::CustomEventAnalyzer;
 using qt_monkey_agent::EventInfo;
 using qt_monkey_agent::GenerateCommand;
+using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::Private::MacMenuActionWatcher;
 using qt_monkey_agent::Private::TreeViewWatcher;
 using qt_monkey_agent::Private::TreeWidgetWatcher;
-using qt_monkey_agent::UserEventsAnalyzer;
 
 #ifdef DEBUG_ANALYZER
 #define DBGPRINT(fmt, ...) qDebug(fmt, __VA_ARGS__)
@@ -642,7 +642,7 @@ static QString widgetUnderCursorInfo()
     return res;
 }
 
-} // namespace {
+} // namespace
 
 void qt_monkey_agent::escapeTextForScript(QString &text)
 {

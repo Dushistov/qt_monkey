@@ -42,4 +42,4 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 };
-}
+} // namespace qt_monkey_common

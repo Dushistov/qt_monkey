@@ -12,4 +12,4 @@ namespace qt_monkey_agent
  * @tparam QScriptEngine & script engine which is used to run monkey script
  */
 using PopulateScriptContext = std::function<void(QScriptEngine &)>;
-}
+} // namespace qt_monkey_agent

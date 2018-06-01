@@ -38,4 +38,4 @@ struct EventInfo final {
  * @tparam const EventInfo & information about event
  */
 using CustomEventAnalyzer = std::function<QString(const EventInfo &)>;
-}
+} // namespace qt_monkey_agent

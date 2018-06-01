@@ -467,7 +467,7 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
     }
 }
 
-} // namespace {
+} // namespace
 
 void qt_monkey_agent::clickInGuiThread(qt_monkey_agent::Agent &agent,
                                        const QPoint &posA, QWidget &wA,
@@ -841,7 +841,8 @@ void ScriptAPI::expandItemInTreeView(const QString &treeName,
     }
 }
 
-void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr, const QString &real_syms)
+void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr,
+                         const QString &real_syms)
 {
     Step step(agent_);
 
@@ -875,8 +876,8 @@ void ScriptAPI::keyClick(const QString &widgetName, const QString &keyseqStr, co
             DBGPRINT("%s: key(%s) click for widget", Q_FUNC_INFO,
                      qPrintable(keySeq.toString()));
             auto ascii_key = static_cast<Qt::Key>(keySeq[keySeq.count() - 1]);
-            QTest::sendKeyEvent(QTest::KeyAction::Click, w, ascii_key, real_syms,
-                                modifiers);
+            QTest::sendKeyEvent(QTest::KeyAction::Click, w, ascii_key,
+                                real_syms, modifiers);
             DBGPRINT("%s: key(%s) click for widget DONE", Q_FUNC_INFO,
                      qPrintable(keySeq.toString()));
             return QString();
@@ -1079,7 +1080,7 @@ void ScriptAPI::AssertEqual(const QString &s1, const QString &s2)
     if (s1 != s2) {
         agent_.throwScriptError(
             QStringLiteral("Assertion failed: Expect \"%1\", Actual \"%2\"")
-            .arg(s1, s2));
+                .arg(s1, s2));
     }
 }
 
@@ -1111,7 +1112,7 @@ void ScriptAPI::quitApp()
 {
     Step step(agent_);
     agent_.runCodeInGuiThreadSync([] {
-            QCoreApplication::exit(0);
-            return QString();
-        });
+        QCoreApplication::exit(0);
+        return QString();
+    });
 }

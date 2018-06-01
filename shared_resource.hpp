@@ -10,22 +10,27 @@ public:
     struct DataPtrWrapper final {
         DataPtrWrapper() = delete;
         DataPtrWrapper(const DataPtrWrapper &) = delete;
-        DataPtrWrapper(DataPtrWrapper &&o): resource_(o.resource_), moved_(o.moved_) {
+        DataPtrWrapper(DataPtrWrapper &&o)
+            : resource_(o.resource_), moved_(o.moved_)
+        {
             o.moved_ = true;
         }
         DataPtrWrapper &operator=(const DataPtrWrapper &) = delete;
-        ~DataPtrWrapper() {
+        ~DataPtrWrapper()
+        {
             if (!moved_) {
                 resource_.dataLock_.unlock();
             }
         }
         DataType *operator->() { return &resource_.data_; }
         DataType &operator*() { return resource_.data_; }
+
     private:
         SharedResource &resource_;
         bool moved_;
         friend class SharedResource;
-        DataPtrWrapper(SharedResource &resource) : resource_(resource), moved_(false)
+        DataPtrWrapper(SharedResource &resource)
+            : resource_(resource), moved_(false)
         {
             resource_.dataLock_.lock();
         }
@@ -36,8 +41,9 @@ public:
     SharedResource &operator=(const SharedResource &) = delete;
     SharedResource(const SharedResource &) = delete;
     DataPtrWrapper get() { return DataPtrWrapper(*this); }
+
 private:
     DataType data_;
     std::mutex dataLock_;
 };
-}
+} // namespace qt_monkey_common

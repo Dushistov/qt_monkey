@@ -40,7 +40,7 @@ static std::ostream &operator<<(std::ostream &os, const QString &str)
     return os;
 }
 #endif
-}
+} // namespace
 
 static inline void PrintTo(const QString &str, ::std::ostream *os)
 {

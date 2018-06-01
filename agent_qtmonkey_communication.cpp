@@ -92,7 +92,7 @@ static std::pair<uint32_t, QString> extractFromPacket(QByteArray &buf)
     buf.remove(0, headerSize + packetSize);
     return res;
 }
-}
+} // namespace
 
 CommunicationMonkeyPart::CommunicationMonkeyPart(QObject *parent)
     : QObject(parent), controlSock_{new QTcpServer}
