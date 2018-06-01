@@ -29,13 +29,14 @@ public:
     const QString &fileName() const { return fileName_; }
     bool runAfterAppStart() const { return runAfterStart_; }
     void setRunAfterAppStart(bool val) { runAfterStart_ = val; }
+
 private:
     QString fileName_;
     int lineno_ = 1;
     QString code_;
     bool runAfterStart_ = false;
 };
-}
-}
+} // namespace Private
+} // namespace qt_monkey_agent
 
 Q_DECLARE_METATYPE(qt_monkey_agent::Private::Script);

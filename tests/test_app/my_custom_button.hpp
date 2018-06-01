@@ -2,8 +2,9 @@
 
 #include <QPushButton>
 
-class MyCustomButton : public QPushButton {
+class MyCustomButton : public QPushButton
+{
     Q_OBJECT
 public:
-    MyCustomButton(QWidget *parent): QPushButton(parent) {}
+    MyCustomButton(QWidget *parent) : QPushButton(parent) {}
 };

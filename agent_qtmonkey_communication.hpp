@@ -105,5 +105,5 @@ private:
 
     void timerEvent(QTimerEvent *) override;
 };
-}
-}
+} // namespace Private
+} // namespace qt_monkey_agent

@@ -30,8 +30,8 @@
 
 using qt_monkey_agent::Private::PacketTypeForAgent;
 using qt_monkey_agent::Private::Script;
-using qt_monkey_app::Private::StdinReader;
 using qt_monkey_app::QtMonkey;
+using qt_monkey_app::Private::StdinReader;
 using qt_monkey_common::operator<<;
 
 namespace
@@ -198,7 +198,7 @@ void ReadStdinThread::stop()
     throw std::runtime_error("close(stdin) failure: " + std::to_string(errno));
 }
 #endif
-} // namespace {
+} // namespace
 
 QtMonkey::QtMonkey(bool exitOnScriptError)
     : exitOnScriptError_(exitOnScriptError)

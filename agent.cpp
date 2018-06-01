@@ -11,8 +11,8 @@
 #include <QApplication>
 #include <QWidget>
 #include <QtCore/QAbstractEventDispatcher>
-#include <QtCore/QThread>
 #include <QtCore/QDir>
+#include <QtCore/QThread>
 
 #include "agent_qtmonkey_communication.hpp"
 #include "common.hpp"
@@ -24,11 +24,11 @@
 using qt_monkey_agent::Agent;
 using qt_monkey_agent::CustomEventAnalyzer;
 using qt_monkey_agent::PopulateScriptContext;
+using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_agent::Private::CommunicationAgentPart;
 using qt_monkey_agent::Private::PacketTypeForMonkey;
 using qt_monkey_agent::Private::Script;
 using qt_monkey_agent::Private::ScriptRunner;
-using qt_monkey_agent::UserEventsAnalyzer;
 using qt_monkey_common::Semaphore;
 
 Agent *Agent::gAgent_ = nullptr;
@@ -57,6 +57,7 @@ public:
     {
     }
     void exec() { func_(); }
+
 private:
     std::function<void()> func_;
 };
@@ -76,6 +77,7 @@ public:
         static_cast<FuncEvent *>(event)->exec();
     }
     QEvent::Type eventType() const { return eventType_; }
+
 private:
     std::atomic<QEvent::Type> eventType_;
 };
@@ -150,14 +152,15 @@ void removeObsolete(const QString &path, unsigned nSteps)
         }
         if (i > nSteps) {
             if (!QFile::remove(entryPath)) {
-                qWarning("%s: can not remove '%s'\n", Q_FUNC_INFO, qPrintable(entryPath));
+                qWarning("%s: can not remove '%s'\n", Q_FUNC_INFO,
+                         qPrintable(entryPath));
             }
         } else {
             ++i;
         }
     }
 }
-}
+} // namespace
 
 Agent::Agent(const QKeySequence &showObjectShortcut,
              std::list<CustomEventAnalyzer> customEventAnalyzers,
@@ -221,7 +224,8 @@ void Agent::onRunScriptCommand(const Script &script)
     QString errMsg;
     {
         CurrentScriptContext context(&sr, curScriptRunner_);
-        DBGPRINT("%s: scrit file name %s", Q_FUNC_INFO, qPrintable(script.fileName()));
+        DBGPRINT("%s: scrit file name %s", Q_FUNC_INFO,
+                 qPrintable(script.fileName()));
         QFileInfo fi(script.fileName());
         scriptBaseName_ = fi.baseName();
         sr.runScript(script, errMsg);
@@ -273,12 +277,14 @@ void Agent::scriptCheckPoint()
     if (nSteps > 0) {
         removeObsolete(savePath, static_cast<unsigned>(nSteps));
         savePath = QString("%1%2screenshot_%4_%3.png")
-            .arg(savePath).arg(QDir::separator()).arg(lineno)
-            .arg(scriptBaseName_);
+                       .arg(savePath)
+                       .arg(QDir::separator())
+                       .arg(lineno)
+                       .arg(scriptBaseName_);
         runCodeInGuiThreadSync([savePath]() -> QString {
-                saveScreenShot(savePath);
-                return QString();
-            });
+            saveScreenShot(savePath);
+            return QString();
+        });
     }
 }
 
@@ -352,23 +358,23 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
     });
 
     for (unsigned int iter = 0; nowDialog == wasDialog; ++iter) {
-        if (waitSem->tryAcquire(
-                1, std::chrono::milliseconds(waitIntervalMsec))) {
+        if (waitSem->tryAcquire(1,
+                                std::chrono::milliseconds(waitIntervalMsec))) {
             return *res;
         }
         if ((iter % 10) == 0) {
             nowDialog = nullptr;
             runCodeInGuiThreadSync([&nowDialog] {
-                    nowDialog = qApp->activeModalWidget();
-                    return QString();
-                });
-            DBGPRINT("%s: wasDialog %p, nowDialog %p, attempt %d", Q_FUNC_INFO, wasDialog, nowDialog, attempt);
+                nowDialog = qApp->activeModalWidget();
+                return QString();
+            });
+            DBGPRINT("%s: wasDialog %p, nowDialog %p, attempt %d", Q_FUNC_INFO,
+                     wasDialog, nowDialog, attempt);
         }
     }
 
     for (; attempt < N; ++attempt) {
-        if (waitSem->tryAcquire(
-                1, std::chrono::milliseconds(waitIntervalMsec)))
+        if (waitSem->tryAcquire(1, std::chrono::milliseconds(waitIntervalMsec)))
             return *res;
         qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
     }

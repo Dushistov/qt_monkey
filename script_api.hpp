@@ -39,9 +39,9 @@ public:
     explicit ScriptAPI(Agent &agent, QObject *parent = nullptr);
 public slots:
     /**
-      * send message to log
-      * @param msgStr string with message
-      */
+     * send message to log
+     * @param msgStr string with message
+     */
     void log(const QString &msgStr);
 
     //@{
@@ -63,7 +63,8 @@ public slots:
      * for example Ctrl+P
      */
     void keyClick(const QString &widgetName, const QString &ascii_keyseq);
-    void keyClick(const QString &widgetName, const QString &ascii_keyseq, const QString &real_syms);
+    void keyClick(const QString &widgetName, const QString &ascii_keyseq,
+                  const QString &real_syms);
     //@{
     /**
      * Group of functions to emulate activate item (menu item, list item etc)
@@ -157,6 +158,7 @@ public slots:
 
     //! Call QCoreApplication::exit(0)
     void quitApp();
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;
@@ -168,4 +170,4 @@ private:
                      bool isDblClick,
                      Qt::MatchFlag searchItemFlag = Qt::MatchStartsWith);
 };
-}
+} // namespace qt_monkey_agent

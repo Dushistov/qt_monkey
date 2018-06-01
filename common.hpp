@@ -31,4 +31,4 @@ inline std::ostream &operator<<(std::ostream &os, const QByteArray &str)
     std::copy(str.begin(), str.end(), std::ostreambuf_iterator<char>(os));
     return os;
 }
-}
+} // namespace qt_monkey_common

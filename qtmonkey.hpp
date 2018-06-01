@@ -32,7 +32,7 @@ public:
     void emitError(const QString &msg) { emit error(msg); }
     void emitDataReady() { emit dataReady(); }
 };
-}
+} // namespace Private
 //! main class to control agent
 class QtMonkey
 #ifndef Q_MOC_RUN
@@ -81,4 +81,4 @@ private:
 
     void setScriptRunningState(bool val);
 };
-}
+} // namespace qt_monkey_app

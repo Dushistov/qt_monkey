@@ -34,7 +34,7 @@ static inline std::ostream &operator<<(std::ostream &os, const QString &str)
     os << str.toLocal8Bit();
     return os;
 }
-}
+} // namespace
 
 #if QT_VERSION >= 0x050000
 static void msgHandler(QtMsgType type, const QMessageLogContext &,
@@ -120,16 +120,20 @@ int main(int argc, char *argv[])
             ++i;
             encoding = argv[i];
         } else if (std::strcmp(argv[i], "--trace-script-exec") == 0) {
-            codeToRunBeforeAll += QStringLiteral("Test.setTraceEnabled(true);\n");
+            codeToRunBeforeAll
+                += QStringLiteral("Test.setTraceEnabled(true);\n");
         } else if (std::strcmp(argv[i], "--save-screenshots") == 0) {
-            int nSteps = -1 ;
+            int nSteps = -1;
             if ((i + 2) >= argc || sscanf(argv[i + 2], "%d", &nSteps) != 1) {
                 std::cerr << qPrintable(usage());
                 return EXIT_FAILURE;
             }
             const QString path = argv[i + 1];
             i += 2;
-            codeToRunBeforeAll += QStringLiteral("Test.saveScreenshots(\"%1\", %2);\n").arg(path).arg(nSteps);
+            codeToRunBeforeAll
+                += QStringLiteral("Test.saveScreenshots(\"%1\", %2);\n")
+                       .arg(path)
+                       .arg(nSteps);
         } else if (std::strcmp(argv[i], "--help") == 0
                    || std::strcmp(argv[i], "-h") == 0) {
             std::cout << qPrintable(usage());
