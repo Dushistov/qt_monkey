@@ -117,11 +117,15 @@ target_link_libraries(qtmonkey_gui ${QT_LIBRARIES} common_app_lib)
 
 if (USE_TESTS)
   enable_testing()
+  # Prevent overriding the parent project's compiler/linker
+  # settings on Windows
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
   add_subdirectory(contrib/gtest/googletest)
   include_directories(contrib/gtest/googletest/include)
   add_executable(run_unit_tests tests/unit_tests.cpp)
   target_include_directories(run_unit_tests PRIVATE contrib/json11)
-  target_link_libraries(run_unit_tests qtmonkey_agent gtest gtest_main ${QT_LIBRARIES} common_app_lib)
+  target_link_libraries(run_unit_tests qtmonkey_agent gtest_main ${QT_LIBRARIES} common_app_lib)
   add_test(unit_tests run_unit_tests)
 
   add_executable(json11_test contrib/json11/test.cpp)
