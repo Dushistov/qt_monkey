@@ -225,7 +225,7 @@ static Qt::MatchFlag matchFlagFromString(const QString &flagName)
 }
 
 static void posToModelIndex(const QAbstractItemModel *model,
-                            const QList<int> &pos, QModelIndex &mi)
+                            const QVector<int> &pos, QModelIndex &mi)
 {
     if (pos.isEmpty())
         return;
@@ -281,7 +281,7 @@ static bool canNotFind(QWidget &w)
 }
 
 static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent,
-                                      const QList<int> &idxPos,
+                                      const QVector<int> &idxPos,
                                       QAbstractItemView *view, bool isDblClick)
 {
     DBGPRINT("%s: begin", Q_FUNC_INFO);
@@ -385,7 +385,7 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
             return QStringLiteral("There are no such item %1").arg(itemName);
         }
 
-        QList<int> pos = {0, idx};
+        QVector<int> pos{0, idx};
         clickOnItemInGuiThread(agent, pos, qcb->view(), false);
         // hack to fix drop down list hiding
         QTest::keyClick(qcb->view(), Qt::Key_Enter);
@@ -757,11 +757,13 @@ void ScriptAPI::activateItemInView(const QString &widgetName,
                 .arg(widgetName));
         return;
     }
-    auto view = qobject_cast<QTreeView *>(w);
+    auto view = qobject_cast<QAbstractItemView *>(w);
+
     if (view == nullptr) {
-        DBGPRINT("%s: can not (dbl)click in not QTreeView", Q_FUNC_INFO);
+        DBGPRINT("%s: can not (dbl)click in not QAbstractItemView",
+                 Q_FUNC_INFO);
         agent_.throwScriptError(QStringLiteral(
-            "Can not activate(double click) in not QTreeView widget"));
+            "Can not activate(double click) in not QAbstractItemView widget"));
         return;
     }
 
@@ -772,10 +774,12 @@ void ScriptAPI::activateItemInView(const QString &widgetName,
         return;
     }
 
-    QList<int> pos;
+    QVector<int> pos;
+    pos.reserve(vpos.size());
 
-    for (const QVariant &var : vpos)
+    for (const QVariant &var : vpos) {
         pos.push_back(var.toInt());
+    }
     Agent *agent = &agent_;
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
         [pos, view, agent] {
@@ -817,10 +821,11 @@ void ScriptAPI::expandItemInTreeView(const QString &treeName,
         return;
     }
 
-    QList<int> pos;
-    for (const QVariant &var : vpos)
+    QVector<int> pos;
+    pos.reserve(vpos.size());
+    for (const QVariant &var : vpos) {
         pos.push_back(var.toInt());
-
+    }
     QString errMsg = agent_.runCodeInGuiThreadSyncWithTimeout(
         [view, pos] {
             QAbstractItemModel *model = view->model();

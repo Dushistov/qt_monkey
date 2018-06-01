@@ -15,6 +15,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QShortcutEvent>
+#include <QTableView>
 #include <QTreeWidget>
 #include <QWidget>
 #include <QtCore/QEvent>
@@ -496,6 +497,54 @@ static QString qlistViewActivateClick(const EventInfo &eventInfo)
     return res;
 }
 
+static QString qtableViewActivateClick(const EventInfo &eventInfo)
+{
+    QString res;
+    QWidget *widget = eventInfo.widget;
+    QEvent *event = eventInfo.event;
+
+    if (widget == nullptr || event == nullptr
+        || !(event->type() == QEvent::MouseButtonDblClick
+             || event->type() == QEvent::MouseButtonPress)) {
+        return res;
+    }
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
+
+    QWidget *tbl_view
+        = searchThroghSuperClassesAndParents(widget, "QTableView", 2);
+    if (tbl_view == nullptr) {
+        return res;
+    }
+
+    if (widget == tbl_view
+        || qobject_cast<QWidget *>(widget->parent()) == tbl_view) {
+        DBGPRINT("%s: yeah, it is table view", Q_FUNC_INFO);
+        auto tv = qobject_cast<QTableView *>(tbl_view);
+        if (tv == nullptr) {
+            return res;
+        }
+        QModelIndex mi = tv->indexAt(pos);
+        if (mi.isValid()) {
+            DBGPRINT("%s: column %d, row %d, have parent %s", Q_FUNC_INFO,
+                     mi.column(), mi.row(),
+                     mi.parent() == QModelIndex() ? "false" : "true");
+            if (mouseEvent->type() == QEvent::MouseButtonDblClick) {
+                res = QStringLiteral("Test.doubleClickOnItemInView('%1', %2);")
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv),
+                               modelIndexToPos(mi));
+            } else {
+                res = QStringLiteral("Test.activateItemInView('%1', %2);")
+                          .arg(qt_monkey_agent::fullQtWidgetId(*tv),
+                               modelIndexToPos(mi));
+            }
+        } else {
+            DBGPRINT("%s: not valid model index for tv", Q_FUNC_INFO);
+        }
+    }
+    return res;
+}
+
 static QString workspaceTitleBarPressed(const EventInfo &eventInfo)
 {
     QString res;
@@ -697,7 +746,8 @@ UserEventsAnalyzer::UserEventsAnalyzer(
          {qmenuActivateClick, qtreeWidgetActivateClick, qcomboBoxActivateClick,
           qlistWidgetActivateClick, qtabBarActivateClick,
           qtreeViewActivateClick, qlistViewActivateClick,
-          workspaceTitleBarPressed, clickOnUnnamedButton, qmenuOnMacTriggered})
+          qtableViewActivateClick, workspaceTitleBarPressed,
+          clickOnUnnamedButton, qmenuOnMacTriggered})
         customEventAnalyzers_.emplace_back(fun);
 }
 
