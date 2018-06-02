@@ -317,6 +317,27 @@ static QString clickOnItemInGuiThread(qt_monkey_agent::Agent &agent,
     return QString();
 }
 
+static QListWidgetItem *findItemInQListWidgetThatMatch(QListWidget &lw,
+                                                       const QString &text)
+{
+    const QList<QListWidgetItem *> itms = lw.findItems(text, Qt::MatchExactly);
+    if (itms.isEmpty()) {
+        for (int i = 0; i < lw.count(); ++i) {
+            auto item = lw.item(i);
+            if (auto wdg = lw.itemWidget(item)) {
+                const auto max_cap
+                    = qt_monkey_common::searchMaxTextInWidget(*wdg);
+                if (max_cap.contains(text)) {
+                    return item;
+                }
+            }
+        }
+        return nullptr;
+    } else {
+        return itms.first();
+    }
+}
+
 static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
                                        QWidget *w, const QString &itemName,
                                        bool isDblClick, Qt::MatchFlag matchFlag)
@@ -412,13 +433,19 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
             .arg(itemName);
     } else if (auto lw = qobject_cast<QListWidget *>(w)) {
         DBGPRINT("(%s, %d): this is list widget", Q_FUNC_INFO, __LINE__);
-        const QList<QListWidgetItem *> itms
-            = lw->findItems(itemName, Qt::MatchExactly);
-        if (itms.isEmpty()) {
+
+        QListWidgetItem *it = findItemInQListWidgetThatMatch(*lw, itemName);
+        if (it == nullptr) {
             return QStringLiteral("There are no such item %1 in QListWidget")
                 .arg(itemName);
         }
-        QListWidgetItem *it = itms.first();
+        if (auto item_wdg = lw->itemWidget(it)) {
+            auto pos = item_wdg->rect().center();
+            QTest::mouseClick(item_wdg, Qt::LeftButton, 0,
+                              pos
+            );
+            return QString();
+        }
         QRect ir = lw->visualItemRect(it);
 
         DBGPRINT("%s: x %d, y %d", Q_FUNC_INFO, ir.x(), ir.y());

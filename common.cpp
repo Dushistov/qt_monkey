@@ -2,7 +2,9 @@
 
 #include <chrono>
 
-#include <QtCore/QCoreApplication>
+#include <QWidget>
+#include <QLabel>
+#include <QCoreApplication>
 
 QString qt_monkey_common::processErrorToString(QProcess::ProcessError err)
 {
@@ -25,4 +27,20 @@ void qt_monkey_common::processEventsFor(int timeoutMs)
     } while (std::chrono::duration_cast<std::chrono::milliseconds>(
                  std::chrono::steady_clock::now() - startTime)
              < std::chrono::milliseconds(timeoutMs));
+}
+
+QString qt_monkey_common::searchMaxTextInWidget(QWidget &wdg)
+{
+    auto labels = wdg.findChildren<QLabel *>();
+    if (auto lbl = qobject_cast<QLabel *>(&wdg)) {
+        labels.append(lbl);
+    }
+    QString max_cap;
+    for (const auto &lbl : labels) {
+        auto txt = lbl->text();
+        if (txt.length() > max_cap.length()) {
+            max_cap = txt;
+        }
+    }
+    return max_cap;
 }

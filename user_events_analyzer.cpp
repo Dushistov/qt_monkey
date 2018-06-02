@@ -10,6 +10,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
+#include <QEvent>
 #include <QListView>
 #include <QListWidget>
 #include <QMenu>
@@ -18,7 +19,6 @@
 #include <QTableView>
 #include <QTreeWidget>
 #include <QWidget>
-#include <QtCore/QEvent>
 
 #include "agent.hpp"
 #include "common.hpp"
@@ -287,11 +287,57 @@ static QString qtreeWidgetActivateClick(const EventInfo &eventInfo)
     return res;
 }
 
-static QString qcomboBoxActivateClick(const EventInfo &eventInfo)
+static QString qlistWidgetActivateClick(const EventInfo &eventInfo)
 {
     QString res;
     QEvent *event = eventInfo.event;
     QWidget *widget = eventInfo.widget;
+    if (widget == nullptr || event == nullptr
+        || !(event->type() == QEvent::MouseButtonDblClick
+             || event->type() == QEvent::MouseButtonPress))
+        return res;
+
+    auto mouseEvent = static_cast<QMouseEvent *>(event);
+    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
+
+    if (QWidget *alistwdg
+        = searchThroghSuperClassesAndParents(widget, "QListWidget")) {
+        DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
+        QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
+        if (listwdg == nullptr)
+            return res;
+        QListWidgetItem *item = listwdg->itemAt(pos);
+        if (item == nullptr)
+            return res;
+
+        auto generate_item_click
+            = [](QListWidget &listwdg, const QString &text) {
+                  return QStringLiteral("Test.activateItem('%1', '%2');")
+                      .arg(qt_monkey_agent::fullQtWidgetId(listwdg), text);
+              };
+
+        auto text = item->text();
+        if (!text.isEmpty()) {
+            DBGPRINT("%s: found text in item: %s", Q_FUNC_INFO,
+                     qPrintable(text));
+            return generate_item_click(*listwdg, text);
+        }
+        DBGPRINT("%s: text of item is empty", Q_FUNC_INFO);
+        if (auto wdg = listwdg->itemWidget(item)) {
+            const auto max_cap = qt_monkey_common::searchMaxTextInWidget(*wdg);
+            if (!max_cap.isEmpty()) {
+                return generate_item_click(*listwdg, max_cap);
+            }
+        }
+    }
+    return res;
+}
+
+static QString qcomboBoxActivateClick(const EventInfo &eventInfo)
+{
+    QString res;
+    QWidget *widget = eventInfo.widget;
+    QEvent *event = eventInfo.event;
     if (widget == nullptr || event == nullptr
         || !(event->type() == QEvent::MouseButtonDblClick
              || event->type() == QEvent::MouseButtonPress))
@@ -316,45 +362,10 @@ static QString qcomboBoxActivateClick(const EventInfo &eventInfo)
         return QStringLiteral("Test.activateItem('%1', '%2');")
             .arg(qt_monkey_agent::fullQtWidgetId(*combobox),
                  qobject_cast<QComboBox *>(combobox)->itemText(idx.row()));
-    } else if (QWidget *alistwdg
-               = searchThroghSuperClassesAndParents(widget, "QListWidget")) {
+    } else if (searchThroghSuperClassesAndParents(widget, "QListWidget")
+               != nullptr) {
         DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
-        auto listwdg = qobject_cast<QListWidget *>(alistwdg);
-        if (listwdg == nullptr)
-            return res;
-        const QListWidgetItem *it = listwdg->itemAt(pos);
-        if (it == nullptr)
-            return res;
-        return QStringLiteral("Test.activateItem('%1', '%2');")
-            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg), it->text());
-    }
-    return res;
-}
-
-static QString qlistWidgetActivateClick(const EventInfo &eventInfo)
-{
-    QString res;
-    QWidget *widget = eventInfo.widget;
-    QEvent *event = eventInfo.event;
-    if (widget == nullptr || event == nullptr
-        || !(event->type() == QEvent::MouseButtonDblClick
-             || event->type() == QEvent::MouseButtonPress))
-        return res;
-
-    auto mouseEvent = static_cast<QMouseEvent *>(event);
-    const QPoint pos = widget->mapFromGlobal(mouseEvent->globalPos());
-
-    if (QWidget *alistwdg
-        = searchThroghSuperClassesAndParents(widget, "QListWidget")) {
-        DBGPRINT("%s: this is QListWidget", Q_FUNC_INFO);
-        QListWidget *listwdg = qobject_cast<QListWidget *>(alistwdg);
-        if (listwdg == nullptr)
-            return res;
-        QListWidgetItem *it = listwdg->itemAt(pos);
-        if (it == nullptr)
-            return res;
-        return QStringLiteral("Test.activateItem('%1', '%2');")
-            .arg(qt_monkey_agent::fullQtWidgetId(*listwdg), it->text());
+        return qlistWidgetActivateClick(eventInfo);
     }
     return res;
 }
