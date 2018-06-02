@@ -2,7 +2,6 @@
 
 #include <QtCore/QString>
 #include <functional>
-#include <utility>
 
 class QWidget;
 class QEvent;
