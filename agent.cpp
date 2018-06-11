@@ -237,12 +237,16 @@ void Agent::onRunScriptCommand(const Script &script)
     } else {
         DBGPRINT("%s: sync with gui", Q_FUNC_INFO);
         // if all ok, sync with gui, so user recieve all events
-        // before script exit
-        runCodeInGuiThreadSync([] {
-            qt_monkey_common::processEventsFor(300 /*ms*/);
-            DBGPRINT("%s: wait done", Q_FUNC_INFO);
-            return QString();
-        });
+        // before script exit, add timeout for special case:
+        // if it is short configure script before main, and program
+        // starts with modal dialog
+        runCodeInGuiThreadSyncWithTimeout(
+            [] {
+                qt_monkey_common::processEventsFor(300 /*ms*/);
+                DBGPRINT("%s: wait done", Q_FUNC_INFO);
+                return QString();
+            },
+            10 * 1000);
     }
     DBGPRINT("%s: report about script end", Q_FUNC_INFO);
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::ScriptEnd,
