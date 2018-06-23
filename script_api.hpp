@@ -159,6 +159,10 @@ public slots:
     //! Call QCoreApplication::exit(0)
     void quitApp();
 
+    //! Returns the clipboard text as plain text, or an empty string if the
+    //! clipboard does not contain any text.
+    QString clipboardText() const;
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;
