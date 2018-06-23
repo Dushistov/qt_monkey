@@ -22,6 +22,7 @@
 #include <QMdiSubWindow>
 #define QWorkspace QMdiArea
 #endif
+#include <QClipboard>
 #include <QtCore/QStringList>
 #include <QtScript/QScriptEngine>
 #include <QtTest/QTest>
@@ -441,9 +442,7 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
         }
         if (auto item_wdg = lw->itemWidget(it)) {
             auto pos = item_wdg->rect().center();
-            QTest::mouseClick(item_wdg, Qt::LeftButton, 0,
-                              pos
-            );
+            QTest::mouseClick(item_wdg, Qt::LeftButton, 0, pos);
             return QString();
         }
         QRect ir = lw->visualItemRect(it);
@@ -1146,5 +1145,15 @@ void ScriptAPI::quitApp()
     agent_.runCodeInGuiThreadSync([] {
         QCoreApplication::exit(0);
         return QString();
+    });
+}
+
+QString ScriptAPI::clipboardText() const
+{
+    Step step{agent_};
+    return agent_.runCodeInGuiThreadSync([] {
+        auto clipboard = QApplication::clipboard();
+        assert(clipboard != nullptr);
+        return clipboard->text();
     });
 }

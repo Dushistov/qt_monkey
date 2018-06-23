@@ -47,7 +47,7 @@ script:
       export DISPLAY=:99.0;
       sh -e /etc/init.d/xvfb start;
       sleep 3;
-      ctest --output-on-failure;
+      ctest -V;
     else
-      ctest --output-on-failure  -I 1,2,1;
+      ctest -V  -I 1,2,1;
     fi  
