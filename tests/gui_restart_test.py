@@ -18,6 +18,6 @@ if '{"script logs": "start 1"}' in lines \
    and '{"script logs": "start 2"}' in lines:
     sys.exit(0)
 else:
-    sys.stderr.write("input not contains suitable Test.log output")
+    sys.stderr.write("output of application not contains suitable lines\n")
+    sys.stderr.write("\n".join(lines) + "\n")
     sys.exit(1)
-

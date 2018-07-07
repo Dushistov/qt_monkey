@@ -170,6 +170,9 @@ void CommunicationMonkeyPart::readDataFromClientSocket()
             case PacketTypeForMonkey::ScriptLog:
                 emit scriptLog(std::move(packet.second));
                 break;
+            case PacketTypeForMonkey::Close:
+                sendCommand(PacketTypeForAgent::CloseAck, QString());
+                break;
             default:
                 qWarning("%s: unknown type of packet from qtmonkey's agent: %u",
                          Q_FUNC_INFO, static_cast<unsigned>(packet.first));
@@ -272,6 +275,13 @@ bool CommunicationAgentPart::connectToMonkey()
     }
 }
 
+bool CommunicationAgentPart::hasCloseAck() const
+{
+    return close_ack_.loadAcquire() == 1;
+}
+
+void CommunicationAgentPart::clearCloseAck() { close_ack_.storeRelease(0); }
+
 void CommunicationAgentPart::readCommands()
 {
     assert(sock_.state() == QAbstractSocket::ConnectedState);
@@ -321,6 +331,9 @@ void CommunicationAgentPart::readCommands()
                 DBGPRINT("%s: script file name now '%s'", Q_FUNC_INFO,
                          qPrintable(packet.second));
                 currentScriptFileName_ = std::move(packet.second);
+                break;
+            case PacketTypeForAgent::CloseAck:
+                close_ack_.storeRelease(1);
                 break;
             default:
                 qWarning("%s: unknown type of packet for qtmonkey's agent: %u",

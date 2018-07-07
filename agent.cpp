@@ -389,7 +389,14 @@ QString Agent::runCodeInGuiThreadSyncWithTimeout(std::function<QString()> func,
 void Agent::onAppAboutToQuit()
 {
     qDebug("%s: begin", Q_FUNC_INFO);
-    qt_monkey_common::processEventsFor(300 /*ms*/);
+    assert(QThread::currentThread() != thread_);
+    GET_THREAD(thread)
+    thread->channelWithMonkey()->clearCloseAck();
+    thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::Close,
+                                             QString());
+    while (!thread->channelWithMonkey()->hasCloseAck()) {
+        qt_monkey_common::processEventsFor(300 /*ms*/);
+    }
 }
 
 void Agent::onScriptLog(const QString &msg)

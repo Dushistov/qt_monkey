@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+
+#include <QAtomicInteger>
 #include <QtCore/QBasicTimer>
 #include <QtCore/QObject>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
-#include <cstdint>
-#include <memory>
 
 #include "shared_resource.hpp"
 
@@ -23,6 +25,7 @@ enum class PacketTypeForAgent : uint32_t {
     SetBreakPointInScript,
     ContinueScript,
     HaltScript,
+    CloseAck,
 };
 
 enum class PacketTypeForMonkey : uint32_t {
@@ -32,6 +35,7 @@ enum class PacketTypeForMonkey : uint32_t {
     ScriptLog,
     // TODO: may be need?
     ScriptStopOnBreakPoint,
+    Close,
 };
 
 class CommunicationMonkeyPart
@@ -91,6 +95,8 @@ public:
     void sendCommand(PacketTypeForMonkey pt, const QString &);
     bool connectToMonkey();
     void flushSendData();
+    bool hasCloseAck() const;
+    void clearCloseAck();
 private slots:
     void sendData();
     void readCommands();
@@ -102,6 +108,7 @@ private:
     qt_monkey_common::SharedResource<QByteArray> sendBuf_;
     QByteArray recvBuf_;
     QString currentScriptFileName_;
+    QAtomicInteger<int> close_ack_{0};
 
     void timerEvent(QTimerEvent *) override;
 };
