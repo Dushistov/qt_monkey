@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <memory>
 
-#include <QAtomicInteger>
+#include <QAtomicInt>
 #include <QtCore/QBasicTimer>
 #include <QtCore/QObject>
 #include <QtNetwork/QTcpServer>
@@ -95,8 +95,8 @@ public:
     void sendCommand(PacketTypeForMonkey pt, const QString &);
     bool connectToMonkey();
     void flushSendData();
-    bool hasCloseAck() const;
-    void clearCloseAck();
+    bool hasCloseAck();
+
 private slots:
     void sendData();
     void readCommands();
@@ -108,7 +108,7 @@ private:
     qt_monkey_common::SharedResource<QByteArray> sendBuf_;
     QByteArray recvBuf_;
     QString currentScriptFileName_;
-    QAtomicInteger<int> close_ack_{0};
+    QAtomicInt close_ack_{0};
 
     void timerEvent(QTimerEvent *) override;
 };

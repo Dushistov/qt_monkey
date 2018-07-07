@@ -391,7 +391,6 @@ void Agent::onAppAboutToQuit()
     qDebug("%s: begin", Q_FUNC_INFO);
     assert(QThread::currentThread() != thread_);
     GET_THREAD(thread)
-    thread->channelWithMonkey()->clearCloseAck();
     thread->channelWithMonkey()->sendCommand(PacketTypeForMonkey::Close,
                                              QString());
     while (!thread->channelWithMonkey()->hasCloseAck()) {

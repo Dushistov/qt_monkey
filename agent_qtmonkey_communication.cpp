@@ -275,12 +275,10 @@ bool CommunicationAgentPart::connectToMonkey()
     }
 }
 
-bool CommunicationAgentPart::hasCloseAck() const
+bool CommunicationAgentPart::hasCloseAck()
 {
-    return close_ack_.loadAcquire() == 1;
+    return close_ack_.testAndSetOrdered(1, 0);
 }
-
-void CommunicationAgentPart::clearCloseAck() { close_ack_.storeRelease(0); }
 
 void CommunicationAgentPart::readCommands()
 {
@@ -333,7 +331,7 @@ void CommunicationAgentPart::readCommands()
                 currentScriptFileName_ = std::move(packet.second);
                 break;
             case PacketTypeForAgent::CloseAck:
-                close_ack_.storeRelease(1);
+                (void)close_ack_.ref();
                 break;
             default:
                 qWarning("%s: unknown type of packet for qtmonkey's agent: %u",
