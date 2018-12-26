@@ -579,9 +579,13 @@ static QString workspaceTitleBarPressed(const EventInfo &eventInfo)
         return res;
 
     w = qobject_cast<QWidget *>(w->parent());
-    auto parent = qobject_cast<QWidget *>(w->parent());
-    if (w == nullptr || parent == nullptr)
+    if (w == nullptr) {
         return res;
+    }
+    auto parent = qobject_cast<QWidget *>(w->parent());
+    if (parent == nullptr) {
+        return res;
+    }
     return QStringLiteral("Test.chooseWindowWithTitle('%1', '%2');")
         .arg(qt_monkey_agent::fullQtWidgetId(*parent), w->windowTitle());
 }
