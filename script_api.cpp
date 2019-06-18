@@ -1157,3 +1157,14 @@ QString ScriptAPI::clipboardText() const
         return clipboard->text();
     });
 }
+
+QString ScriptAPI::systemEnvironmentVariable(const QString &name) const noexcept
+{
+    auto latin_name = name.toLatin1();
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+    return qEnvironmentVariable(latin_name.data());
+#else
+    auto bytes = qgetenv(latin_name.data());
+    return QString::fromLocal8Bit(bytes);
+#endif
+}

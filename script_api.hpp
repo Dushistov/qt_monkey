@@ -163,6 +163,10 @@ public slots:
     //! clipboard does not contain any text.
     QString clipboardText() const;
 
+    //! Return system environment variable, @name should contain only ascii
+    //! characters
+    QString systemEnvironmentVariable(const QString &name) const noexcept;
+
 private:
     Agent &agent_;
     int waitWidgetAppearTimeoutSec_ = 30;
