@@ -45,15 +45,14 @@ public:
      * @param showObjectShortcut shorutcut key to show object info under mouse
      * cursor
      * @param customEventAnalyzers custom event analyzers, it is possible
-     * @param apiExtension this object will be registered by it's objectName()
-     * as script context
-     * to use them as event analyzer extension point
+     * @param populateScriptContext gives you ability to introduce
+     * new functions or objects for scripts
      */
     explicit Agent(const QKeySequence &showObjectShortcut
                    = QKeySequence(Qt::Key_F12 | Qt::SHIFT),
                    std::list<CustomEventAnalyzer> customEventAnalyzers
                    = std::list<CustomEventAnalyzer>(),
-                   PopulateScriptContext = {});
+                   PopulateScriptContext populateScriptContext = {});
     ~Agent();
     Agent(const Agent &) = delete;
     Agent &operator=(const Agent &) = delete;
