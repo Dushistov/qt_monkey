@@ -133,7 +133,11 @@ void saveScreenShot(const QString &path)
 {
     QWidget *w = QApplication::activeWindow();
     if (w) {
+#if QT_VERSION < 0x050000
         QPixmap p = QPixmap::grabWidget(w);
+#else
+        QPixmap p = w->grab();
+#endif
         p.save(path);
     }
 }
