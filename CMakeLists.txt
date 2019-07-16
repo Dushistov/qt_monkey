@@ -143,12 +143,10 @@ endif ()
 file(GLOB QT_MONKEY_HEADERS ${qt_monkey_SOURCE_DIR}/*.hpp)
 install(FILES ${QT_MONKEY_HEADERS} DESTINATION include/qt_monkey)
 
-install(FILES ${qt_monkey_BINARY_DIR}/libqtmonkey_agent.a
-        DESTINATION lib)
+install(TARGETS qtmonkey_agent DESTINATION lib)
 
-install(FILES ${qt_monkey_BINARY_DIR}/qtmonkey_app
-              ${qt_monkey_BINARY_DIR}/qtmonkey_gui
-        DESTINATION bin
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-                    GROUP_EXECUTE GROUP_READ
-                    WORLD_READ WORLD_EXECUTE)
+install(TARGETS qtmonkey_app qtmonkey_gui
+            DESTINATION bin
+            PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                        GROUP_EXECUTE GROUP_READ
+                        WORLD_READ WORLD_EXECUTE)
