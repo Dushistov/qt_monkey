@@ -43,6 +43,20 @@ using qt_monkey_agent::ScriptAPI;
     } while (false)
 #endif
 
+namespace qt_monkey_agent
+{
+namespace internal
+{
+enum class MouseBtnEventType : quint8 {
+    Click,
+    DClick,
+    Press,
+    Release,
+};
+}
+} // namespace qt_monkey_agent
+using qt_monkey_agent::internal::MouseBtnEventType;
+
 namespace
 {
 static const int sleepTimeForWaitWidgetMs = 70;
@@ -493,11 +507,9 @@ static QString activateItemInGuiThread(qt_monkey_agent::Agent &agent,
     }
 }
 
-} // namespace
-
-void qt_monkey_agent::clickInGuiThread(qt_monkey_agent::Agent &agent,
-                                       const QPoint &posA, QWidget &wA,
-                                       Qt::MouseButton btn, bool dblClick)
+void emulateMouseBtnEventInGuiThread(Agent &agent, const QPoint &posA,
+                                     QWidget &wA, Qt::MouseButton btn,
+                                     MouseBtnEventType event_type)
 {
     DBGPRINT("%s: begin dblClick %s, x %d, y %d, %p", Q_FUNC_INFO,
              dblClick ? "true" : "false", posA.x(), posA.y(), &wA);
@@ -540,10 +552,31 @@ void qt_monkey_agent::clickInGuiThread(qt_monkey_agent::Agent &agent,
 
     moveMouseTo(agent, w->mapToGlobal(pos));
 
-    if (dblClick)
-        QTest::mouseDClick(w, btn, 0, pos, -1);
-    else
+    switch (event_type) {
+    case MouseBtnEventType::Click:
         QTest::mouseClick(w, btn, 0, pos, -1);
+        break;
+    case MouseBtnEventType::DClick:
+        QTest::mouseDClick(w, btn, 0, pos, -1);
+        break;
+    case MouseBtnEventType::Press:
+        QTest::mousePress(w, btn, 0, pos, -1);
+        break;
+    case MouseBtnEventType::Release:
+        QTest::mouseRelease(w, btn, 0, pos, -1);
+        break;
+    }
+}
+
+} // namespace
+
+void qt_monkey_agent::clickInGuiThread(qt_monkey_agent::Agent &agent,
+                                       const QPoint &posA, QWidget &wA,
+                                       Qt::MouseButton btn, bool dblClick)
+{
+    emulateMouseBtnEventInGuiThread(agent, posA, wA, btn,
+                                    dblClick ? MouseBtnEventType::DClick
+                                             : MouseBtnEventType::Click);
 }
 
 QWidget *qt_monkey_agent::getWidgetWithSuchName(
@@ -595,9 +628,9 @@ void ScriptAPI::log(const QString &msgStr)
     agent_.sendToLog(std::move(msgStr));
 }
 
-void ScriptAPI::doMouseClick(const QString &widgetName,
-                             const QString &buttonName, int x, int y,
-                             bool doubleClick)
+void ScriptAPI::doMouseBtnEvent(const QString &widgetName,
+                                const QString &buttonName, int x, int y,
+                                MouseBtnEventType event_type)
 {
     QWidget *w = getWidgetWithSuchName(agent_, widgetName,
                                        waitWidgetAppearTimeoutSec_, true);
@@ -618,10 +651,10 @@ void ScriptAPI::doMouseClick(const QString &widgetName,
     const QPoint pos{x, y};
     Agent *agent = &agent_;
     agent_.runCodeInGuiThreadSyncWithTimeout(
-        [pos, doubleClick, w, btn, agent] {
+        [pos, event_type, w, btn, agent] {
             assert(w != nullptr);
             assert(agent != nullptr);
-            clickInGuiThread(*agent, pos, *w, btn, doubleClick);
+            emulateMouseBtnEventInGuiThread(*agent, pos, *w, btn, event_type);
             return QString();
         },
         newEventLoopWaitTimeoutSecs_);
@@ -672,14 +705,28 @@ void ScriptAPI::mouseClick(const QString &widgetName, const QString &button,
                            int x, int y)
 {
     Step step(agent_);
-    doMouseClick(widgetName, button, x, y, false);
+    doMouseBtnEvent(widgetName, button, x, y, MouseBtnEventType::Click);
 }
 
 void ScriptAPI::mouseDClick(const QString &widgetName, const QString &button,
                             int x, int y)
 {
     Step step(agent_);
-    doMouseClick(widgetName, button, x, y, true);
+    doMouseBtnEvent(widgetName, button, x, y, MouseBtnEventType::DClick);
+}
+
+void ScriptAPI::mousePress(const QString &widget, const QString &button, int x,
+                           int y)
+{
+    Step step(agent_);
+    doMouseBtnEvent(widget, button, x, y, MouseBtnEventType::Press);
+}
+
+void ScriptAPI::mouseRelease(const QString &widget, const QString &button,
+                             int x, int y)
+{
+    Step step(agent_);
+    doMouseBtnEvent(widget, button, x, y, MouseBtnEventType::Release);
 }
 
 void ScriptAPI::activateItem(const QString &widget, const QString &actionName)
@@ -788,8 +835,9 @@ void ScriptAPI::activateItemInView(const QString &widgetName,
     if (view == nullptr) {
         DBGPRINT("%s: can not (dbl)click in not QAbstractItemView",
                  Q_FUNC_INFO);
-        agent_.throwScriptError(QStringLiteral(
-            "Can not activate(double click) in not QAbstractItemView widget"));
+        agent_.throwScriptError(
+            QStringLiteral("Can not activate(double click) in not "
+                           "QAbstractItemView widget"));
         return;
     }
 
@@ -856,8 +904,8 @@ void ScriptAPI::expandItemInTreeView(const QString &treeName,
         [view, pos] {
             QAbstractItemModel *model = view->model();
             if (model == nullptr)
-                return QStringLiteral(
-                    "ExpandItemInTree failed, internal error: model is null");
+                return QStringLiteral("ExpandItemInTree failed, internal "
+                                      "error: model is null");
 
             QModelIndex mi;
             posToModelIndex(model, pos, mi);

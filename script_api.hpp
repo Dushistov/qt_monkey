@@ -8,7 +8,10 @@ class QAbstractItemView;
 
 namespace qt_monkey_agent
 {
-
+namespace internal
+{
+enum class MouseBtnEventType : quint8;
+}
 class Agent;
 
 void moveMouseTo(Agent &, const QPoint &point);
@@ -46,7 +49,7 @@ public slots:
 
     //@{
     /**
-     * Emulate click or double click on widget
+     * Emulate button press, release, click or double click on widget
      * @param widget name of widget
      * @param button mouse button
      * @param x x of click in widget coordinate system
@@ -55,7 +58,11 @@ public slots:
     void mouseClick(const QString &widget, const QString &button, int x, int y);
     void mouseDClick(const QString &widget, const QString &button, int x,
                      int y);
+    void mousePress(const QString &widget, const QString &button, int x, int y);
+    void mouseRelease(const QString &widget, const QString &button, int x,
+                      int y);
     //@}
+
     /**
      * Emulation of key press
      * @param widgetName name of widget
@@ -172,8 +179,8 @@ private:
     int waitWidgetAppearTimeoutSec_ = 30;
     int newEventLoopWaitTimeoutSecs_ = 5;
 
-    void doMouseClick(const QString &widgetName, const QString &buttonName,
-                      int x, int y, bool doubleClick);
+    void doMouseBtnEvent(const QString &widgetName, const QString &buttonName,
+                         int x, int y, internal::MouseBtnEventType);
     void doClickItem(const QString &objectName, const QString &itemName,
                      bool isDblClick,
                      Qt::MatchFlag searchItemFlag = Qt::MatchStartsWith);
